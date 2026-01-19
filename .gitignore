@@ -1,0 +1,28 @@
+# Keep environment variables out of version control
+//ルート
+
+//macOS
+.DS_Store
+
+//Env
+.env
+.env.*
+web/.env
+web/.env.*
+
+//VSCode LocalHistory / backup
+.history/
+web/.history/
+
+//Node / Next.js
+node_modules/
+web/node_modules/
+.next/
+web/.next/
+out/
+dist/
+
+//prisma generate(今回の構成だとgenerated/が生成物のため)
+generated/
+web/generated/
+
