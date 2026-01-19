@@ -13,3 +13,15 @@
 cd web
 npm install
 npm run dev
+
+
+
+
+---
+
+ ② 開発時の基本フロー（これを繰り返すだけ）
+
+```bash
+git add .
+git commit -m "機能内容が分かるメッセージ"
+git push
