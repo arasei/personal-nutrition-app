@@ -85,7 +85,7 @@ model Diagnosis {
 model DiagnosisQuestion {
   id            String   @id @default(uuid())
   questionText  String
-  order         Int
+  order         Int      @unique
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
