@@ -1,5 +1,6 @@
 // web/app/diagnosis/step/[order]/page.tsx
 //診断ステップページコンポーネント
+//URL→検証→DB→表示→次の導線
 
 //URLで状態を表す
 //1問分の枠組みを表示
