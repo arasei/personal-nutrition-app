@@ -54,9 +54,9 @@ model Profile {
 //Diagnosis
 // この人がこの日にやった1回の診断
 // 1回の診断そのもの(イベント・状態を持つ)
-// 途中再開のためのcurrentStep
-// statusで進行中/完了など管理
-
+// currentStep→途中再開OK
+// status→進行中/完了を管理
+// 回答ログと1:N
 
 model Diagnosis {
   id             String   @id @default(uuid())
@@ -78,9 +78,10 @@ model Diagnosis {
 
 
 //DiagnosisQuestion
-// 質問マスタ(増えない)
+// 質問はマスタ(増えない)
 // 全診断共通
-// orderで表示順制御
+// orderで表示順を制御
+// 回答ログ(DiagnosisAnswer)と1:N
 
 model DiagnosisQuestion {
   id            String   @id @default(uuid())
@@ -95,8 +96,10 @@ model DiagnosisQuestion {
 
 
 //DiagnosisAnswer
-// この診断で、この質問に、どう答えたか
-// その診断で生まれる「回答ログ」(一番増えるテーブル)
+// どの診断で、どの質問に、どう答えたか、いつ答えたかを履歴として保存
+// 質問は固定
+// 回答は無限に増える
+// 診断ごとに独立
 
 // DiagnosisAnswerはDiagnosisとDiagnosisQuestion両方に属する。
 // その為、relationが２つ存在する。(中間テーブル的存在)
