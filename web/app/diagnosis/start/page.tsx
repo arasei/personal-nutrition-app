@@ -4,7 +4,7 @@ import StartButton from './StartButton';
 
 export default function DiagnosisStartPage() {
   return (
-    <main>
+    <main style={{ padding: 24 }}>
       <h1>診断を始める</h1>
       <p>ボタンを押すと質問1に進みます。</p>
       <StartButton/>
