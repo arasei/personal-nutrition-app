@@ -1,7 +1,8 @@
-//回答保存用のServer Action
+//診断レコード作成してstep1へリダイレクトするServer Action
 
 //全体の流れ：
-// URLからorderを取得→DBに回答を保存→次の導線へリダイレクト
+//診断開始ボタン押下→Server Actionで診断レコード作成→診断step1へリダイレクト
+
 "use server";
 
 import { prisma } from "@/lib/prisma";
@@ -20,6 +21,7 @@ export async function startDiagnosis() {
       started_at: new Date(),
       profile_id: dummyProfileId,//今は仮。後で認証機能を実装したら本物のprofile_idに置き換える
     },
+    //作成した診断レコードのIDのみ取得(redirectで使用するため)
     select: { id: true },
   });
   //診断step1へdiagnosisIdを使用し、redirectする設計に変更
