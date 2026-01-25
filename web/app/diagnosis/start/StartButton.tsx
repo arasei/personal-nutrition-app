@@ -8,7 +8,7 @@
 
 
 import { startDiagnosis } from "./actions";
-//
+
 export default function StartButton() {
   return (
     //formで囲み、buttonのtypeをsubmitにする設計に変更

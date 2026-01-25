@@ -121,4 +121,7 @@ model DiagnosisAnswer {
 
   @@index([diagnosis_id])
   @@index([question_id])
+
+  //同じ診断×同じ質問は1つだけ
+  @@unique([diagnosis_id, question_id])
 }
