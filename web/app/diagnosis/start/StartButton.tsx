@@ -7,7 +7,7 @@
 // そのため、useRouterを削除し、formで囲み、buttonのtypeをsubmitにする設計に変更
 
 
-import { startDiagnosis } from "./actions";
+import { startDiagnosis } from "./StartAction";
 
 export default function StartButton() {
   return (

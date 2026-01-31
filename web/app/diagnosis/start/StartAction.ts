@@ -11,7 +11,6 @@ import { redirect } from "next/navigation";
 //診断開始アクション
 //Prismaで診断テーブルに新規レコードを作成し、診断step1(/diagnosis/step/1)へリダイレクト
 export async function startDiagnosis() {
-  const dummyProfileId = "dummy-profile-id"; 
   //診断レコードを作成
   const diagnosis = await prisma.diagnosis.create({
     //初期値を設定(現段階では最小の4項目のみ。後で必要に応じて追加予定)
@@ -19,7 +18,7 @@ export async function startDiagnosis() {
       status: "in_progress",
       current_step: 1,
       started_at: new Date(),
-      profile_id: dummyProfileId,//今は仮。後で認証機能を実装したら本物のprofile_idに置き換える
+      //profile_id: null は書かない。今は渡さない設計に変更
     },
     //作成した診断レコードのIDのみ取得(redirectで使用するため)
     select: { id: true },
