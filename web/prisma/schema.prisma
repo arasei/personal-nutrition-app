@@ -60,17 +60,19 @@ model Profile {
 
 model Diagnosis {
   id             String   @id @default(uuid())
-  profile_id     String
+  //現状、nullable(任意)に「?」
+  profile_id     String?
 
   status         String
   current_step   Int?
-  started_at     DateTime
+  started_at     DateTime?
   completed_at   DateTime?
 
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt
 
-  profile        Profile @relation(fields: [profile_id], references: [id])
+  //現状、nullable(任意)に「?」
+  profile        Profile? @relation(fields: [profile_id], references: [id])
   answers        DiagnosisAnswer[]
 
   @@index([profile_id])
@@ -104,13 +106,15 @@ model DiagnosisQuestion {
 // DiagnosisAnswerはDiagnosisとDiagnosisQuestion両方に属する。
 // その為、relationが２つ存在する。(中間テーブル的存在)
 
+//スコア集計
 
 model DiagnosisAnswer {
   id                 String   @id @default(uuid())
   diagnosis_id       String
   question_id        String
 
-  answer_value       String
+  //answer_valueをIntに統一(回答データの集計を簡単にするため)
+  answer_value       Int
   answered_at        DateTime
 
   created_at         DateTime @default(now())

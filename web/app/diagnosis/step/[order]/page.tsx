@@ -8,13 +8,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { saveAnswer } from "../StepAction";
 
 //URLパラメータの型定義
 //searchParamsでdiagnosisIdを受け取る設計に変更
 //diagnosisIdは任意、paramsは必須
 type PageProps = {
-  params: Promise<{order: string}>;
-  searchParams: Promise<{ diagnosisId?: string }>;
+  params: {order: string};
+  searchParams: { diagnosisId?: string };
 };
 
 //診断ステップページコンポーネント
@@ -50,7 +51,7 @@ export default async function DiagnosisStepPage({ params, searchParams } : PageP
 
   //Prisma Clientを使ってDBから現在の質問(orderNum)を1件取得
   //質問が存在しない場合はnotFoundを呼び出して404ページへ遷移
-  const question = await prisma.diagnosisQuestion.findUnique({
+  const question = await prisma.diagnosisQuestion.findFirst({
     where: { order: orderNum },
   });
   if (!question) notFound();
@@ -68,9 +69,36 @@ export default async function DiagnosisStepPage({ params, searchParams } : PageP
       <p>現在の質問番号: {orderNum}/{total}</p>
       <p>質問:{question.questionText}</p>
 
-      <div style={{ marginTop: "16px" }}>
-        <Link href={nextHref}>{isLast ? "結果へ" : "次へ"}</Link>
-      </div>
+      {/* 回答保存の為のフォーム追加 */}
+      {/* hidden:サーバーへ一緒に送る(データとして必要なため) */}
+      {/* visible:ユーザーが入力・操作する部分 */}
+      {/* Server ActionのsaveAnswerをformのactionに指定 */}
+      {/*submit時に、saveAnswerにFormDataとして以下のform action= が送られる*/}
+      <form action={saveAnswer} style={{marginTop: 16}}>
+        <input type="hidden" name="diagnosisId" value={ diagnosisId }/>{/* name:診断セッション(どの診断の回答か)を識別するID */}{/*value:URLのsearchParamsからの取得値*/}
+        <input type="hidden" name="questionId" value={ question.id }/>{/* name:どの質問に対する回答か(DBの質問レコードのID)*/}{/*value:DBからの取得値*/}
+        <input type="hidden" name="order" value={ String(orderNum) }/>{/* name:今何問目か(次へ進むために+1する材料)*/}{/*value:URLのparamsからの取得値*/}
+
+        {/*回答入力欄*/}
+        <input
+        name="answer"
+        placeholder="回答を入力"
+        required
+        style={{ padding: 8, width: 320 }}/>
+
+        {/*次の質問へ進むボタン*/}
+        <button type="submit" style={{ marginLeft: 8, padding: "8px 12px" }}>
+          { isLast ? "結果" : "次へ" }
+        </button>
+      </form>
+
+      {/* 戻るリンク */}
+      {/*現状は、動く導線を作成したいのでLinkで表示後ほどボタン化*/}
+      {orderNum > 1 && (
+        <div style={{ marginTop: 16 }}>
+          <Link href={`/diagnosis/step/${ orderNum - 1 }?diagnosisId=${ diagnosisId }`}>戻る</Link>
+        </div>
+      )}
     </main>
-  )
+  );
 }
