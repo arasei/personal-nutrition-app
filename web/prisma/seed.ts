@@ -6,14 +6,14 @@ const prisma = new PrismaClient();
 
 //メイン処理
 
-//仮ユーザー
+//ユーザー(仮)
 const users = [
   {
     id: "user_1",
   },
 ];
 
-//親・1回の診断のデータ
+//親・1回の診断のデータ(仮)
 //userId追加
 const diagnoses = [
   {
@@ -41,7 +41,7 @@ const diagnosisQuestions = [
   { id: "question_10", order: 10, questionText: "食事の時間が不規則になりがち"},
 ];
 
-//回答データ
+//回答データ(仮)
 const diagnosisAnswers = [
   {
     diagnosisId: "diagnosis_1",
