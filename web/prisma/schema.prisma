@@ -100,26 +100,49 @@ model DiagnosisQuestion {
 // relationの外部キーは必ず参照先と同じ型
 // @@unique([diagnosisId, questionId]) → 1診断×1質問 = 1回答を保証
 
-//idはIntのまま(内部管理用の為)
+//idはStringの仕様に変更
+// (seed.tsのconst diagnosisAnswers内でdiagnosisIdを文字列として扱っているため)
+// 意味をあるIDをそのまま使うため
 
+//answerValueをvalue(ただの数値として)に変更
+// valueには意味を持たせすぎない仕様
+// 回答以外にもvalueの数値(Int)を使うため(スコア、回数、強度、Yes/No(0/1)など)
+
+//diagnosisId / questionId は 意味を持つ識別子なのでStringにする
+// 数値IDに変換する理由がない
+// フロント・API・seed すべてで同じ値を使える
 
 model DiagnosisAnswer {
-  id          Int            @id @default(autoincrement())
+  id                   String            @id @default(cuid())
 
-  diagnosisId String
-  questionId  String
+  diagnosisResultId    String
+  diagnosisId          String
+  questionId           String
 
 
   diagnosis   Diagnosis         @relation(fields: [diagnosisId], references: [id])
   question    DiagnosisQuestion @relation(fields: [questionId], references: [id])
 
-  answerValue Int
+  value                 Int
   
-  answeredAt  DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  answeredAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   @@unique([diagnosisId, questionId])
   @@index([diagnosisId])
   @@index([questionId])
+}
+
+//DiagnosisResult
+//1回の診断というイベント
+
+//idはStringにして、フロント・API・seedで全て統一
+
+model DiagnosisResult {
+  id                   String   @id @default(cuid())
+  userId               String
+  diagnosisId          String
+  createdAt            DateTime @default(now())
+  answers              DiagnosisAnswer[]
 }
