@@ -19,8 +19,6 @@ datasource db {
 
 //indexは回答一覧を取る時間を短くするために設定
 
-
-
 //Profile
 // この人は誰か・診断に使う基本情報・診断の親
 // Supabase Userと1:1
@@ -41,7 +39,7 @@ model Profile {
 
 //User1人: Diagnosis 複数
 model User {
-  id        String   @id
+  id        String      @id
   diagnoses Diagnosis[]
 }
 
@@ -56,8 +54,8 @@ model User {
 //Diagnosisは必ず誰かに属する
 
 model Diagnosis {
-  id          String            @id 
-  userId      String
+  id     String @id
+  userId String
 
   user        User              @relation(fields: [userId], references: [id])
   status      String
@@ -113,21 +111,21 @@ model DiagnosisQuestion {
 // フロント・API・seed すべてで同じ値を使える
 
 model DiagnosisAnswer {
-  id                   String            @id @default(cuid())
+  id String @id @default(cuid())
 
-  diagnosisResultId    String
-  diagnosisId          String
-  questionId           String
+  diagnosisResultId String
+  diagnosisId       String
+  questionId        String
 
+  diagnosis       Diagnosis         @relation(fields: [diagnosisId], references: [id])
+  question        DiagnosisQuestion @relation(fields: [questionId], references: [id])
+  diagnosisResult DiagnosisResult   @relation(fields: [diagnosisResultId], references: [id])
 
-  diagnosis   Diagnosis         @relation(fields: [diagnosisId], references: [id])
-  question    DiagnosisQuestion @relation(fields: [questionId], references: [id])
+  value Int
 
-  value                 Int
-  
-  answeredAt            DateTime?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  answeredAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@unique([diagnosisId, questionId])
   @@index([diagnosisId])
@@ -140,9 +138,9 @@ model DiagnosisAnswer {
 //idはStringにして、フロント・API・seedで全て統一
 
 model DiagnosisResult {
-  id                   String   @id @default(cuid())
-  userId               String
-  diagnosisId          String
-  createdAt            DateTime @default(now())
-  answers              DiagnosisAnswer[]
+  id          String            @id @default(cuid())
+  userId      String
+  diagnosisId String
+  createdAt   DateTime          @default(now())
+  answers     DiagnosisAnswer[] 
 }
