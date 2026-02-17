@@ -81,8 +81,12 @@ model DiagnosisQuestion {
   id           String            @id @default(cuid())
   questionText String
   order        Int               @unique
+
+  nutrient     String
+
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
+  
   answers      DiagnosisAnswer[]
 }
 
@@ -111,7 +115,7 @@ model DiagnosisQuestion {
 // フロント・API・seed すべてで同じ値を使える
 
 model DiagnosisAnswer {
-  id String @id @default(cuid())
+  id                String @id @default(cuid())
 
   diagnosisResultId String
   diagnosisId       String
