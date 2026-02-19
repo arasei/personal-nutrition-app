@@ -1,3 +1,6 @@
+//現在Server ComponentとしてDBから直接データ取得 → 集計 → 画面表示するページ(web/diagnosis/[diagnosisId]/result/page.tsx)に変更しているため、
+// API route.tsは現在使用していない状態ですが、今後必要に応じてAPI route.tsを呼び出す形に変更する可能性もあるため、コードは残しています。
+// 現在は使用していないAPI route.tsのコード --- IGNORE ---
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
