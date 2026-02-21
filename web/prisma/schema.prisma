@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 //Prisma Client（DB操作用のJSコード）を生成する設定
 generator client {
   provider = "prisma-client-js"
@@ -12,9 +6,8 @@ generator client {
 //「どのDBに」「どうやって」接続するかを指定
 datasource db {
   provider = "postgresql"
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
-
 
 //relationについて
 // [] がついた側 = N側
@@ -26,96 +19,270 @@ datasource db {
 
 //indexは回答一覧を取る時間を短くするために設定
 
-
-
 //Profile
 // この人は誰か・診断に使う基本情報・診断の親
 // Supabase Userと1:1
 // authUserId   String   @uniqueでは、Supabase Authのuser.idを使用
 
-
 model Profile {
-  id           String   @id @default(uuid())
-  authUserId   String   @unique
-
-  nickname     String?
-  gender       String?
-  birth_date   DateTime?
-  height       Int?
-  weight       Int?
-
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-
-  diagnoses    Diagnosis[]
+  id         String      @id @default(cuid())
+  authUserId String      @unique
+  nickname   String?
+  gender     String?
+  height     Int?
+  weight     Int?
+  birthDate  DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  diagnoses  Diagnosis[]
 }
 
+//User1人: Diagnosis 複数
+model User {
+  id        String      @id
+  diagnoses Diagnosis[]
+}
 
 //Diagnosis
 // この人がこの日にやった1回の診断
 // 1回の診断そのもの(イベント・状態を持つ)
-// 途中再開のためのcurrentStep
-// statusで進行中/完了など管理
-
+// currentStep→途中再開OK
+// status→進行中/完了を管理
+// 回答ログと1:N
+//userと紐付け
+// userIdはSupabaseAuthのuser.id
+//Diagnosisは必ず誰かに属する
 
 model Diagnosis {
-  id             String   @id @default(uuid())
-  profile_id     String
+  id     String @id
+  userId String
 
-  status         String
-  current_step   Int?
-  started_at     DateTime
-  completed_at   DateTime?
+  user        User              @relation(fields: [userId], references: [id])
+  status      String
+  completedAt DateTime?
+  createdAt   DateTime          @default(now())
+  currentStep Int?
+  profileId   String?
+  startedAt   DateTime?
+  updatedAt   DateTime          @updatedAt
+  profile     Profile?          @relation(fields: [profileId], references: [id])
+  answers     DiagnosisAnswer[]
 
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
-
-  profile        Profile @relation(fields: [profile_id], references: [id])
-  answers        DiagnosisAnswer[]
-
-  @@index([profile_id])
+  @@index([profileId])
 }
 
-
 //DiagnosisQuestion
-// 質問マスタ(増えない)
+// 質問はマスタ(増えない)
 // 全診断共通
-// orderで表示順制御
+// orderで表示順を制御
+// 回答ログ(DiagnosisAnswer)と1:N
 
 model DiagnosisQuestion {
-  id            String   @id @default(uuid())
-  questionText  String
-  order         Int
+  id           String            @id @default(cuid())
+  questionText String
+  order        Int               @unique
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  nutrient     String
 
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  
   answers      DiagnosisAnswer[]
 }
 
-
 //DiagnosisAnswer
-// この診断で、この質問に、どう答えたか
-// その診断で生まれる「回答ログ」(一番増えるテーブル)
+// どの診断で、どの質問に、どう答えたか、いつ答えたかを履歴として保存
+// 質問は固定
+// 回答は無限に増える
+// 診断ごとに独立
+//スコア集計が目的
 
 // DiagnosisAnswerはDiagnosisとDiagnosisQuestion両方に属する。
 // その為、relationが２つ存在する。(中間テーブル的存在)
+// relationの外部キーは必ず参照先と同じ型
+// @@unique([diagnosisId, questionId]) → 1診断×1質問 = 1回答を保証
 
+//idはStringの仕様に変更
+// (seed.tsのconst diagnosisAnswers内でdiagnosisIdを文字列として扱っているため)
+// 意味をあるIDをそのまま使うため
+
+//answerValueをvalue(ただの数値として)に変更
+// valueには意味を持たせすぎない仕様
+// 回答以外にもvalueの数値(Int)を使うため(スコア、回数、強度、Yes/No(0/1)など)
+
+//diagnosisId / questionId は 意味を持つ識別子なのでStringにする
+// 数値IDに変換する理由がない
+// フロント・API・seed すべてで同じ値を使える
+
+//DiagnosisAnswerからResultを切り離す
 
 model DiagnosisAnswer {
-  id                 String   @id @default(uuid())
-  diagnosis_id       String
-  question_id        String
+  id                String @id @default(cuid())
 
-  answer_value       String
-  answered_at        DateTime
+  diagnosisId       String
+  questionId        String
 
-  created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
+  diagnosis       Diagnosis         @relation(fields: [diagnosisId], references: [id])
+  question        DiagnosisQuestion @relation(fields: [questionId], references: [id])
 
-  diagnosis          Diagnosis         @relation(fields: [diagnosis_id], references: [id])
-  question           DiagnosisQuestion @relation(fields: [question_id], references :[id])
+  value Int
 
-  @@index([diagnosis_id])
-  @@index([question_id])
+  answeredAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([diagnosisId, questionId])
+  @@index([diagnosisId])
+  @@index([questionId])
+}
+
+//DiagnosisResult
+//1回の診断というイベント
+//診断単位に変更
+
+//idはStringにして、フロント・API・seedで全て統一
+
+model DiagnosisResult {
+  id          String            @id @default(cuid())
+  userId      String
+
+  diagnosisId String            @unique
+  diagnosis   Diagnosis  @relation(fields: [diagnosisId], references: [id])
+
+  topCauseType    CauseType
+  ranking   Json
+
+  createdAt   DateTime          @default(now())
+  answers     DiagnosisAnswer[] 
+}
+
+
+
+
+
+// ================================
+//  Nutrition Engine
+// ================================
+
+
+//CauseType(enum)
+//不足の理由カテゴリーを統一ルールで扱うため
+enum CauseType {
+  LOW_INTAKE
+  IRREGULAR_MEAL
+  HIGH_STRESS
+  UNBALANCED_DIET
+}
+
+//Nutrient(栄養素マスタ)
+//単位・基準値を持つため
+model Nutrient {
+  id                  String    @id @default(cuid())
+  name                String   @unique
+  unit                String
+  dailyStandard       Float
+
+  messages            NutrientMessage[]
+  recipeLinks         RecipeNutrient[]
+  ingredientLinks     IngredientNutrient[]
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+//NutrientMessage(主原因ストーリー)(栄養素×原因ストーリー)
+//1栄養素 × 1原因タイプ = 1セット
+//栄養素×原因ごとの「一言/共感/原因/行動」を確定表示するため
+
+model NutrientMessage {
+  id                  String   @id @default(cuid())
+  nutrientId          String
+  causeType           CauseType
+
+  shortMessage        String
+  empathyText         String
+  reasonText          String
+  actionText          String
+
+  nutrient            Nutrient   @relation(fields: [nutrientId], references: [id])
+
+  @@unique([nutrientId, causeType])
+  @@index([nutrientId])
+}
+
+//Recipe(料理)
+//料理をデータとして扱い提案を自動化するため
+model Recipe {
+  id                 String   @id  @default(cuid())
+  name               String
+  steps              Json
+
+  nutrientLinks      RecipeNutrient[]
+  ingredientLinks    RecipeIngredient[]
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+//RecipeNutrient(料理×栄養素 多対多)
+//多対多でつないで「不足→料理→買い物→置換」「家にある物で不足を埋める」を可能にするため
+model RecipeNutrient {
+  id                    String   @id  @default(cuid())
+  recipeId              String
+  nutrientId            String
+  impactScore           Float
+
+  recipe                Recipe     @relation(fields: [recipeId], references: [id])
+  nutrient              Nutrient   @relation(fields: [nutrientId], references: [id])
+
+  @@unique([recipeId, nutrientId])
+  @@index([nutrientId])
+  @@index([recipeId])
+}
+
+//Ingredient(食材)
+//食材をデータとして扱い提案を自動化するため
+model Ingredient {
+  id                   String   @id  @default(cuid())
+  name                 String   @unique
+  category             String?
+
+  nutrientLinks        IngredientNutrient[]
+  recipeLinks          RecipeIngredient[]
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+//IngredientNutrient(ざっくり栄養値)(食材×栄養素)
+//多対多でつないで「不足→料理→買い物→置換」「家にある物で不足を埋める」を可能にするため
+model IngredientNutrient {
+  id                       String    @id  @default(cuid())
+  ingredientId             String
+  nutrientId               String
+
+  approxAmount             Float
+
+  ingredient             Ingredient  @relation(fields: [ingredientId], references: [id])
+  nutrient               Nutrient    @relation(fields: [nutrientId], references: [id])
+
+  @@unique([ingredientId, nutrientId])
+  @@index([nutrientId])
+  @@index([ingredientId])
+}
+
+//RecipeIngredient(料理×食材)
+//多対多でつないで「不足→料理→買い物→置換」「家にある物で不足を埋める」を可能にするため
+model RecipeIngredient {
+  id                     String   @id @default(cuid())
+  recipeId               String
+  ingredientId           String
+  amount                 String?
+
+  recipe                 Recipe         @relation(fields: [recipeId], references: [id])
+  ingredient             Ingredient    @relation(fields: [ingredientId], references: [id])
+
+  @@unique([recipeId, ingredientId])
+  @@index([recipeId])
+  @@index([ingredientId])
 }
