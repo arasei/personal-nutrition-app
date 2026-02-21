@@ -144,15 +144,21 @@ model DiagnosisQuestion {
 // 数値IDに変換する理由がない
 // フロント・API・seed すべてで同じ値を使える
 
+//DiagnosisAnswerからResultを切り離す
+
 model DiagnosisAnswer {
   id                String @id @default(cuid())
 
-  diagnosisResultId String
   diagnosisId       String
   questionId        String
 
+<<<<<<< HEAD
   diagnosis         Diagnosis         @relation(fields: [diagnosisId], references: [id])
   question          DiagnosisQuestion @relation(fields: [questionId], references: [id])
+=======
+  diagnosis       Diagnosis         @relation(fields: [diagnosisId], references: [id])
+  question        DiagnosisQuestion @relation(fields: [questionId], references: [id])
+>>>>>>> 6d8784a (DiagnosisResultを診断単位に変更)
 
   value             Int
 
@@ -165,6 +171,25 @@ model DiagnosisAnswer {
   @@index([questionId])
 }
 
+//DiagnosisResult
+//1回の診断というイベント
+//診断単位に変更
+
+//idはStringにして、フロント・API・seedで全て統一
+
+model DiagnosisResult {
+  id          String            @id @default(cuid())
+  userId      String
+
+  diagnosisId String            @unique
+  diagnosis   Diagnosis  @relation(fields: [diagnosisId], references: [id])
+
+  topCauseType    CauseType
+  ranking   Json
+
+  createdAt   DateTime          @default(now())
+  answers     DiagnosisAnswer[] 
+}
 
 
 
