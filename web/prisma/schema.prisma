@@ -148,3 +148,134 @@ model DiagnosisResult {
   createdAt   DateTime          @default(now())
   answers     DiagnosisAnswer[] 
 }
+
+
+
+
+
+// ================================
+//  Nutrition Engine
+// ================================
+
+
+//CauseType(enum)
+//不足の理由カテゴリーを統一ルールで扱うため
+enum CauseType {
+  LOW_INTAKE
+  IRREGULAR_MEAL
+  HIGH_STRESS
+  UNBALANCED_DIET
+}
+
+//Nutrient(栄養素マスタ)
+//単位・基準値を持つため
+model Nutrient {
+  id                  String    @id @default(cuid())
+  name                String   @unique
+  unit                String
+  dailyStandard       Float
+
+  messages            NutrientMessage[]
+  recipeLinks         RecipeNutrient[]
+  ingredientLinks     IngredientNutrient[]
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+//NutrientMessage(主原因ストーリー)(栄養素×原因ストーリー)
+//1栄養素 × 1原因タイプ = 1セット
+//栄養素×原因ごとの「一言/共感/原因/行動」を確定表示するため
+
+model NutrientMessage {
+  id                  String   @id @default(cuid())
+  nutrientId          String
+  causeType           CauseType
+
+  shortMessage        String
+  empathyText         String
+  reasonText          String
+  actionText          String
+
+  nutrient            Nutrient   @relation(fields: [nutrientId], references: [id])
+
+  @@unique([nutrientId, causeType])
+  @@index([nutrientId])
+}
+
+//Recipe(料理)
+//料理をデータとして扱い提案を自動化するため
+model Recipe {
+  id                 String   @id  @default(cuid())
+  name               String
+  steps              Json
+
+  nutrientLinks      RecipeNutrient[]
+  ingredientLinks    RecipeIngredient[]
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+//RecipeNutrient(料理×栄養素 多対多)
+//多対多でつないで「不足→料理→買い物→置換」「家にある物で不足を埋める」を可能にするため
+model RecipeNutrient {
+  id                    String   @id  @default(cuid())
+  recipeId              String
+  nutrientId            String
+  impactScore           Float
+
+  recipe                Recipe     @relation(fields: [recipeId], references: [id])
+  nutrient              Nutrient   @relation(fields: [nutrientId], references: [id])
+
+  @@unique([recipeId, nutrientId])
+  @@index([nutrientId])
+  @@index([recipeId])
+}
+
+//Ingredient(食材)
+//食材をデータとして扱い提案を自動化するため
+model Ingredient {
+  id                   String   @id  @default(cuid())
+  name                 String   @unique
+  category             String?
+
+  nutrientLinks        IngredientNutrient[]
+  recipeLinks          RecipeIngredient[]
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+//IngredientNutrient(ざっくり栄養値)(食材×栄養素)
+//多対多でつないで「不足→料理→買い物→置換」「家にある物で不足を埋める」を可能にするため
+model IngredientNutrient {
+  id                       String    @id  @default(cuid())
+  ingredientId             String
+  nutrientId               String
+
+  approxAmount             Float
+
+  ingredient             Ingredient  @relation(fields: [ingredientId], references: [id])
+  nutrient               Nutrient    @relation(fields: [nutrientId], references: [id])
+
+  @@unique([ingredientId, nutrientId])
+  @@index([nutrientId])
+  @@index([ingredientId])
+}
+
+//RecipeIngredient(料理×食材)
+//多対多でつないで「不足→料理→買い物→置換」「家にある物で不足を埋める」を可能にするため
+model RecipeIngredient {
+  id                     String   @id @default(cuid())
+  recipeId               String
+  ingredientId           String
+  amount                 String?
+
+  recipe                 Recipe         @relation(fields: [recipeId], references: [id])
+  ingredient             Ingredient    @relation(fields: [ingredientId], references: [id])
+
+  @@unique([recipeId, ingredientId])
+  @@index([recipeId])
+  @@index([ingredientId])
+}
