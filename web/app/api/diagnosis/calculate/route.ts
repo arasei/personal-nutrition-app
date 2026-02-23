@@ -8,30 +8,40 @@ export async function POST(req: Request) {
   const { diagnosisId } = await req.json();
 
   //診断回答を取得
-  //診断ログ(diagnosisAnswerの中身と紐付けしたdiagnosisQuestion内のnutrition)を取得
+  //診断回答(diagnosisAnswer)と質問(diagnosisQuestion)を紐付けして、diagnosisQuestion内の栄養素ID(nutrientId)とポイント(value)を取得
   const answers = await prisma.diagnosisAnswer.findMany({
     where: { diagnosisId },
     include: {
-      question: true,
+      question: {
+        select: {
+          nutrientId: true,
+          nutrient: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
     },
   });
 
   //スコア集計箱を作成
+  //// nutrientId(string) → score
   const scoreMap: Record<string, number> = {};
 
   //ループで集計
   for (const item of answers) {
-    const nutrient = item.question.nutrient;
+    const nutrientId = item.question.nutrientId;
     const point = item.value;
 
-    scoreMap[nutrient] = (scoreMap[nutrient] ?? 0) + point;
+    scoreMap[nutrientId] = (scoreMap[nutrientId] ?? 0) + point;
   }
 
   //不足順
   const ranking = Object.entries(scoreMap)
     .sort((a, b) => a[1] - b[1])
-    .map(([nutrient, total]) => ({
-      nutrient,
+    .map(([nutrientId, total]) => ({
+      nutrientId,
       total,
     }));
   return NextResponse.json({

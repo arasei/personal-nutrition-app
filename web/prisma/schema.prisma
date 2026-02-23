@@ -43,6 +43,12 @@ model User {
   diagnoses Diagnosis[]
 }
 
+
+// ================================
+//Prisma model
+// ================================
+
+
 //Diagnosis
 // この人がこの日にやった1回の診断
 // 1回の診断そのもの(イベント・状態を持つ)
@@ -54,22 +60,42 @@ model User {
 //Diagnosisは必ず誰かに属する
 
 model Diagnosis {
-  id     String @id
-  userId String
+  id              String @id   @default(cuid())
+  userId          String
+  user            User              @relation(fields: [userId], references: [id])
 
-  user        User              @relation(fields: [userId], references: [id])
-  status      String
-  completedAt DateTime?
-  createdAt   DateTime          @default(now())
-  currentStep Int?
-  profileId   String?
-  startedAt   DateTime?
-  updatedAt   DateTime          @updatedAt
-  profile     Profile?          @relation(fields: [profileId], references: [id])
-  answers     DiagnosisAnswer[]
+  status          String?
+  completedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  currentStep     Int?
+  profileId       String?
+  startedAt       DateTime?
+  updatedAt       DateTime          @updatedAt
+  profile         Profile?          @relation(fields: [profileId], references: [id])
+  answers         DiagnosisAnswer[]
+  scores          DiagnosisNutrientScore[]
 
   @@index([profileId])
+  @@index([userId])
 }
+
+//DiagnosisNutrientScore
+//「1栄養素＝1行」
+//比較・集計・推移を楽にするため追加
+model DiagnosisNutrientScore {
+  id                          String  @id @default(cuid())
+  diagnosisId                 String
+  nutrientId                  String
+  score                       Int
+
+  diagnosis                  Diagnosis   @relation(fields: [diagnosisId], references: [id])
+  nutrient                   Nutrient    @relation(fields: [nutrientId],references: [id])
+
+  @@unique([diagnosisId, nutrientId])
+  @@index([diagnosisId])
+  @@index([nutrientId])
+}
+
 
 //DiagnosisQuestion
 // 質問はマスタ(増えない)
@@ -77,12 +103,16 @@ model Diagnosis {
 // orderで表示順を制御
 // 回答ログ(DiagnosisAnswer)と1:N
 
+//質問 → "IRON"の流れから
+//質問 → nutrientId → Nutrientテーブル　の流れに変更
+
 model DiagnosisQuestion {
   id           String            @id @default(cuid())
   questionText String
   order        Int               @unique
 
-  nutrient     String
+  nutrientId     String
+  nutrient      Nutrient   @relation(fields: [nutrientId], references: [id])
 
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
@@ -122,46 +152,28 @@ model DiagnosisAnswer {
   diagnosisId       String
   questionId        String
 
-  diagnosis       Diagnosis         @relation(fields: [diagnosisId], references: [id])
-  question        DiagnosisQuestion @relation(fields: [questionId], references: [id])
+  diagnosis         Diagnosis         @relation(fields: [diagnosisId], references: [id])
+  question          DiagnosisQuestion @relation(fields: [questionId], references: [id])
 
-  value Int
+  value             Int
 
-  answeredAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  answeredAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@unique([diagnosisId, questionId])
   @@index([diagnosisId])
   @@index([questionId])
 }
 
-//DiagnosisResult
-//1回の診断というイベント
-//診断単位に変更
-
-//idはStringにして、フロント・API・seedで全て統一
-
-model DiagnosisResult {
-  id          String            @id @default(cuid())
-  userId      String
-
-  diagnosisId String            @unique
-  diagnosis   Diagnosis  @relation(fields: [diagnosisId], references: [id])
-
-  topCauseType    CauseType
-  ranking   Json
-
-  createdAt   DateTime          @default(now())
-  answers     DiagnosisAnswer[] 
-}
 
 
 
 
 
 // ================================
-//  Nutrition Engine
+//  Nutrition Engine(計算ロジックの為)
+//スコアを計算する際の型
 // ================================
 
 
@@ -185,6 +197,8 @@ model Nutrient {
   messages            NutrientMessage[]
   recipeLinks         RecipeNutrient[]
   ingredientLinks     IngredientNutrient[]
+  DiagnosisNutrientScores    DiagnosisNutrientScore[]
+  questions                 DiagnosisQuestion[]
 
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
