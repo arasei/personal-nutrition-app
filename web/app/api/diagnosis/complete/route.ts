@@ -149,21 +149,12 @@ export async function POST(req: Request) {
       //スコア集計表(箱)を作成
       const scoreMap: Record<string, number> = {}
 
-      //質問データを取得
-      const questions = await tx.diagnosisQuestion.findMany({
-        select: {
-          id: true,
-          nutrientId: true
+      //栄養素ごとに合計点をループでIDを利用して集計
+      for (const a of answers) {
+        if (!scoreMap[a.nutrientId]) {
+          scoreMap[a.nutrientId] = 0
         }
-      })
-
-      //質問に対応する栄養素の表(箱)を作成
-      const questionMap: Record<string, string> = {}
-
-      //questionMapにデータ登録
-      // 質問データからquestionIdをキーにしてnutrientIdを登録
-      for (const q of questions) {
-        questionMap[q.id] = q.nutrientId
+        scoreMap[a.nutrientId] += a.value
       }
 
       //栄養素ごとにループでスコア集計
@@ -186,7 +177,7 @@ export async function POST(req: Request) {
       // .mapで[]を分解して{}に代入
       // .sortでスコアが高い順に並び替え
       const ranking = Object.entries(scoreMap)
-        .map(([nutrient, total]) => ({ nutrient, total }))
+        .map(([nutrientId, total]) => ({ nutrientId, total }))
         .sort((a, b) => b.total - a.total)
 
         //スコア保存(複数の栄養素スコアを一括保存)
@@ -194,7 +185,7 @@ export async function POST(req: Request) {
         await tx.diagnosisNutrientScore.createMany({
           data: ranking.map((r) => ({
             diagnosisId: diagnosis.id,
-            nutrient: r.nutrient,
+            nutrientId: r.nutrientId,
             score: r.total
           }))
         })
