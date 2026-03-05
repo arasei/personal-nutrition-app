@@ -1,9 +1,9 @@
-// 履歴一覧からクリックされた診断ID(URL)を使ってDBからその診断の診断結果(栄養スコア)を表示するページ
+// 履歴一覧からクリックされた診断ID(URL(/history/[id]))を使ってPrismaでDBからその診断のデータ1件取得し、診断結果(栄養スコア)を表示する履歴詳細ページ
 
 // URL例
 // /history/abc123
 // [id]=abc123
-// abc123=diagnosisId
+// abc123=Diagnosis.id=params.id
 
 // 履歴詳細ページで表示するものは現状4つ
 // ① 診断日
@@ -14,7 +14,10 @@
 // Diagnosis
 //    ↓
 // DiagnosisNutrientScore
-// このrelationを使う
+//    ↓
+// Nutrient
+// このrelationを使い3テーブルを1度に取得
+// 栄養素スコア表示に使用
 
 // 処理流れ
 
