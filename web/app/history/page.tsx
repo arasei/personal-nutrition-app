@@ -1,7 +1,8 @@
-// 履歴APIからデータを取得して、上位3栄養素付きの履歴一覧を画面に表示するページ
+// 履歴APIからデータを取得して、上位3栄養素付きの履歴一覧を画面に表示し、履歴詳細ページへ遷移できるページ
 
 //APIから履歴データ(配列)が返る
 //履歴データをmapで画面に並べる
+//履歴一覧をクリック、IDごとの履歴詳細へ遷移
 
 //流れまとめ
 
@@ -14,10 +15,13 @@
 // JSON形式で受け取る
 //       ↓
 // 上位3栄養素を表示する(mapで一覧表示)
+//       ↓
+// 履歴一覧の履歴をクリックして履歴詳細リンク(/history/abc123)へ遷移
 
 
 
 import React from "react"
+import Link from "next/link"
 
 //Server ComponentでAPIを呼び出す
 async function getHistory() {
@@ -35,9 +39,6 @@ async function getHistory() {
 
 
 //画面表示ロジック
-//履歴一覧を表示
-//日付表示
-//上位3栄養素の表示
 export default async function HistoryPage() {
   const histories = await getHistory()
 
@@ -47,18 +48,25 @@ export default async function HistoryPage() {
 
       {histories.length === 0 && <p>履歴がありません</p>}
 
+      {/* 履歴一覧を表示 */}
+      {/* mapで1件ずつ表示 */}
       {histories.map((history: any) => (
-        <div key={history.id} style={{ border: "1px solid gray", margin: "16px", padding: "16px"}}>
-          <p>日付: {new Date(history.createdAt).toLocaleDateString()}</p>
-          <h3>上位3栄養素</h3>
-          <ul>
-            {history.topNutrients.map((nutrient: any, index: number) => (
-              <li key={index}>
-                {nutrient.nutrientId} : {nutrient.score}
-              </li>
-            ))}
-          </ul>
-        </div>
+        // 履歴一覧 → 詳細リンクに遷移
+        <Link href={`/history/${history.id}`} key={history.id}>
+          <div key={history.id} style={{ border: "1px solid gray", margin: "16px", padding: "16px"}}>
+            {/* 日付表示 */}
+            <p>日付: {new Date(history.createdAt).toLocaleDateString()}</p>
+            {/* 上位3栄養素の表示 */}
+            <h3>上位3栄養素</h3>
+            <ul>
+              {history.topNutrients.map((nutrient: any, index: number) => (
+                <li key={index}>
+                  {nutrient.nutrientId} : {nutrient.score}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Link>
       ))}
     </div>
   )
