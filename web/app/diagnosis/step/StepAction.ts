@@ -134,103 +134,18 @@ export async function saveAnswer(formData: FormData) {
     throw new Error("Order must be a integer");
   }
 
-
-  //Prisma Clientを使ってDBに回答を保存する場所、方法を指定して処理
-  // 初回回答→新規作成(create)
-  // 再回答→更新(update)
-  await prisma.diagnosisAnswer.upsert({
-    where: {
-      diagnosisId_questionId: {
-        diagnosisId: diagnosisId,
-        questionId: questionId,
-      },
-    },
-    update: {
-      value: answer,
-      answeredAt:new Date(),
-    },
-    create: {
+  //Prisma Clientを使ってDBに回答を保存
+  await prisma.diagnosisAnswer.create({
+    data: {
       diagnosisId: diagnosisId,
       questionId: questionId,
       value: answer,
       answeredAt: new Date(),
-    }
-  })
+    },
+  });
 
-  
-  //質問数の合計をDBから取得
-  // 質問の順番(order)は0始まりで、質問数(total)は1始まりのため、order >= totalで最後の質問かどうかを判定するために必要
-  const total = await prisma.diagnosisQuestion.count();
-
-  //if(order >= total){...}で最後の質問かどうかを判定
-  // orderは現在の質問の順番(0始まり)、totalは質問の総数
-  if (order >= total) {
-    
-    //今回の診断ID(diagnosisId)に属する診断回答(DiagnosisAnswer)を全件取得
-    const answers = await prisma.diagnosisAnswer.findMany({
-      where: { diagnosisId: diagnosisId },
-      select: {
-        questionId: true,
-        value: true,
-      },
-    });
-
-    //質問ID(questionId)と栄養素ID(nutrientId)の対応表を取得
-    const questions = await prisma.diagnosisQuestion.findMany({
-      select: {
-        id: true,
-        nutrientId: true,
-      },
-    });
-
-    //questionId→nutrientId対応表を作成
-    // 質問ID(questionId)をキーにして、その質問に対応する栄養素ID(nutrientId)を登録
-    // 質問IDから栄養素IDをすぐ引ける状態により回答集計をしやすくするため
-    const questionMap: Record<string, string> = {};
-    for (const q of questions) {
-      questionMap[q.id] = q.nutrientId;
-    }
-
-    //診断結果の保存と診断完了状態への更新は、どちらもDBの更新を伴うため、$transaction(...)でまとめて行う
-    await prisma.$transaction(async (tx) => {
-
-      //同じ診断IDの既存スコアを削除
-      // 再診断の際に古いスコアを残さない
-      // 重複保存を防ぐため
-      await tx.diagnosisNutrientScore.deleteMany({
-        where: { diagnosisId },
-      });
-
-
-      //栄養スコアをDBに保存
-      // ここで初めて履歴詳細・結果ページが読む結果データが保存される
-      // currentDiagnosisId, nutrientId, scoreのセットを診断ごとに保存する
-      // currentDiagnosis.scoresを成立させるため
-      // この処理が無いと結果ページと履歴ページでスコアが0点のままになってしまう
-      await tx.diagnosisNutrientScore.createMany({
-        data: ranking.map((r) => ({
-          diagnosisId,
-          nutrientId: r.nutrientId,
-          score: r.total,
-        })),
-      });
-
-
-      //診断を完了状態に更新
-      // Prisma Studioで見た時に「途中保存」ではなく「完了済み診断」とわかるようにするため
-      await tx.diagnosis.update({
-        where: { id: diagnosisId },
-        data: {
-          status: "COMPLETED",
-          completedAt: new Date(),
-        },
-      });
-    });
-
-    //次の質問へ遷移処理(redirect)
-    redirect(`/diagnosis/${diagnosisId}/result`);
-  } else {
-    redirect (`/diagnosis/step/${order + 1}?diagnosisId=${diagnosisId}`);
-  }
+//次の質問へredirect
+//次の質問ページに遷移する際、診断ID(diagnosisId)をクエリパラメータで渡す設計に変更
+  redirect (`/diagnosis/step/1?diagnosisId=${diagnosisId}`)
 }
 
