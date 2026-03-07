@@ -11,14 +11,19 @@ import { redirect } from "next/navigation";
 //診断開始アクション
 //Prismaで診断テーブルに新規レコードを作成し、診断step1(/diagnosis/step/1)へリダイレクト
 export async function startDiagnosis() {
+  const userId = "user_1";
   //診断レコードを作成
   const diagnosis = await prisma.diagnosis.create({
     //初期値を設定(現段階では最小の4項目のみ。後で必要に応じて追加予定)
     data: {
       status: "in_progress",
-      current_step: 1,
-      started_at: new Date(),
+      currentStep: 1,
+      startedAt: new Date(),
       //profile_id: null は書かない。今は渡さない設計に変更
+
+      user: {
+        connect: { id: userId }
+      }
     },
     //作成した診断レコードのIDのみ取得(redirectで使用するため)
     select: { id: true },

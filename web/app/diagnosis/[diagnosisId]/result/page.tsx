@@ -50,7 +50,7 @@ export default async function ResultPage({
 
   //ループで集計
   for (const item of answers) {
-    const nutrient = item.question.nutrient;
+    const nutrient = item.question.nutrientId;
     const point = item.value;
 
     scoreMap[nutrient] = (scoreMap[nutrient] ?? 0) + point;

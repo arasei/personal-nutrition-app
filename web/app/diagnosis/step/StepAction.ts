@@ -43,15 +43,15 @@ export async function saveAnswer(formData: FormData) {
   //Prisma Clientを使ってDBに回答を保存
   await prisma.diagnosisAnswer.create({
     data: {
-      diagnosis_id: diagnosisId,
-      question_id: questionId,
-      answer_value: answer,
-      answered_at: new Date(),
+      diagnosisId: diagnosisId,
+      questionId: questionId,
+      value: answer,
+      answeredAt: new Date(),
     },
   });
 
 //次の質問へredirect
 //次の質問ページに遷移する際、診断ID(diagnosisId)をクエリパラメータで渡す設計に変更
-  redirect (`/diagnosis/step/${order + 1}?diagnosisId=${diagnosisId}`)
+  redirect (`/diagnosis/step/1?diagnosisId=${diagnosisId}`)
 }
 
