@@ -40,18 +40,39 @@ export async function saveAnswer(formData: FormData) {
     throw new Error("Order must be a integer");
   }
 
-  //Prisma Clientを使ってDBに回答を保存
-  await prisma.diagnosisAnswer.create({
-    data: {
+
+  //Prisma Clientを使ってDBに回答を保存する場所、方法を指定して処理
+  // 同じ診断の中の、同じ質問の回答は1件だけしか保存できないことを指定
+  // 初回回答→新規作成(create)
+  // 再回答→更新(update)
+  await prisma.diagnosisAnswer.upsert({
+    where: {
+      diagnosisId_questionId: {
+        diagnosisId: diagnosisId,
+        questionId: questionId,
+      },
+    },
+    update: {
+      value: answer,
+      answeredAt:new Date(),
+    },
+    create: {
       diagnosisId: diagnosisId,
       questionId: questionId,
       value: answer,
       answeredAt: new Date(),
-    },
-  });
+    }
+  })
 
-//次の質問へredirect
-//次の質問ページに遷移する際、診断ID(diagnosisId)をクエリパラメータで渡す設計に変更
-  redirect (`/diagnosis/step/1?diagnosisId=${diagnosisId}`)
+  //次の質問へ遷移処理(redirect)
+  // 次の質問ページに遷移する際、診断ID(diagnosisId)をクエリパラメータで渡す設計に変更
+  // 最後の質問かどうかをif(order >= total){...}で判定して、最後なら結果ページへ遷移する
+  const total = await prisma.diagnosisQuestion.count();
+
+  if (order >= total) {
+    redirect(`/diagnosis/${diagnosisId}/result`);
+  } else {
+    redirect (`/diagnosis/step/${order + 1}?diagnosisId=${diagnosisId}`)
+  }
 }
 

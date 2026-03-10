@@ -13,6 +13,7 @@ import { redirect } from "next/navigation";
 export async function startDiagnosis() {
   const userId = "user_1";
   //診断レコードを作成
+  //新しい診断履歴が1件増やす
   const diagnosis = await prisma.diagnosis.create({
     //初期値を設定(現段階では最小の4項目のみ。後で必要に応じて追加予定)
     data: {
