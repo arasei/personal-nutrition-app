@@ -25,7 +25,7 @@ import Link from "next/link"
 
 //Server ComponentでAPIを呼び出す
 async function getHistory() {
-  const res = await fetch("http://localhost:3000/api/diagnosis/history?userId=123",{
+  const res = await fetch("http://localhost:3000/api/diagnosis/history?userId=user_1",{
     //キャッシュ無しで常に最新のデータを取得する
     cache: "no-store"
   })
