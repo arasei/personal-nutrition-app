@@ -38,6 +38,7 @@
 
 
 import { prisma } from "@/lib/prisma";
+import RadarChart from "@/components/RadarChart";
 
 type RankingItem = {
   nutrient: string;
@@ -148,6 +149,8 @@ export default async function ResultPage({
     return (
       <div>
         <h1>健康診断</h1>
+        <h2>栄養バランス</h2>
+        <RadarChart ranking={ranking}/>
         {/* 差分付きランキングを1件ずつ表示 */}
         {diffRanking.map((item, index) => (
           //Reactで各行を識別するためにkeyをつけている
