@@ -22,9 +22,9 @@
 //    ↓
 // rankingデータ
 //    ↓
-// ResultPage (Server Component)
+// ResultPage(web/app/diagnosis/[diagnosisId]/result/page.tsx) (Server Component)
 //    ↓ props
-// RadarChart (Client Component)
+// RadarChart.tsx (Client Component)
 //    ↓
 // Chart.js
 //    ↓
