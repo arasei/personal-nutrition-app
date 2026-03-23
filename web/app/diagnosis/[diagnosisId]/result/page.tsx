@@ -1,4 +1,4 @@
-//Server ComponentとしてDBからランキングを直接取得→集計→前回診断データにより差分ランキング作成→画面表示するページ
+//Server ComponentとしてDBから回答・診断データを取得→栄養素ランキング集計→前回診断データとの差分ランキング作成→ランキングとチャートを画面表示するページ
 
 // 構成
 // URL入力アクセス
@@ -11,11 +11,12 @@
 // ↓
 // rankingを作成
 // ↓
-// 前回診断取得
+// 同じユーザーの前回診断取得
 // ↓
 // 差分計算
 // ↓
-// mapでランキング + 差分を描画
+// diffRankingをmapで描画してランキング + 差分を表示
+// SafeRadarChartでチャート描画
 
 
 //今回の変更
@@ -35,21 +36,28 @@
 // 現在ランキング差分情報を追加
 //UI表示
 // ランキング表示をmapでレンダリング
+//SafeRadarChart
+// 安全にチャート表示
 
 
 import { prisma } from "@/lib/prisma";
-import RadarChart from "@/components/RadarChart";
+import SafeRadarChart from "@/components/SafeRadarChart";
 
 type RankingItem = {
   nutrient: string;
   total: number;
 };
 
+type Props = {
+  params: Promise<{
+    diagnosisId: string;
+  }>;
+};
+
 //診断回答を入力したURLからparamsで取得
-export default async function ResultPage({
-  params, } : { params: { diagnosisId: string };
-}) {
-  const { diagnosisId } = params;
+export default async function ResultPage({ params } : Props) {
+  const { diagnosisId } = await params;
+
   //診断ログ(diagnosisAnswerの中身と紐付けしたdiagnosisQuestion内のnutrition)を取得
   const answers = await prisma.diagnosisAnswer.findMany({
     where: { diagnosisId },
@@ -77,14 +85,15 @@ export default async function ResultPage({
       total,
     }));
 
-    //この診断の診断IDに紐づくユーザーIDを取得
-    // 前回診断を取得するため
+    //現在の診断から診断IDに紐づくユーザーID(userId)を取得
+    // 前回診断を取得するために必要
     const currentDiagnosis = await prisma.diagnosis.findUnique({
       where: { id: diagnosisId },
       select: { userId: true },
     });
 
     //前回の診断を取得
+    // 同じユーザーの最新2件の診断を取得
     // 診断履歴をDBから複数件取得
     // 前回との差分を出すには、今回だけでなく前回の診断も必要だから
     const diagnoses = await prisma.diagnosis.findMany({
@@ -126,7 +135,8 @@ export default async function ResultPage({
     }
 
     
-    //今回のランキング(ranking)1件ずつに対して、差分情報(diffRanking)を追加。
+    //今回と前回の差分を作成
+    // 今回のランキング(ranking)1件ずつに対して、差分情報(diffRanking)を追加。
     const diffRanking = ranking.map((item) => {
       //今回の栄養素に対応する前回スコアを取り出す。
       const prev = diffMap[item.nutrient];
@@ -146,11 +156,13 @@ export default async function ResultPage({
 
     //診断結果として画面にランキングと差分をUI表示
     // 取得した配列をmapで1つずつ取り出して表示
+    // SafeRadarChartでチャート表を表示
+    // diffRanking.map(...)で差分付きランキングを表示
     return (
       <div>
         <h1>健康診断</h1>
         <h2>栄養バランス</h2>
-        <RadarChart ranking={ranking}/>
+        <SafeRadarChart ranking={ranking}/>
         {/* 差分付きランキングを1件ずつ表示 */}
         {diffRanking.map((item, index) => (
           //Reactで各行を識別するためにkeyをつけている

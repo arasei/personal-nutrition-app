@@ -1,4 +1,4 @@
-// 履歴一覧からクリックされた診断ID(URL(/history/[id]))を使ってPrismaでDBからその診断のデータ1件取得し、診断結果(栄養スコア)を表示する履歴詳細ページ
+// 履歴一覧からクリックされた診断ID(URL(/history/[id]))を使ってPrismaでDBからその診断のデータ1件取得し、診断結果(栄養スコア)とチャートを表示する履歴詳細ページ
 
 // URL例
 // /history/abc123
@@ -19,6 +19,8 @@
 // このrelationを使い3テーブルを1度に取得
 // 栄養素スコア表示に使用
 
+//diagnosis.score.map(...)でRadarChart 用の { nutrient, total } の形に変換して渡す。
+
 // 処理流れ
 
 // 履歴一覧ページ
@@ -31,7 +33,7 @@
 //    ↓
 // 診断データを元に栄養素スコア(scores)と栄養素名(nutrient)を取得
 //    ↓
-// 画面栄養素スコア表示
+// 画面栄養素スコア・チャート表示
 
 // つまり
 // 履歴の1件の中身を見て、履歴詳細に必要なデータを持ってきて表示するページ
@@ -47,6 +49,7 @@
 
 
 //Prisma読み込み
+import RadarChart from "@/components/RadarChart"
 import { prisma } from "@/lib/prisma"
 
 type Props = {
@@ -58,12 +61,12 @@ type Props = {
 //SeverComponent使用
 export default async function HistoryDetailPage({ params }: Props) {
 
+  const { id } = await params
+
   //診断(Diagnosis)を1件取得
   const diagnosis = await prisma.diagnosis.findUnique({
     //URLのIDを持つ診断を1件検索
-    where: {
-      id: params.id
-    },
+    where: { id },
     //includeで関連しているデータを一緒に取得
     include: {
       scores: {
@@ -91,7 +94,14 @@ export default async function HistoryDetailPage({ params }: Props) {
 
 
       {/* スコア表示 */}
+      {/* チャート表示 */}
       <h2>栄養素スコア</h2>
+      <RadarChart ranking={
+        diagnosis.scores.map(score => ({
+          nutrient: score.nutrient.name,
+          total: score.score
+        }))
+      }/>
       <ul>
         {diagnosis.scores.map((score) => (
           <li key={score.id}>
