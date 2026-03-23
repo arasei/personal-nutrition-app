@@ -1,4 +1,4 @@
-// 履歴一覧からクリックされた診断ID(URL(/history/[id]))を使ってPrismaでDBからその診断のデータ1件取得し、診断結果(栄養スコア)を表示する履歴詳細ページ
+// 履歴一覧からクリックされた診断ID(URL(/history/[id]))を使ってPrismaでDBからその診断のデータ1件取得し、診断結果(栄養スコア)とチャートを表示する履歴詳細ページ
 
 // URL例
 // /history/abc123
@@ -20,6 +20,8 @@
 //    ↓
 // Nutrient
 
+//diagnosis.score.map(...)でRadarChart 用の { nutrient, total } の形に変換して渡す。
+
 // 処理流れ
 
 // 履歴一覧ページ
@@ -33,16 +35,6 @@
 // PrismaでDBから前回の診断データ(previousDiagnosis)取得
 //    ↓
 // 診断データを元に栄養素スコア(scores)と栄養素名(nutrient)を取得
-//    ↓
-// 今回のスコア(scores)を見やすい形(nutrientScores)に整形(nutrient.name, nutrientId, score)
-//    ↓
-// 上位3件(topNutrients)を作成
-//    ↓
-// 下位3件(lowNutrients)を作成
-//    ↓
-// 前回との差分(differences)を作成
-//    ↓
-// チャート用のデータ(ranking)に変換
 //    ↓
 // 画面栄養素スコア・チャート表示
 
@@ -58,6 +50,7 @@
 
 
 //Prisma読み込み
+import RadarChart from "@/components/RadarChart"
 import { prisma } from "@/lib/prisma"
 
 // このページに渡ってくるURLのパラメータの型定義
@@ -67,18 +60,13 @@ type Props = {
   }
 }
 
-
-//今回の診断のスコアをDBから取得
-//params取得
-//ServerComponent使用
-export default async function HistoryDetailPage({ params }: Props) {
   const { id } = await params
 
-  //今回の診断(Diagnosis)を1件取得
-  const currentDiagnosis = await prisma.diagnosis.findUnique({
+  //診断(Diagnosis)を1件取得
+  const diagnosis = await prisma.diagnosis.findUnique({
     //URLのIDを持つ診断を1件検索
     where: { id },
-    //includeで関連しているスコアと栄養素名も一緒に取得
+    //includeで関連しているデータを一緒に取得
     include: {
       scores: {
         include: {
@@ -190,18 +178,23 @@ export default async function HistoryDetailPage({ params }: Props) {
 
       {/* スコア表示 */}
       {/* チャート表示 */}
-      <section className="space-y-3">
-        <h2 className="text-xl font-semibold">栄養素スコア</h2>
-        <SafeRadarChart ranking={ranking}/>
-        <ul className="space-y-1">
-          {/* 全栄養素のスコア一覧を表示 */}
-          {nutrientScores.map((score) => (
-            <li key={score.nutrientId}>
-              {score.nutrient} : {score.score}
-            </li>
-          ))}
-        </ul>
-      </section>
+      <h2>栄養素スコア</h2>
+      <RadarChart ranking={
+        diagnosis.scores.map(score => ({
+          nutrient: score.nutrient.name,
+          total: score.score
+        }))
+      }/>
+      <ul>
+        {diagnosis.scores.map((score) => (
+          <li key={score.id}>
+            {score.nutrient.name} : {score.score}
+          </li>
+        ))}
+      </ul>
+    </div>
+    
+  )
 
       {/* 上位3件 */}
       <section className="space-y-2">
