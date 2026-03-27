@@ -1,4 +1,5 @@
-// 指定した診断IDの履歴詳細を取得し、栄養スコア一覧・上位3件・下位3件・前回診断との差分を作って返すAPI
+// 指定した診断IDの履歴詳細を取得し、栄養スコア一覧・上位3件・下位3件・前回診断との差分を作成し、
+// 初回診断時の表示や差分文言を決めて返すAPI
 
 // 履歴詳細ページに必要な表示用データセットをこのAPIで完成させている
 
@@ -13,8 +14,11 @@
 // 今回より前の日付で最も新しい診断を探す
 
 // 4. 前回の栄養スコアと比較して差分を作る
+// 初回診断の場合は「前回データなし」として扱う
 
 // 5. 履歴詳細ページに表示用にデータを整形
+// 差分表示用にhasPreviousとdiffLabelを追加し、
+// 「+10 改善 / -5 低下 / 0 変化なし / 前回データなし」を返せるようにする。
 
 
 // Diagnosis から scores を取る(scores は Diagnosis から見た relation 名)
@@ -23,6 +27,8 @@
 // topNutrients を作る
 // lowNutrients を作る
 // previousDiagnosis と比べて differences を作る(findFirst + orderBy desc で「前回診断」)
+// diffで前回スコアがあるとき差分計算する。
+// diffLabelに差分の内容ごとに表示する文言を表示
 
 
 //このAPIの流れ
@@ -44,10 +50,15 @@
 //    ↓
 // 下位3件を作る
 //    ↓
-// 前回との差分を作る
+// 同じnutrientIdを元に前回との差分を作る
 //    ↓
-// JSONで返す
-
+// 前回データがあるか判定
+// ├─ ある → diff を計算
+// └─ ない → 前回データなし
+//    ↓
+// diffLabel(表示用)を作る
+//    ↓
+// JSONで返す(履歴詳細ページで使いやすい形に変換して)
 
 
 //NextResponseはAPIの返り値を作るため(JSONを返す時)
@@ -129,21 +140,40 @@ export async function GET(
     //前回との差分
 
     //差分計算する対象を同じ栄養素IDとして一致するかどうかで判断
-    //
     const differences = nutrientScores.map((current) => {
       const previous = previousDiagnosis?.scores.find(
         (item) => item.nutrientId === current.nutrientId
       );
 
-      //前回点数を取り出し、なければ0にする。(初回診断では全部current - 0になる。)
-      const previousScore = previous?.score ?? 0;
+      //前回スコアがない時nullにする。
+      const hasPrevious = !!previous;
+      const previousScore = previous?.score ?? null;
+      //前回スコアがある時、差分計算する。
+      const diff = hasPrevious ? current.score - previous.score : null;
+
+      // 最初の初期値
+      let diffLabel = "前回データなし"
+
+      // 差分の内容ごとの表示文の条件分岐
+      if (diff !== null) {
+        if (diff > 0) {
+          diffLabel = `+${diff} 改善`;
+        } else if (diff < 0) {
+          diffLabel = `${diff} 定価`;
+        } else {
+          diffLabel = "0 変化なし";
+        }
+      }
 
       //フロント側に返す用に差分表示用データを作成
       return {
         nutrient: current.nutrient,
+        nutrientId: current.nutrientId,
         current: current.score,
         previous: previousScore,
-        diff: current.score - previousScore,
+        diff,
+        hasPrevious,
+        diffLabel,
       };
     });
 
