@@ -1,3 +1,8 @@
+// 履歴詳細ページは Server Component + Prisma直読みで完結する構成に変更し、
+// 履歴詳細データ取得ロジックをAPI Routeから app/history/[id]/page.tsx に移したので
+// app/api/diagnosis/history/[id]/route.ts は現在未使用。
+
+
 // 指定した診断IDの履歴詳細を取得し、栄養スコア一覧・上位3件・下位3件・前回診断との差分を作成し、
 // 初回診断時の表示や差分文言を決めて返すAPI
 
