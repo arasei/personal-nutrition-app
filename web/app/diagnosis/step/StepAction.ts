@@ -191,26 +191,22 @@ export async function saveAnswer(formData: FormData) {
       questionMap[q.id] = q.nutrientId;
     }
 
-    //全回答を栄養素ごとに合計して栄養素ごとの集計スコアを作成
-    // DiagnosisNutrientScoreを保存する元データを作るため
-    const scoreMap: Record<string, number> = {};
-    for (const a of answers) {
-      const nutrientId = questionMap[a.questionId];
+    //診断結果の保存と診断完了状態への更新は、どちらもDBの更新を伴うため、$transaction(...)でまとめて行う
+    await prisma.$transaction(async (tx) => {
 
       //同じ診断IDの既存スコアを削除
+      // 再診断の際に古いスコアを残さない
+      // 重複保存を防ぐため
       await tx.diagnosisNutrientScore.deleteMany({
         where: { diagnosisId },
       });
 
-      if (!scoreMap[nutrientId]) {
-        scoreMap[nutrientId] = 0;
-      }
-      scoreMap[nutrientId] += a.value;
-    }
 
-      //栄養スコアをDBにまとめて保存
+      //栄養スコアをDBに保存
+      // ここで初めて履歴詳細・結果ページが読む結果データが保存される
       // currentDiagnosisId, nutrientId, scoreのセットを診断ごとに保存する
-      // 結果ページ・履歴詳細ページで使う結果データをDBに残すためです。
+      // currentDiagnosis.scoresを成立させるため
+      // この処理が無いと結果ページと履歴ページでスコアが0点のままになってしまう
       await tx.diagnosisNutrientScore.createMany({
         data: ranking.map((r) => ({
           diagnosisId,
@@ -219,20 +215,9 @@ export async function saveAnswer(formData: FormData) {
         })),
       });
 
-    //栄養スコアをDBに保存
-    // ここで初めて履歴詳細・結果ページが読む結果データが保存される
-    // currentDiagnosisId, nutrientId, scoreのセットを診断ごとに保存する
-    // currentDiagnosis.scoresを成立させるため
-    // この処理が無いと結果ページと履歴ページでスコアが0点のままになってしまう
-    await prisma.diagnosisNutrientScore.createMany({
-      data: ranking.map((r) => ({
-        diagnosisId,
-        nutrientId: r.nutrientId,
-        score: r.total, 
-      })),
-    });
 
       //診断を完了状態に更新
+      // Prisma Studioで見た時に「途中保存」ではなく「完了済み診断」とわかるようにするため
       await tx.diagnosis.update({
         where: { id: diagnosisId },
         data: {
