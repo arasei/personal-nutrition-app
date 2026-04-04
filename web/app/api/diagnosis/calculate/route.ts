@@ -1,6 +1,7 @@
-//現在Server ComponentとしてDBから直接データ取得 → 集計 → 画面表示するページ(web/diagnosis/[diagnosisId]/result/page.tsx)に変更しているため、
-// API route.tsは現在使用していない状態ですが、今後必要に応じてAPI route.tsを呼び出す形に変更する可能性もあるため、コードは残しています。
-// 現在は使用していないAPI route.tsのコード --- IGNORE ---
+//現在の診断結果ページは Server Component 側(result/page.tsx)でDB取得 → スコア集計 → 画面表示まで完結しているため、
+//このAPIは(calculate/route.ts) は現時点では画面描画には使っていない。
+//このAPIで行なっている処理は、診断の最後の質問送信後に呼び出されるServer Action(web/app/diagnosis/step/StepAction.ts)内で行うように変更したため
+//ただし、今後の設計変更や再利用に備えてコードは保持している。
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
