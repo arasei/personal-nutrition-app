@@ -49,6 +49,69 @@ import { prisma } from "@/lib/prisma";
 //次の質問ページや結果ページへ遷移するために使用
 import { redirect } from "next/navigation";
 
+//関数で使用する値の型定義
+// 関数の返り値がわかりやすくするため
+type AnswerItem = {
+  questionId: string;
+  value: number;
+};
+
+type QuestionItem = {
+  id: string;
+  nutrientId: string;
+};
+
+type RankingItem = {
+  nutrientId: string;
+  total: number;
+};
+
+//questionId→nutrientId対応表を作成する関数
+// 質問ID(questionId)をキーにして、その質問に対応する栄養素ID(nutrientId)を登録
+// 質問IDから栄養素IDをすぐ引ける状態により回答集計をしやすくするため
+function buildQuestionMap(questions: QuestionItem[]) {
+  const questionMap: Record<string, string> = {};
+
+  for (const q of questions) {
+    questionMap[q.id] = q.nutrientId;
+  }
+
+  return questionMap;
+}
+
+//回答一覧から1問ずつに対応する栄養素ごとに集計して栄養素ごとの集計スコア表を作成する関数
+// DiagnosisNutrientScoreを保存する元データを作るため
+function buildScoreMap(answers: AnswerItem[], questionMap: Record<string, string>) {
+  const scoreMap: Record<string, number> = {};
+
+  for (const a of answers) {
+    const nutrientId = questionMap[a.questionId];
+
+    if (!nutrientId) continue;
+
+    if (!scoreMap[nutrientId]) {
+      scoreMap[nutrientId] = 0;
+    }
+
+    scoreMap[nutrientId] += a.value;
+  }
+
+  return scoreMap;
+}
+
+//scoreMapをDB保存用に配列に変換すし、スコアが高い順に並び替える関数
+// createManyに渡す時、.map()、.sort()、では配列の形にする必要があるため
+function buildRanking(scoreMap: Record<string, number>): RankingItem[] {
+
+  return Object.entries(scoreMap)
+    .map(([nutrientId, total]) => ({
+      nutrientId,
+      total,
+    }))
+
+    .sort((a, b) => b.total - a.total);
+}
+
 //回答保存処理
 export async function saveAnswer(formData: FormData) {
   //formDataから必要な値を取得
@@ -134,36 +197,11 @@ export async function saveAnswer(formData: FormData) {
       },
     });
 
-    //questionId→nutrientId対応表を作成
-    // 質問ID(questionId)をキーにして、その質問に対応する栄養素ID(nutrientId)を登録
-    // 質問IDから栄養素IDをすぐ引ける状態により回答集計をしやすくするため
-    const questionMap: Record<string, string> = {};
-    for (const q of questions) {
-      questionMap[q.id] = q.nutrientId;
-    }
+    //関数を使って対応表・合計スコア・ランキングを作成
+    const questionMap = buildQuestionMap(questions);
+    const scoreMap = buildScoreMap(answers, questionMap);
+    const ranking = buildRanking(scoreMap);
 
-    //全回答を栄養素ごとに合計して栄養素ごとの集計スコアを作成
-    // DiagnosisNutrientScoreを保存する元データを作るため
-    const scoreMap: Record<string, number> = {};
-    for (const a of answers) {
-      const nutrientId = questionMap[a.questionId];
-
-      if (!nutrientId) continue;
-
-      if (!scoreMap[nutrientId]) {
-        scoreMap[nutrientId] = 0;
-      }
-      scoreMap[nutrientId] += a.value;
-    }
-
-    //DB保存用の配列に変換
-    // createManyに渡す時、配列が便利なため
-    const ranking = Object.entries(scoreMap)
-      .map(([nutrientId, total]) => ({
-        nutrientId,
-        total,
-      }))
-      .sort((a, b) => b.total - a.total);
     
     //同じ診断IDの既存スコアを削除
     // 再診断の際に古いスコアを残さない
