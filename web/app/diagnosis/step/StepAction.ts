@@ -1,10 +1,10 @@
-// 各質問ごとに回答を保存し、最後の質問の時だけ栄養素スコアを計算してDiagnosisNutrientScoreに保存し、
-// 診断を完了状態に更新結果ページへ遷移するServer Actionページ
+//各質問ごとに回答を保存し、最後の質問の時だけ全回答から栄養素スコアを計算してDiagnosisNutrientScoreに保存し、
+// 診断を完了状態に更新し、結果ページへ遷移するServer Actionページ
 
 //各質問毎に回答保存する用のServer Action(stepページ用)
 //DBに回答データ(DiagnosisAnswer)を保存できる状態にすることが主な目的
 
-//このServer Actionページの役割
+// このServer Actionページの役割
 // 回答保存
 // 次の質問への遷移
 // 最後の質問かどうかの判定
@@ -17,7 +17,7 @@
 
 
 
-//流れ
+// 流れ
 // 質問に答える
 //    ↓
 // saveAnswer が呼ばれる
@@ -50,7 +50,6 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 
 //関数で使用する値の型定義
-// 関数の返り値がわかりやすくするため
 type AnswerItem = {
   questionId: string;
   value: number;
@@ -67,8 +66,7 @@ type RankingItem = {
 };
 
 //questionId→nutrientId対応表を作成する関数
-// 質問ID(questionId)をキーにして、その質問に対応する栄養素ID(nutrientId)を登録
-// 質問IDから栄養素IDをすぐ引ける状態により回答集計をしやすくするため
+// キーが質問ID(questionId)、値が栄養素ID(nutrientId)のオブジェクトを作る
 function buildQuestionMap(questions: QuestionItem[]) {
   const questionMap: Record<string, string> = {};
 
@@ -79,8 +77,7 @@ function buildQuestionMap(questions: QuestionItem[]) {
   return questionMap;
 }
 
-//回答一覧から1問ずつに対応する栄養素ごとに集計して栄養素ごとの集計スコア表を作成する関数
-// DiagnosisNutrientScoreを保存する元データを作るため
+//栄養素ごとの集計スコア表を作成する関数
 function buildScoreMap(answers: AnswerItem[], questionMap: Record<string, string>) {
   const scoreMap: Record<string, number> = {};
 
@@ -99,8 +96,7 @@ function buildScoreMap(answers: AnswerItem[], questionMap: Record<string, string
   return scoreMap;
 }
 
-//scoreMapをDB保存用に配列に変換すし、スコアが高い順に並び替える関数
-// createManyに渡す時、.map()、.sort()、では配列の形にする必要があるため
+//scoreMapをDB保存用に配列に変換し、スコアが高い順に並び替える関数
 function buildRanking(scoreMap: Record<string, number>): RankingItem[] {
 
   return Object.entries(scoreMap)
@@ -114,9 +110,7 @@ function buildRanking(scoreMap: Record<string, number>): RankingItem[] {
 
 //回答保存処理
 export async function saveAnswer(formData: FormData) {
-  //formDataから必要な値を取得
-  //取得したdiagnosisId, questionId, answer, orderの受け取り方を以下で指定する
-  // フォーム側とサーバー側両方で同じキー(diagnosisId, questionId, answer, order)を指定して値をやりとりする設計
+  //formDataから必要な値を受け取り方を指定して取得
   const diagnosisId = formData.get("diagnosisId") as string;//診断ID
   const questionId = formData.get("questionId") as string;//質問ID
   const answerRaw = formData.get("answer");//回答値
@@ -142,8 +136,6 @@ export async function saveAnswer(formData: FormData) {
 
 
   //Prisma Clientを使ってDBに回答を保存する場所、方法を指定して処理
-  // 同じ診断の中の、同じ質問の回答は1件だけしか保存できないことを指定
-  // upsertで回答を「DBに無ければ作る」、「DBにあれば更新する」その後保存する
   // 初回回答→新規作成(create)
   // 再回答→更新(update)
   await prisma.diagnosisAnswer.upsert({
@@ -165,20 +157,16 @@ export async function saveAnswer(formData: FormData) {
     }
   })
 
-  //次の質問へ遷移処理(redirect)
-  // 次の質問ページに遷移する際、診断ID(diagnosisId)をクエリパラメータで渡し、引き継ぐ設計
-
+  
   //質問数の合計をDBから取得
   // 質問の順番(order)は0始まりで、質問数(total)は1始まりのため、order >= totalで最後の質問かどうかを判定するために必要
   const total = await prisma.diagnosisQuestion.count();
 
   //if(order >= total){...}で最後の質問かどうかを判定
-  //最後の質問の時に結果保存処理を行い、結果ページへ遷移する
-  //orderは現在の質問の順番(0始まり)、totalは質問の総数
+  // orderは現在の質問の順番(0始まり)、totalは質問の総数
   if (order >= total) {
-    //その診断に紐づく全回答を取得
-    // 今回の診断ID(diagnosisId)に属する診断回答(DiagnosisAnswer)を全件取得
-    // 栄養素スコアは1問分ではなく全回答の合計で算出するため
+    
+    //今回の診断ID(diagnosisId)に属する診断回答(DiagnosisAnswer)を全件取得
     const answers = await prisma.diagnosisAnswer.findMany({
       where: { diagnosisId: diagnosisId },
       select: {
@@ -188,8 +176,6 @@ export async function saveAnswer(formData: FormData) {
     });
 
     //質問ID(questionId)と栄養素ID(nutrientId)の対応表を取得
-    // questionIdのままではどの栄養素へ加点すれば良いかわからないため
-    // questionIdを元にnutrientIdを取得できるようにする
     const questions = await prisma.diagnosisQuestion.findMany({
       select: {
         id: true,
@@ -206,18 +192,14 @@ export async function saveAnswer(formData: FormData) {
     await prisma.$transaction(async (tx) => {
 
       //同じ診断IDの既存スコアを削除
-      // 再診断の際に古いスコアを残さない
-      // 重複保存を防ぐため
       await tx.diagnosisNutrientScore.deleteMany({
         where: { diagnosisId },
       });
 
 
-      //栄養スコアをDBに保存
-      // ここで初めて履歴詳細・結果ページが読む結果データが保存される
+      //栄養スコアをDBにまとめて保存
       // currentDiagnosisId, nutrientId, scoreのセットを診断ごとに保存する
-      // currentDiagnosis.scoresを成立させるため
-      // この処理が無いと結果ページと履歴ページでスコアが0点のままになってしまう
+      // 結果ページ・履歴詳細ページで使う結果データをDBに残すためです。
       await tx.diagnosisNutrientScore.createMany({
         data: ranking.map((r) => ({
           diagnosisId,
@@ -228,7 +210,6 @@ export async function saveAnswer(formData: FormData) {
 
 
       //診断を完了状態に更新
-      // Prisma Studioで見た時に「途中保存」ではなく「完了済み診断」とわかるようにするため
       await tx.diagnosis.update({
         where: { id: diagnosisId },
         data: {
@@ -238,6 +219,7 @@ export async function saveAnswer(formData: FormData) {
       });
     });
 
+    //次の質問へ遷移処理(redirect)
     redirect(`/diagnosis/${diagnosisId}/result`);
   } else {
     redirect (`/diagnosis/step/${order + 1}?diagnosisId=${diagnosisId}`);
