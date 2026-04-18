@@ -65,10 +65,10 @@
 
 
 import { prisma } from "@/lib/prisma";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase/client";
 import {
-  SaveDiagnosisAnswersRequest,
-  SaveDiagnosisAnswersResponse,
+    SaveDiagnosisAnswersRequest,
+    SaveDiagnosisAnswersResponse,
 } from "@/types/diagnosisApi";
 import { NextRequest, NextResponse } from "next/server";
 

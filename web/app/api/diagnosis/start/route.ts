@@ -40,7 +40,7 @@
 
 
 import { prisma } from "@/lib/prisma";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase/client";
 import { StartDiagnosisResponse } from "@/types/diagnosisApi";
 import { NextRequest, NextResponse } from "next/server";
 

@@ -50,7 +50,7 @@
 
 "use client";
 
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase/client";
 import { StartDiagnosisResponse } from "@/types/diagnosisApi";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
