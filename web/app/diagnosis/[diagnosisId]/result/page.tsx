@@ -1,185 +1,165 @@
-//Server ComponentとしてDBから回答・診断データを取得→栄養素ランキング集計→前回診断データとの差分ランキング作成→ランキングとチャートを画面表示するページ
+// web/app/diagnosis/[diagnosisId]/result/page.tsx
 
-// 構成
-// URL入力アクセス
-// ↓
-// [diagnosisId] に値が入る、paramsからdiagnosisIdを取得
-// ↓
-// prismaでDBから診断回答を取得して集計(Server Component (page.tsx))
-// ↓
-// scoreMapで栄養素ごとの合計を計算
-// ↓
-// rankingを作成
-// ↓
-// 同じユーザーの前回診断取得
-// ↓
-// 差分計算
-// ↓
-// diffRankingをmapで描画してランキング + 差分を表示
-// SafeRadarChartでチャート描画
+// ClientComponentでAPIを呼び出して、診断結果を画面に表示するページ
+
+// API(result/route.ts)から結果をもらう
+// もらったデータを表示するだけ
+
+// URLからdiagnosisIdを取得し、結果取得APIを呼んで、
+// 受け取った診断結果をチャートとランキング一覧で表示する
 
 
-//今回の変更
-//rankingを作成する場所が「API」から「Server Component」に移動
-//App Routerの動的ルート([diagnosisId])を使用するとroute.tsでのAPI呼び出しをURLから診断IDを取得して行うことができるため、
-// 以前のようにClient ComponentでAPI route.tsからfetchする必要がなくなった。
-//以前はClient ComponentでAPI route.tsからfetchしていたが、今回はURLから診断IDを取得してAPIを呼び出す仕様(App Router)に変更
-
-//result/page.tsx(Server Component)内でDBから回答を直接取得して栄養素ごとのスコアを集計するロジックを実装し、
-// { nutrient, total}の形でrankingを作成して、ranking.mapでランキングを描画する部分も実装
-
-//await prisma.diagnosis.findMany({})で前回診断データ取得
-// 同一ユーザーの診断履歴を取得
-//let diffMap: Record<string, number> = {};で前回スコアマップ作成
-// 前回スコアをMap化
-//const diffRanking = ranking.map((item)で差分ランキング作成
-// 現在ランキング差分情報を追加
-//UI表示
-// ランキング表示をmapでレンダリング
-//SafeRadarChart
-// 安全にチャート表示
 
 
-import { prisma } from "@/lib/prisma";
+// result/route.ts = データ作成担当
+// APIRouteが裏で結果データを作る
+
+// result/page.tsx = 画面表示担当
+// このpage.tsxはAPIから結果データを受け取って表示する
+// DBには直接触らず、表示だけを担当するページ
+
+
+
+// 今回のポイント
+// async function Component() は Server Component 的な考え方に近い
+// Client Component は普通の関数 + state 更新で考える
+// await は async 関数の中でしか使えない
+// useEffect(async () => {}) は避ける
+// useEffect の中で async 関数を作って呼ぶのが定番
+
+
+// なぜ普通の関数コンポーネント？
+// Client Component は「先に描画、あとで取得」だから
+
+// なぜ useEffect の中で async 関数を作る？
+// useEffect 自体は async にしづらいので、await を使う場所を中に分けるため
+
+
+
+// 以下の時に使用するページ
+// 診断直後の結果表示
+// 履歴から結果を見直す
+// 前回との差分確認
+
+
+
+// 役割
+// useParamsでURLからdiagnosisIdを取得
+// useEffectで結果取得APIを呼び出し、APIから結果データを取得
+// API通信の状態を管理
+// 読み込み中・エラー・成功の状態を切り替える
+// rankingとdiffRankingで結果をチャートとランキング一覧で表示
+
+
+
+// 流れ
+// result/page.tsx
+//    ↓
+// useParams で diagnosisId 取得
+//    ↓
+// useEffect で API(result/route.ts) 呼び出し
+//    ↓
+// loading / error / data を更新
+//    ↓
+// 成功したら
+//   ├─ SafeRadarChart に ranking を渡す
+//   └─ diffRanking を map で一覧表示
+
+
+
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import SafeRadarChart from "@/components/SafeRadarChart";
+// APIから受け取るデータの型を読み込む
+import type { DiagnosisResultResponse } from "@/types/diagnosisApi";
 
-type RankingItem = {
-  nutrient: string;
-  total: number;
-};
+// このページはブラウザ側で動くので、最初に await で止まる形ではなく、
+// いったん画面を返してから useEffect でデータを取りに行く流れ
+// 後でstateを更新する形
+export default function ResultPage() {
+  const params = useParams();
+  // 型の都合上、as stringとする
+  const diagnosisId = params.diagnosisId as string;
 
-type Props = {
-  params: Promise<{
-    diagnosisId: string;
-  }>;
-};
+  // APIから受け取る診断結果データを保存する場所
+  const [data, setData] = useState<DiagnosisResultResponse | null>(null);
+  // 読み込み中かどうかを管理する場所
+  const [loading, setLoading] = useState(true);
+  // エラーメッセージを保存する場所
+  const [error, setError] = useState<string | null>(null);
 
-//診断回答を入力したURLからparamsで取得
-export default async function ResultPage({ params } : Props) {
-  const { diagnosisId } = await params;
 
-  //診断ログ(diagnosisAnswerの中身と紐付けしたdiagnosisQuestion内のnutrition)を取得
-  const answers = await prisma.diagnosisAnswer.findMany({
-    where: { diagnosisId },
-    include: {
-      question: true,
-    },
-  });
+  // APIを呼び出して結果を取得する関数
+  // 画面表示時やdiagnosisIdが変わったときにAPI(web/app/api/diagnosis/[diagnosisId]/result/route.ts)を呼び出し描画し、データ取得する。
+  useEffect(() => {
+    const fetchResult = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  //スコア集計箱を作成
-  const scoreMap: Record<string, number> = {};
+        // 結果取得API呼び出し
+        const response = await fetch(`/api/diagnosis/${diagnosisId}/result`);
 
-  //ループで集計
-  for (const item of answers) {
-    const nutrient = item.question.nutrientId;
-    const point = item.value;
+        if (!response.ok) {
+          throw new Error("結果取得に失敗しました");
+        }
 
-    scoreMap[nutrient] = (scoreMap[nutrient] ?? 0) + point;
+        // API(json形式)のデータを指定した型で受け取る
+        const result: DiagnosisResultResponse = await response.json();
+        // APIから取得した結果データ(result)をstateに保存
+        setData(result);
+      } catch (err) {
+        console.error(err);
+        setError("結果取得に失敗しました");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // diagnosisIdがある時だけAPIを呼び出すため
+    if (diagnosisId) {
+      fetchResult();
+    }
+  }, [diagnosisId]);
+
+  if (loading) {
+    return <div>読み込み中...</div>
   }
 
-  //不足順を計算
-  const ranking: RankingItem[] = Object.entries(scoreMap)
-    .sort((a, b) => a[1] - b[1])
-    .map(([nutrient, total]) => ({
-      nutrient,
-      total,
-    }));
+  if (error) {
+    return <div>{error}</div>;
+  }
 
-    //現在の診断から診断IDに紐づくユーザーID(userId)を取得
-    // 前回診断を取得するために必要
-    const currentDiagnosis = await prisma.diagnosis.findUnique({
-      where: { id: diagnosisId },
-      select: { userId: true },
-    });
+  if (!data) {
+    return <div>結果データがありません</div>
+  }
 
-    //前回の診断を取得
-    // 同じユーザーの最新2件の診断を取得
-    // 診断履歴をDBから複数件取得
-    // 前回との差分を出すには、今回だけでなく前回の診断も必要だから
-    const diagnoses = await prisma.diagnosis.findMany({
-      //「このユーザーの診断だけ」を取る。
-      where: {
-        userId: currentDiagnosis?.userId,
-      },
-      //新しい診断順に並べている
-      orderBy: {
-        createdAt: "desc",
-      },
-      //2件だけ取得(今回と前回)
-      take: 2,
-      //診断本体だけでなく、その診断に紐づく栄養素スコアも一緒にとる。
-      include: {
-        scores: true,
-      },
-    });
+  return (
+    <div>
+      <h1>健康診断</h1>
+      <h2>栄養バランス</h2>
 
-    //前回データの取り出し
-    const previous = diagnoses[1];
+      {/* APIから受け取ったrankingをSafeRadarChartへ渡し、レーダーチャートを描画する。 */}
+      <SafeRadarChart ranking={data.ranking} />
 
+      {/* 順位・栄養素名・今回の点数を表示 */}
 
-    //差分計算
-
-    //差分計算用の箱
-    // 前回スコアを入れておくための箱を作成
-    let diffMap: Record<string, number> = {};
-
-
-    //前回スコアをdiffMapに追加
-    // if(previous){...}で前回診断があるときだけ処理を進めています。
-    // for (const item of previous.scores) {...}では、前回診断の栄養素スコアを1件ずつ見ている。
-    // diffMap[item.nutrientId] = item.score;は、「栄養素ID→前回スコア」の形で保存している。
-    if (previous) {
-      for (const item of previous.scores) {
-        diffMap[item.nutrientId] = item.score;
-      }
-    }
-
-    
-    //今回と前回の差分を作成
-    // 今回のランキング(ranking)1件ずつに対して、差分情報(diffRanking)を追加。
-    const diffRanking = ranking.map((item) => {
-      //今回の栄養素に対応する前回スコアを取り出す。
-      const prev = diffMap[item.nutrient];
-      //前回スコアがあれば差分を計算し、なければnullにする。
-      const diff = prev !== undefined ? item.total - prev : null;
-
-      //表示に必要な情報をまとめた新しいオブジェクトを返す。
-      // diffRanking配列の完成
-      return {
-        nutrient: item.nutrient,
-        total: item.total,
-        diff,
-      };
-    });
-
-
-
-    //診断結果として画面にランキングと差分をUI表示
-    // 取得した配列をmapで1つずつ取り出して表示
-    // SafeRadarChartでチャート表を表示
-    // diffRanking.map(...)で差分付きランキングを表示
-    return (
-      <div>
-        <h1>健康診断</h1>
-        <h2>栄養バランス</h2>
-        <SafeRadarChart ranking={ranking}/>
-        {/* 差分付きランキングを1件ずつ表示 */}
-        {diffRanking.map((item, index) => (
-          //Reactで各行を識別するためにkeyをつけている
-          <div key={item.nutrient}>
-            {/* 順位、栄養素名、今回の点数を表示 */}
-            {index + 1}位 {item.nutrient} {item.total}点
-            {/* 差分があるときだけ表示 */}
-            {item.diff !== null && (
-              <span>
-                {/* 差分がプラスの時だけ「+」を表示 */}
-                (前回 {item.diff > 0 ? "+" : ""}
-                {/* 実際の差分値を表示 */}
-                {item.diff})
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
-    )
+      {/* diffRankingの配列を1件ずつ取り出して表示 */}
+      {data.diffRanking.map((item, index) => (
+        <div key={item.nutrient}>
+          {/* indexは0から始まるので 「+ 1」をする */}
+          {index + 1}位 {item.nutrient} {item.total}点
+          {/* 差分がある時だけ表示 */}
+          {/* プラスの時は「+」、マイナスの時は「-」を表示 */}
+          {item.diff !== null && (
+            <span>
+              (前回 {item.diff > 0 ? "+" : ""} {item.diff})
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 }

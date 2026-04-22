@@ -59,3 +59,25 @@ export type SaveDiagnosisAnswersResponse = {
   success: boolean;
   message?: string;
 };
+
+
+// ------------------------------
+// 診断結果取得API
+// 
+// ------------------------------
+
+export type ResultRankingItem = {
+  nutrient: string;
+  total: number;
+};
+
+export type ResultDiffRankingItem = {
+  nutrient: string;
+  total: number;
+  diff: number | null; // 差分は前回の診断がない場合はnullになる可能性があるため、nullも可能にする
+};
+
+export type DiagnosisResultResponse = {
+  ranking: ResultRankingItem[];
+  diffRanking: ResultDiffRankingItem[];
+}
