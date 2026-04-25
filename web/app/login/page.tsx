@@ -185,7 +185,7 @@ export default function LoginPage() {
       }
 
       // ログイン成功後にページ遷移
-      router.push("/diagnosis");
+      router.push("/mypage");
     } catch (error) {
       console.error("ログイン中にエラーが発生しました:", error);
       setErrorMessage("ログイン処理中にエラーが発生しました。時間をおいて再度お試しください。");
