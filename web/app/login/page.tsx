@@ -32,14 +32,18 @@
 //     ↓
 //  メールアドレス入力 パスワード入力
 //     ↓
+// requiredが空欄かチェック
+//     ↓
 //  ログインボタンを押す
 //     ↓
 //  handleLogin実行
 //     ↓
-//  Supabase Auth に email / password 送信
+//  try の中でSupabase Auth に email / password 送信
 //     ↓
 //  成功 → 次のページ(/diagnosis)へ移動
 //  失敗 → エラーメッセージ(errorMessage)表示
+//  例外 → catch で共通エラー表示
+//  最後 → finally でisLoading をfalseに戻す
 
 
 //  login/page.tsx は Client Component
@@ -60,6 +64,8 @@
 //  client.ts の supabase は、 ブラウザ側から Supabase Auth にアクセスするための共通窓口。
 //  だからログイン画面では、 メール入力 パスワード入力 supabase.auth.signInWithPassword(...)
 //  という流れがつながる。
+// try / catch / finally によりログイン通信中、認証失敗とは別のエラーが起きた場合の処理を追加
+// requiredによる必須入力チェックを追加(空欄送信を防ぐ)
 
 
 //  useStateは入力値や表示状態を持つためのもの
@@ -68,6 +74,11 @@
 //  supabase.auth.signInWithPassword()が認証の本体
 //  if (error) return; で失敗時の暴走を止める
 //  router.push()で成功後にページ移動する
+//  try = 普通の処理
+//  catch = エラー時の処理
+//  finally = 最後に必ずやる処理
+//  required = 空欄送信防止
+//  disabled={isLoading} = 二重送信防止
 
 
 
@@ -161,21 +172,27 @@ export default function LoginPage() {
 
     // Supabaseにログイン要求を送る(認証)
     // 返ってきたオブジェクトからerrorプロパティだけ取り出しerrorという変数に入れる
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    
-    // ローディング状態を解除
-    setIsLoading(false);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
 
-    if (error) {
-      setErrorMessage("メールアドレスまたはパスワードが正しくありません。")
-      return;
+      if (error) {
+        setErrorMessage("メールアドレスまたはパスワードが正しくありません。")
+        return;
+      }
+
+      // ログイン成功後にページ遷移
+      router.push("/diagnosis");
+    } catch (error) {
+      console.error("ログイン中にエラーが発生しました:", error);
+      setErrorMessage("ログイン処理中にエラーが発生しました。時間をおいて再度お試しください。");
+    } finally {
+      // ローディング状態を解除
+      setIsLoading(false);
     }
-
-    // ログイン成功後にページ遷移
-    router.push("/diagnosis");
   };
 
   return (
@@ -183,22 +200,28 @@ export default function LoginPage() {
       <h1>ログイン</h1>
 
       {/* ログインボタンを押した時にログイン処理を動かす */}
+      {/* 入力必須項目 */}
       <form onSubmit={handleLogin}>
+
+        {/* 入力必須項目 */}
         <div>
           <label htmlFor="email">メールアドレス</label>
           <input
             id="email"
             type="email" 
+            required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
 
+        {/* 入力必須項目 */}
         <div>
           <label htmlFor="password">パスワード</label>
           <input 
             id="password"
             type="password"
+            required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
