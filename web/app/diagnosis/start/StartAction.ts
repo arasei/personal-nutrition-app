@@ -1,3 +1,10 @@
+// このStartAction.ts は現在未使用。削除予定。
+// 現在の診断開始処理では使用していない。
+// 記録としてこのコードを残しています。 
+// 正式な診断開始処理は StartButton.tsx + /api/diagnosis/start に統一しています。
+
+
+
 //診断レコード作成してstep1へリダイレクトするServer Action
 
 //全体の流れ：

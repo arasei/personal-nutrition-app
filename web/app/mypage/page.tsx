@@ -6,7 +6,9 @@
 // ログイン後は/mypageへ遷移
 // /mypage から診断開始へ遷移可能
 // /mypageから履歴一覧へ遷移可能
+
 // 現在は入力もstateも無いのでServer Component仕様
+// Startbutton.tsx側が"use client" であるため
 
 
 
@@ -28,6 +30,7 @@
 
 // Next.jsのページ遷移リンクを読み込み
 import Link from "next/link";
+import StartButton from "@/app/diagnosis/start/StartButton";
 
 export default function Mypage() {
   return (
@@ -36,7 +39,8 @@ export default function Mypage() {
 
       <p>メニュー</p>
       <div>
-        <Link href="/diagnosis/start">診断を始める</Link>
+        {/* 診断開始ボタン */}
+        <StartButton/>
       </div>
 
       <div>
