@@ -61,7 +61,7 @@ export type StartDiagnosisResponse = {
 //1問分の回答データの型を定義
 
 // 現在は未使用
-// SaveDiagnosisAnswerRequest を単体回答にしているため
+// SaveDiagnosisAnswersRequest を単体回答にしているため
 
 // なぜ必要
 
@@ -156,11 +156,11 @@ export type ResultRankingItem = {
 
 // diff: number | null;
 // 前回診断との差分
-// 初回診断では前回データが無いため null としている
+// 初回診断では前回データ(diff)が無いため null になる可能性があるため、nullも可能にする
 export type ResultDiffRankingItem = {
   nutrient: string;
   total: number;
-  diff: number | null; // 差分は前回の診断がない場合はnullになる可能性があるため、nullも可能にする
+  diff: number | null; 
 };
 
 
