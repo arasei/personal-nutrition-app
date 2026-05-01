@@ -44,12 +44,14 @@ type AnswerFormProps = {
   diagnosisId: string;
   questionId: string;
   order: number;
+  isLast: boolean;
 };
 
 export default function AnswerForm({
   diagnosisId,
   questionId,
   order,
+  isLast,
 }: AnswerFormProps) {
   const router = useRouter();
   // 回答入力欄の値を管理
@@ -158,7 +160,7 @@ export default function AnswerForm({
         style={{ marginLeft: 8, padding: "8px 12px" }}
       >
         {/* ボタンの表示内容 */}
-        {isLoading ? "保存中..." : "次へ"}
+        {isLoading ? "保存中..." : isLast ? "結果" : "次へ"}
       </button>
     </form>
   )
