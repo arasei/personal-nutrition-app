@@ -20,6 +20,15 @@
 
 
 
+// token 送信について
+
+// Supabase session から access_token を取得し、
+// Authorization header に token を付けて結果取得APIを呼び出す
+// result API側では token から user.id を取得し、
+// diagnosisId がログイン中ユーザー本人の診断か確認する
+
+
+
 // 今回のポイント
 // async function Component() は Server Component 的な考え方に近い
 // Client Component は普通の関数 + state 更新で考える
@@ -70,8 +79,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import SafeRadarChart from "@/components/SafeRadarChart";
+import { supabase } from "@/lib/supabase/client";
 // APIから受け取るデータの型を読み込む
 import type { DiagnosisResultResponse } from "@/types/diagnosisApi";
 
@@ -80,6 +90,7 @@ import type { DiagnosisResultResponse } from "@/types/diagnosisApi";
 // 後でstateを更新する形
 export default function ResultPage() {
   const params = useParams();
+  const router = useRouter();
   // 型の都合上、as stringとする
   const diagnosisId = params.diagnosisId as string;
 
@@ -99,14 +110,35 @@ export default function ResultPage() {
         setLoading(true);
         setError(null);
 
+        // supabaseから現在のログインsessionを取得
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        // sessionからAPIに送る access_tokenを取り出す
+        // 「?.」があるので、sessionがない場合でもエラーにならない
+        const token = session?.access_token;
+
+        // tokenが無い場合、未ログイン扱い
+        if (!token) {
+          setError("ログインが必要です");
+          router.push("/login");
+          return;
+        }
+
         // 結果取得API呼び出し
-        const response = await fetch(`/api/diagnosis/${diagnosisId}/result`);
+        // API側で「このリクエストを送ったユーザーは誰か？」を確認するため Authorization header にtokenを入れる
+        const response = await fetch(`/api/diagnosis/${diagnosisId}/result`, {
+          headers: {
+            Authorization: token,
+          },
+        });
 
         if (!response.ok) {
           throw new Error("結果取得に失敗しました");
         }
 
-        // API(json形式)のデータを指定した型で受け取る
+        // APIから返ってきたデータをJSON型で受け取り、DiagnosisResultResponseの型とする。
         const result: DiagnosisResultResponse = await response.json();
         // APIから取得した結果データ(result)をstateに保存
         setData(result);
@@ -122,10 +154,11 @@ export default function ResultPage() {
     if (diagnosisId) {
       fetchResult();
     }
-  }, [diagnosisId]);
+  // diagnosisId または router が変わったときに useeffect を再実行する
+  }, [diagnosisId, router]);
 
   if (loading) {
-    return <div>読み込み中...</div>
+    return <div>読み込み中...</div>;
   }
 
   if (error) {
@@ -133,7 +166,7 @@ export default function ResultPage() {
   }
 
   if (!data) {
-    return <div>結果データがありません</div>
+    return <div>結果データがありません</div>;
   }
 
   return (
