@@ -1,5 +1,7 @@
 //  web/app/login/page.tsx
-//  ログイン画面で入力したメールアドレスとパスワードを受け取り、Supabaseで確認(認証)できれば、ログイン状態を作る、 成功時に診断ページ(/diagnosis)へ遷移するページ
+
+// ログインページ
+//  ログイン画面で入力したメールアドレスとパスワードを受け取り、Supabaseで確認(認証)できれば、ログイン状態を作る、 成功時にホーム画面(/mypage)へ遷移するページ
 
 //  このページで行っていること 
 //  画面にメールアドレス欄とパスワード欄を出す
@@ -38,10 +40,11 @@
 //     ↓
 //  handleLogin実行
 //     ↓
-//  try の中でSupabase Auth に email / password 送信
+//  supabase.auth.signInWithPassword() の中でSupabase Auth に email / password 送信(認証)
 //     ↓
-//  成功 → 次のページ(/diagnosis)へ移動
+//  成功 → 次のページ(/mypage)へ移動
 //  失敗 → エラーメッセージ(errorMessage)表示
+// 未登録 → 「新規登録はこちら」から /signup へ移動
 //  例外 → catch で共通エラー表示
 //  最後 → finally でisLoading をfalseに戻す
 
@@ -155,6 +158,7 @@ import { useState } from "react";
 //クライアント側用のSupabaseインスタンスを読み込んでいる
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -166,21 +170,25 @@ export default function LoginPage() {
 
 // ログインボタンを押した後の処理
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    // フォーム送信時のページ再読み込みされるのを防ぐ
     e.preventDefault();
     setErrorMessage("");
     setIsLoading(true);
 
-    // Supabaseにログイン要求を送る(認証)
+    // signInWithPassword がログイン処理を行う
+    // Supabase Auth に「このメールアドレスとパスワードでログインできますか？」と確認(認証)
     // 返ってきたオブジェクトからerrorプロパティだけ取り出しerrorという変数に入れる
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const result = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
       });
+
+      const error = result.error;
       
 
       if (error) {
-        setErrorMessage("メールアドレスまたはパスワードが正しくありません。")
+        setErrorMessage("メールアドレスまたはパスワードが正しくありません。");
         return;
       }
 
@@ -196,47 +204,72 @@ export default function LoginPage() {
   };
 
   return (
-    <main>
-      <h1>ログイン</h1>
+    <main className="mx-auto max-w-md p-6">
+      <h1 className="mb-6 text-2xl font-bold">
+        ログイン
+      </h1>
 
       {/* ログインボタンを押した時にログイン処理を動かす */}
       {/* 入力必須項目 */}
-      <form onSubmit={handleLogin}>
+      <form onSubmit={handleLogin} className="space-y-4">
 
         {/* 入力必須項目 */}
         <div>
-          <label htmlFor="email">メールアドレス</label>
+          <label htmlFor="email" className="mb-1 block text-sm font-medium">
+            メールアドレス
+          </label>
           <input
             id="email"
             type="email" 
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            className="w-full rounded border px-3 py-2"
+            placeholder="example@example.com"
           />
         </div>
 
         {/* 入力必須項目 */}
         <div>
-          <label htmlFor="password">パスワード</label>
+          <label htmlFor="password" className="mb-1 block text-sm font-medium">
+            パスワード
+          </label>
           <input 
             id="password"
             type="password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            className="w-full rounded border px-3 py-2"
+            placeholder="パスワードを入力"
           />
         </div>
         
         {/* errorMessageがある時だけ<p></p>を表示 */}
-        {errorMessage && <p>{errorMessage}</p>}
+        {errorMessage && (
+          <p className="text-sm text-red-500">{errorMessage}</p>
+        )}
 
         {/* ログインボタンを表示 */}
         {/* disabled={isLoading} = isLoadingがtrueの時disabledを有効にする(二重送信防止) */}
         {/* type="submit" = フォーム送信  */}
-        <button type="submit" disabled={isLoading}>
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full rounded bg-black px-4 py-2 text-white disabled:opacity-50"
+        >
           {isLoading ? "ログイン中..." : "ログインする"}
         </button>
       </form>
+
+      {/* /signup ページへの動線リンクを追加 */}
+      {/* 未登録の人がログイン画面から新規登録ページへ移動できるように */}
+      <p className="mt-4 text-sm">
+          アカウントをお持ちでない方は{" "}
+          <Link href="/signup" className="underline">
+            新規登録はこちら
+          </Link>
+        </p>
     </main>
   );
 }
