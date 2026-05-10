@@ -1,4 +1,8 @@
-// API Routeなどサーバー側で使うSupabaseクライアントを作成する関数を定義
+// web/lib/supabase/server.ts
+
+// API Routeなどサーバー側で使うSupabaseクライアントを作成する関数
+// tokenをSupabaseに確認し、ログイン中ユーザーを取得するために使う
+
 
 // なぜ必要？
 // サーバー側でユーザー確認や認証処理を行うために必要

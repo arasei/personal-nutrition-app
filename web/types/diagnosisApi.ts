@@ -193,3 +193,44 @@ export type DiagnosisResultResponse = {
   ranking: ResultRankingItem[];
   diffRanking: ResultDiffRankingItem[];
 };
+
+
+
+
+// ------------------------------
+// 診断履歴一覧取得API
+// GET /api/diagnosis/history
+// ------------------------------
+
+// 履歴一覧で表示する上位栄養素1件分の型
+// nutrientId: 栄養素ID
+// nutrientName: 画面に表示する栄養素名
+// score: 診断で保存された栄養素スコア
+
+export type DiagnosisHistoryTopNutrient = {
+  nutrientId: string;
+  nutrientName: string;
+  score: number;
+};
+
+// 履歴一覧で表示する診断履歴1件分の型
+// id: 診断ID。/history/[id] へのリンクに使う
+// createdAt: 診断作成日。APIのJSONレスポンスでは文字列として扱う
+// topNutrients: 上位3栄養素の配列
+
+// Prisma側では createdAt はDate 型です。
+// しかし、APIで NextResponse.json() に入れてブラウザへ返すと、
+// JSONとして送られるため、日付は文字列とする
+
+export type DiagnosisHistoryItem = {
+  id: string;
+  createdAt: string;
+  topNutrients: DiagnosisHistoryTopNutrient[];
+};
+
+// 診断履歴一覧APIから返ってくるレスポンス全体の型
+// histories: 診断履歴の配列
+
+export type GetDiagnosisHistoryResponse = {
+  histories: DiagnosisHistoryItem[];
+};
