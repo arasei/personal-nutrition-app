@@ -1,8 +1,15 @@
-// 履歴詳細ページで[id]を元に今回の診断と前回の診断を取得し、
+// web/app/history/[id]/page.tsx
+
+// 履歴詳細ページでURLの[id]を元に履歴詳細APIを呼び出し、ログイン中ユーザー本人の
 // 診断日・チャート・栄養スコア一覧・上位栄養素・不足栄養素・前回差分を表示するページ
 
+// 役割
+// /history/[id]/page.tsx
+//   ↓
+// tokenを送る・API結果を受け取る・表示する
 
-// 履歴詳細ページ → ServerComponent + Prisma(Prisma直呼び)
+
+
 
 
 // URL例
@@ -28,170 +35,162 @@
 
 // 処理流れ
 
-// 履歴一覧ページ
-//    ↓ クリック
-// /history/123
+// 履歴一覧ページ(web/app/history/page.tsx)
+//    ↓ 履歴カードをクリック
+// 履歴詳細ページ(/history/[id])
 //    ↓
-// ServerComponent+DB
+// useParamsでidを取得
 //    ↓
-// PrismaでDBから今回の診断データ(currentDiagnosis)取得
+// Supabase sessionからtokenを取得
 //    ↓
-// PrismaでDBから前回の診断データ(previousDiagnosis)取得
+// /api/diagnosis/history/[id] にtoken付きでリクエストを送る
 //    ↓
-// 診断データを元に栄養素スコア(scores)と栄養素名(nutrient)を取得
+// API側で本人確認・DB取得・データ整形
 //    ↓
-// 今回のスコア(scores)を見やすい形(nutrientScores)に整形(nutrient.name, nutrientId, score)
-//    ↓
-// 上位3件(topNutrients)を作成
-//    ↓
-// 下位3件(lowNutrients)を作成
-//    ↓
-// 前回との差分(differences)を作成
-//    ↓
-// チャート用のデータ(ranking)に変換
-//    ↓
-// 画面栄養素スコア・チャート表示
+// page.tsx側で受け取ったデータを表示
 
 
-import SafeRadarChart from "@/components/SafeRadarChart"
-import { prisma } from "@/lib/prisma"
 
-// このページに渡ってくるURLのパラメータの型定義
-type Props = {
-  params: {
-    id: string
-  }
-}
+"use client";
 
 
-//今回の診断のスコアをDBから取得
-//params取得
-//ServerComponent使用
-export default async function HistoryDetailPage({ params }: Props) {
-  const { id } = await params
-
-  //今回の診断(Diagnosis)を1件取得
-  const currentDiagnosis = await prisma.diagnosis.findUnique({
-    //URLのIDを持つ診断を1件検索
-    where: { id },
-    //includeで関連しているスコアと栄養素名も一緒に取得
-    include: {
-      scores: {
-        include: {
-          nutrient: true,
-        },
-      },
-    },
-  })
-
-  if (!currentDiagnosis) {
-    return <p>データが見つかりません</p>
-  }
-
-  //前回の診断を取得
-  const previousDiagnosis = await prisma.diagnosis.findFirst({
-    where: {
-      userId: currentDiagnosis.userId,
-      createdAt: {
-        lt: currentDiagnosis.createdAt,
-      },
-    },
-    include: {
-      scores: {
-        include: {
-          nutrient: true,
-        },
-      },
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  })
-
-  //栄養スコアを見やすい形に整える
-  // .sort((a, b) => b.score - a.score);でscoreが高い順に並び替え
-  const nutrientScores = currentDiagnosis.scores
-    .map((score) => ({
-      nutrient: score.nutrient.name,
-      nutrientId: score.nutrientId,
-      score: score.score,
-    }))
-    .sort((a, b) => b.score - a.score)
-
-  //上位3件
-  const topNutrients = nutrientScores.slice(0, 3)
-
-  //下位3件
-  const lowNutrients = [...nutrientScores]
-    .sort((a, b) => a.score - b.score)
-    .slice(0, 3)
+import SafeRadarChart from "@/components/SafeRadarChart";
+import { supabase } from "@/lib/supabase/client";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import type { GetDiagnosisHistoryDetailResponse } from "@/types/diagnosisApi";
 
 
-  //前回との差分表示
+// APIからのエラーを受け取るときの型
+// APIが失敗した時に error という文字列を返す可能性があるため、その形を定義
+type ApiErrorResponse = {
+  error?: string;
+};
 
 
-  //現在の各栄養素について、差分表示用データを作成
-  const differences = nutrientScores.map((current) => {
-    //差分計算する対象を同じ栄養素IDとして一致するかどうかで判断
-    const previous = previousDiagnosis?.scores.find(
-      (item) => item.nutrientId === current.nutrientId
-    )
 
-    //前回スコアがあるかどうかをtrue/falseで判断するため
-    const hasPrevious = !!previous
-    //前回スコアがない時nullにする。
-    const previousScore = previous?.score ?? null
-    //前回スコアがある時、差分計算する。
-    const diff = hasPrevious ? current.score - previous.score : null
+// 履歴詳細ページのコンポーネントを定義
+export default function HistoryDetailPage() {
+  const params = useParams();
+  const router = useRouter();
 
-    //最初の初期値
-    let diffLabel = "前回データなし"
+  // URLの [id] を文字列として取り出す
+  const id = params.id as string;
 
-    //差分の内容ごとの表示文の条件分岐
-    if (diff !== null) {
-      if (diff > 0) {
-        diffLabel = `+${diff} 改善`
-      } else if (diff < 0) {
-        diffLabel = `${diff} 低下`
-      } else {
-        diffLabel = "0 変化なし"
+  // APIから取得した履歴詳細データを保存するstate
+  // 最初はまだ取得していないので null
+  const [historyDetail, setHistoryDetail] = useState<GetDiagnosisHistoryDetailResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    const fetchHistoryDetail = async () => {
+      try {
+        // 新しいIDで取得し直すときにもう一度読み込み中にする
+        setIsLoading(true);
+        // 前回のエラー表示を必ず消す
+        setErrorMessage("");
+        // 前回表示していた診断詳細を必ず消す
+        setHistoryDetail(null);
+
+        // Supabase から現在のログインsession を取得
+        const result = await supabase.auth.getSession();
+        // 取得結果から session を取り出す
+        const session = result.data.session;
+        // session から access token を取り出す
+        const token = session?.access_token;
+
+        // 未ログイン時
+        if (!token) {
+          alert("ログインが必要です");
+          router.push("/login");
+          return;
+        }
+        
+        // token付きで履歴詳細APIを呼ぶ
+        // フロント側から(web/app/history/[id]/page.tsx)API側(web/app/api/diagnosis/history/[id]/route.ts)に送られる、
+        // Authorizationヘッダーからtokenを取り、id + userId で本人の診断だけ取得する為の構成
+        const res = await fetch(`/api/diagnosis/history/${id}`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          cache: "no-store",
+        });
+
+        // APIから返ってきたJSONを読み取る
+        const data = await res.json();
+
+        // エラー時の data の形は { error: "エラーメッセージ" } なので、ApiErrorResponse 型として扱う
+        if (!res.ok) {
+          const errorData = data as ApiErrorResponse;
+
+          setErrorMessage(errorData.error ?? "履歴詳細の取得に失敗しました");
+          return;
+        }
+        
+        // 成功時は履歴詳細データとして扱う
+        // 成功時の data の形は GetDiagnosisHistoryDetailResponse 型として扱う
+        const historyData = data as GetDiagnosisHistoryDetailResponse;
+
+        setHistoryDetail(historyData);
+      } catch (error) {
+        console.error("failed to fetch history detail:", error);
+        setErrorMessage("履歴詳細の取得中にエラーが発生しました");
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
 
-    //フロント側に返す用に差分表示用データを作成
-    return {
-      nutrient: current.nutrient,
-      nutrientId: current.nutrientId,
-      current: current.score,
-      previous: previousScore,
-      diff,
-      hasPrevious,
-      diffLabel,
-    }
-  })
+    fetchHistoryDetail();
+  }, [id, router]);
 
-  //チャート用のデータ形に変換
+  // API取得中の表示
+  if (isLoading) {
+    return <p>履歴詳細を読み込み中です...</p>;
+  }
+
+  // エラー時のメッセージ表示
+  if (errorMessage) {
+    return <p>{errorMessage}</p>;
+  }
+
+  // 読み込み完了後、履歴詳細データが無い場合の表示
+  if (!historyDetail) {
+    return <p>履歴詳細がありません</p>;
+  }
+  
+  //APIから来るデータをチャート用のデータ形に変換
   //nutrientはそのまま、score を total に変換して、SafeRadarChartに渡す。
-  const ranking = nutrientScores.map((item) => ({
+  const ranking = historyDetail.nutrientScores.map((item) => ({
     nutrient: item.nutrient,
     total: item.score,
-  }))
+  }));
+
 
   return (
     <div className="space-y-6 p-6">
       <h1 className="text-2xl font-bold">診断詳細</h1>
       {/* 日付表示 */}
-      <p>診断日: {new Date(currentDiagnosis.createdAt).toLocaleDateString()}</p>
+      {/* API側から toISOString() で文字列で返ってくるので new Date(...) で日付表示に変換 */}
+      <p>
+        診断日: {" "}
+        {new Date(historyDetail.createdAt).toLocaleDateString("ja-JP")}
+      </p>
 
 
-      {/* スコア表示 */}
+      {/* 栄養素スコア表示 */}
       {/* チャート表示 */}
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold">栄養素スコア</h2>
-        <SafeRadarChart ranking={ranking}/>
+        <h2 className="text-xl font-semibold">
+          栄養素スコア
+        </h2>
+
+        <SafeRadarChart ranking={ranking} />
+
         <ul className="space-y-1">
-          {/* 全栄養素のスコア一覧を表示 */}
-          {nutrientScores.map((score) => (
+          {/* 全栄養素のスコアを1件ずつ表示 */}
+          {historyDetail.nutrientScores.map((score) => (
             <li key={score.nutrientId}>
               {score.nutrient} : {score.score}
             </li>
@@ -199,11 +198,13 @@ export default async function HistoryDetailPage({ params }: Props) {
         </ul>
       </section>
 
-      {/* 上位3件 */}
+      {/* 満たせている上位3件 */}
       <section className="space-y-2">
-        <h2 className="text-xl font-semibold">上位栄養素</h2>
+        <h2 className="text-xl font-semibold">
+          満たせている上位栄養素
+        </h2>
         <ul className="space-y-1">
-          {topNutrients.map((nutrient) => (
+          {historyDetail.topNutrients.map((nutrient) => (
             <li key={nutrient.nutrientId}>
               {nutrient.nutrient} : {nutrient.score}
             </li>
@@ -213,9 +214,11 @@ export default async function HistoryDetailPage({ params }: Props) {
 
       {/* 下位3件 */}
       <section className="space-y-2">
-        <h2 className="text-xl font-semibold">不足栄養素</h2>
+        <h2 className="text-xl font-semibold">
+          不足傾向の上位栄養素
+        </h2>
         <ul className="space-y-1">
-          {lowNutrients.map((nutrient) => (
+          {historyDetail.lowNutrients.map((nutrient) => (
             <li key={nutrient.nutrientId}>
               {nutrient.nutrient} : {nutrient.score}
             </li>
@@ -223,11 +226,13 @@ export default async function HistoryDetailPage({ params }: Props) {
         </ul>
       </section>
 
-      {/* 前回との差分 */}
+      {/* 各栄養素の前回との差分 */}
       <section className="space-y-2">
-        <h2 className="text-xl font-semibold">前回との差分</h2>
+        <h2 className="text-xl font-semibold">
+          前回との差分
+        </h2>
         <ul className="space-y-1">
-          {differences.map((item) => (
+          {historyDetail.differences.map((item) => (
             <li key={item.nutrientId}>
               {item.nutrient} : 現在 {item.current}
               {" / "}
@@ -239,5 +244,5 @@ export default async function HistoryDetailPage({ params }: Props) {
         </ul>
       </section>
     </div>
-  )
+  );
 }

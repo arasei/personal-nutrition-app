@@ -220,7 +220,7 @@ export type DiagnosisHistoryTopNutrient = {
 
 // Prisma側では createdAt はDate 型です。
 // しかし、APIで NextResponse.json() に入れてブラウザへ返すと、
-// JSONとして送られるため、日付は文字列とする
+// JSONとして送られるため、日付は文字列として扱う必要があるため、string型にしている
 
 export type DiagnosisHistoryItem = {
   id: string;
@@ -233,4 +233,59 @@ export type DiagnosisHistoryItem = {
 
 export type GetDiagnosisHistoryResponse = {
   histories: DiagnosisHistoryItem[];
+};
+
+
+// ------------------------------
+// 診断履歴詳細取得API
+// GET /api/diagnosis/history/[id]
+// ------------------------------
+
+
+// 履歴詳細で表示する栄養素スコア1件分の型
+// nutrient: 画面に表示する栄養素名
+// nutrientId: 栄養素ID。前回との差分比較やkeyに使う
+// score: 診断で保存された栄養素スコア
+
+export type DiagnosisHistoryDetailScore = {
+  nutrient: string;
+  nutrientId: string;
+  score: number;
+};
+
+
+// 履歴詳細で表示する前回との差分1件分の型
+// current: 今回スコア
+// previous: 前回のスコア。前回データがない場合は null
+// diff: 今回 - 前回 の差分。前回データが無い場合は null
+// hasPrevious: 前回データがあるかどうか
+// diffLabel: 画面表示用の文言
+
+// previous と diff に null を許可しているのは、初回診断では前回データが無いから
+
+export type DiagnosisHistoryDetailDifference = {
+  nutrient: string;
+  nutrientId: string;
+  current: number;
+  previous: number | null;
+  diff: number | null;
+  hasPrevious: boolean;
+  diffLabel: string; 
+};
+
+
+// 診断履歴詳細APIから返ってくるレスポンス全体の型
+// createdAt は APIレスポンスでは文字列として扱う
+// nutrientScores: 全栄養素スコア一覧
+// topNutrients: スコアが高い上位栄養素
+// lowNutrients: スコアが低い上位栄養素
+// differences: 前回との差分一覧
+
+export type GetDiagnosisHistoryDetailResponse = {
+  id: string;
+  createdAt: string;
+  nutrientScores: DiagnosisHistoryDetailScore[];
+  topNutrients: DiagnosisHistoryDetailScore[];
+  lowNutrients: DiagnosisHistoryDetailScore[];
+  differences: DiagnosisHistoryDetailDifference[];
 };
