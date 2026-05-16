@@ -1,7 +1,31 @@
 // web/types/diagnosisApi.ts
-// 診断機能で使うAPIのリクエスト/レスポンスの型をまとめるファイル
+// 診断機能で使うAPIの以下のようなリクエスト/レスポンスの型をまとめるファイル
+// フロントからAPIへ送るbodyの型
+// APIからフロントへ返すJSONの型
+// 複数ファイルで共有するレスポンス型
+// 複数ファイルで共有するデータ1件分の型
+// APIエラーレスポンスの型
+
 // 「何を送るか」 「何が返るか」を決めている
-// フロントとサーバーでデータの形を揃える為
+
+// フロントとサーバーでデータの型を共有する為
+
+// APIの通信で送るデータ・返すデータの型を定義する
+
+
+
+
+// ------------------------------
+// 共通エラーレスポンス
+// ------------------------------
+// APIでエラーが起きたときに返すレスポンスの型を定義
+// message: 画面に表示するエラーメッセージ
+export type ApiErrorResponse = {
+  message?: string;
+};
+
+
+
 
 // ------------------------------
 // 診断開始API
@@ -142,10 +166,12 @@ export type SaveDiagnosisAnswersResponse = {
 
 // 診断結果のランキング1件分の型を定義
 
-// nutrient → 栄養素名
-// total → 栄養素の合計スコア
+// nutrientId: 栄養素ID。Reactのkeyや前回比較に使う
+// nutrient → 画面に表示する栄養素名
+// total → 保存済みの栄養素の合計スコア
 
 export type ResultRankingItem = {
+  nutrientId: string;
   nutrient: string;
   total: number;
 };
@@ -154,10 +180,10 @@ export type ResultRankingItem = {
 
 // 前回との差分付きランキングの1件分の型を定義
 
-// diff: number | null;
-// 前回診断との差分
+// diff: 今回 - 前回 の差分(前回診断との差分)
 // 初回診断では前回データ(diff)が無いため null になる可能性があるため、nullも可能にする
 export type ResultDiffRankingItem = {
+  nutrientId: string;
   nutrient: string;
   total: number;
   diff: number | null; 
