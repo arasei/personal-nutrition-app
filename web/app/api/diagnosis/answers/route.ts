@@ -1,6 +1,9 @@
+// web/app/api/diagnosis/answers/route.ts
+
 // 作成済み diagnosis に1問分の回答を保存するAPI
 // 診断開始API(web/app/api/diagnosis/start)で作成済みのdiagnosisのID(diagnosisId)をクライアントから受け取り、
 // ログイン中ユーザー本人の診断であることを確認したうえで回答を保存するAPI
+// 最後の質問の場合、スコア保存・診断完了・結果ページURL返却を行う
 
 // 役割
 // クライアントから送られた token を Authorization ヘッダーから受け取る。
@@ -22,9 +25,13 @@
 
 // 1問分の回答を保存する
 // token からログイン中ユーザーを確認する
-// diagnosisId が本人の診断か確認する
-// 最後の質問の場合、栄養素スコアを集計して保存する
+// diagnosisId + userId で本人の診断か確認する
+// 1問1回答を upsert で保存している
+// 最後の質問の場合、栄養素スコアを集計して DiagnosisNutrientScore に保存する
 // 最後の質問の場合、Diagnosis を COMPLETED に更新する
+// transaction でまとめて更新している
+// questionId と order の不一致の場合、弾いてる
+// Bearer token形式 に対応している
 // 次に遷移するURLを nextHref として返す
 
 
@@ -125,6 +132,7 @@
 // 認可失敗時: { success: false, message: "Forbidden" }
 // リクエスト不正時: { success: false, message: "Invalid request body" }
 // サーバーエラー時: { success: false, message: "Failed to save diagnosis answer" }
+// スコア計算失敗時: { success: false, message: "Failed to calculate score" }
 // フロントとサーバーで共通型 SaveDiagnosisAnswersResponse を使い、レスポンスの形をそろえる。
 
 
@@ -137,21 +145,46 @@
 
 
 // 全体の流れ
+
 // AnswerForm.tsx
-//   ↓ token + diagnosisId + questionId + value + orderを渡す
-// /api/diagnosis/answers
 //   ↓
-// Authorizationからtoken取得
+// Authorization: Bearer token
+// diagnosisId / questionId / value / order を渡す
 //   ↓
-// Supabaseにtokenを渡し、user確認(ログイン中ユーザーか確認)
+// api/diagnosis/answers/route.ts
 //   ↓
-// diagnosisId + user.id で本人確認
+// Bearer tokenからtoken本体を取り出す
 //   ↓
-// DiagnosisAnswer upsert で回答をまとめて保存
+// Supabaseに token を渡し、user 確認(ログインユーザーかを確認)
 //   ↓
-// 最後の質問？
-//   ├─ No → currentStep更新 → 次のstep URLを返す
-//   └─ Yes → スコア集計 → Diagnosis完了 → result URLを返す
+// diagnosisId + user.id で本人の診断か確認
+//   ↓
+// questionId + order が正しい組み合わせか確認
+//   ↓
+// DiagnosisAnswerをupsert で回答をまとめて保存
+//   ↓
+// 最後の質問か判定
+//   ├─ No
+//   │   ↓
+//   │ currentStep更新
+//   │   ↓
+//   │ 次の質問URLを返す
+//   │
+//   └─ Yes
+//       ↓
+//       全回答取得
+//       ↓
+//       栄養素ごとにスコア集計
+//       ↓
+//       scoreRows作成(保存用スコア配列を作成)
+//       ↓
+//       古いscores削除
+//       ↓
+//       新しいscores保存
+//       ↓
+//       DiagnosisをCOMPLETEDに更新
+//       ↓
+//       結果ページURLを返す
 
 
 
@@ -162,9 +195,9 @@
 
 import { prisma } from "@/lib/prisma";
 import { createClientForServer } from "@/lib/supabase/server";
-import {
-    SaveDiagnosisAnswersRequest,
-    SaveDiagnosisAnswersResponse,
+import type {
+  SaveDiagnosisAnswersRequest,
+  SaveDiagnosisAnswersResponse,
 } from "@/types/diagnosisApi";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -180,8 +213,8 @@ type QuestionItem = {
   nutrientId: string;
 };
 
-// 栄養素の合計スコアを表す型
-type RankingItem = {
+// 栄養素の合計スコアをDB保存用の1行分のスコアデータの型
+type ScoreRow = {
   nutrientId: string;
   total: number;
 };
@@ -213,26 +246,21 @@ function buildScoreMap(
     // 対応する栄養素IDがなければその回答をスキップ
     if (!nutrientId) continue;
 
-    // その栄養素の合計値がまだなければ、0で初期化する
-    if (!scoreMap[nutrientId]) {
-      scoreMap[nutrientId] = 0;
-    }
-
     // その栄養素の合計点に、回答値を足す
-    scoreMap[nutrientId] += a.value;
+    scoreMap[nutrientId] = (scoreMap[nutrientId] ?? 0) + a.value;
   }
 
   return scoreMap;
 }
 
-// 栄養素ごとの合計点を、配列のランキング形式に変換する
-function buildRanking(scoreMap: Record<string, number>): RankingItem[] {
-  return Object.entries(scoreMap)
-  .map(([nutrientId, total]) => ({
+// scoreMap を保存用の配列に変換する
+// 栄養素ごとの合計点を、保存しやすい配列形式に変換する
+// 表示順はresult/route.ts 側で並び替える。ここでは変換だけ行う。
+function buildScoreRows(scoreMap: Record<string, number>): ScoreRow[] {
+  return Object.entries(scoreMap).map(([nutrientId, total]) => ({
     nutrientId,
     total,
-  }))
-  .sort((a, b) => b.total - a.total);
+  }));
 }
 
 
@@ -241,8 +269,28 @@ function buildRanking(scoreMap: Record<string, number>): RankingItem[] {
 // POSTリクエストを受け取るAPI関数
 export async function POST(request: NextRequest) {
   try {
+    const authHeader = request.headers.get("Authorization");
+
+    if (!authHeader) {
+      const responseBody: SaveDiagnosisAnswersResponse = {
+        success: false,
+        message: "Unauthorized",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
+    }
+
+    if (!authHeader.startsWith("Bearer ")) {
+      const responseBody: SaveDiagnosisAnswersResponse = {
+        success: false,
+        message: "Invalid authorization format",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
+    }
+
     //クライアントが送ってきたリクエストヘッダーからAuthorization(token)を取得
-    const token = request.headers.get("Authorization") ?? "";
+    const token = authHeader.replace("Bearer ", "").trim();
 
     // tokenがない場合は、未ログインとして扱い、
     // 回答保存を許可しないために「401 Unauthorized」を返す
@@ -301,7 +349,10 @@ export async function POST(request: NextRequest) {
         id: diagnosisId,
         userId: user.id,
       },
-      select: { id: true, },
+      select: { 
+        id: true,
+        status: true,
+      },
     });
 
     if (!diagnosis) {
@@ -313,6 +364,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(responseBody, { status: 403 });
     }
 
+    // 完了済みの診断の場合は回答を保存させない
+    if (diagnosis.status === "COMPLETED") {
+      const responseBody: SaveDiagnosisAnswersResponse = {
+        success: false,
+        message: "Diagnosis already completed",
+      };
+
+      return NextResponse.json(responseBody, { status: 400 });
+    }
+
     // 質問総数チェック
     // 今の order が最後の質問かどうか判断するため
     const total = await prisma.diagnosisQuestion.count();
@@ -321,6 +382,26 @@ export async function POST(request: NextRequest) {
       const responseBody: SaveDiagnosisAnswersResponse = {
         success: false,
         message: "Invalid step",
+      };
+
+      return NextResponse.json(responseBody, { status: 400 });
+    }
+
+    // questionId と order が本当に対応しているかのチェック
+    const question = await prisma.diagnosisQuestion.findFirst({
+      where: {
+        id: questionId,
+        order,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!question) {
+      const responseBody: SaveDiagnosisAnswersResponse = {
+        success: false,
+        message: "Invalid question",
       };
 
       return NextResponse.json(responseBody, { status: 400 });
@@ -360,7 +441,7 @@ export async function POST(request: NextRequest) {
 
     if (isLast) {
 
-      // 今回の診断に紐づく回答一覧を取得
+      // 今回の診断に紐づく回答一覧を全て取得
       const answers = await prisma.diagnosisAnswer.findMany({
         where: { diagnosisId },
         select: {
@@ -381,8 +462,18 @@ export async function POST(request: NextRequest) {
       const questionMap = buildQuestionMap(questions);
       // 回答一覧を元に、栄養素ごとの合計点を作成
       const scoreMap = buildScoreMap(answers, questionMap);
-      // スコアマップをランキング配列に変換
-      const ranking = buildRanking(scoreMap);
+      // スコアマップをDB保存用のスコア配列に変換
+      const scoreRows = buildScoreRows(scoreMap);
+
+      // スコアが算出できていない(scoreRowsが空)場合はエラー
+      if (scoreRows.length === 0) {
+        const responseBody: SaveDiagnosisAnswersResponse = {
+          success: false,
+          message: "Failed to calculate score",
+        };
+
+        return NextResponse.json(responseBody, { status: 400 });
+      }
 
       // 複数のDB更新を$transactionでまとめて実行
       await prisma.$transaction(async (tx) => {
@@ -393,10 +484,10 @@ export async function POST(request: NextRequest) {
 
         // 栄養素ごとのスコアをまとめて保存
         await tx.diagnosisNutrientScore.createMany({
-          data: ranking.map((r) => ({
+          data: scoreRows.map((row) => ({
             diagnosisId,
-            nutrientId: r.nutrientId,
-            score: r.total,
+            nutrientId: row.nutrientId,
+            score: row.total,
           })),
         });
 
@@ -411,7 +502,7 @@ export async function POST(request: NextRequest) {
         });
       });
 
-      // 最後の質問の後の思考レスポンス
+      // 最後の質問の後の成功レスポンス
       // nextHrefでフロントに次のURL(診断結果ページ)を返す設計
       const responseBody: SaveDiagnosisAnswersResponse = {
         success: true,
