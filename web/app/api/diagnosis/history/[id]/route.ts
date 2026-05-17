@@ -96,7 +96,7 @@ export async function GET(
 
     if (!diagnosisId) {
       return NextResponse.json(
-        { error: "診断IDが必要です" },
+        { message: "診断IDが必要です" },
         { status: 400 }
       );
     }
@@ -108,7 +108,7 @@ export async function GET(
     // Authorization が無い場合は、ログインユーザーを判断できないのでエラーを返す
     if (!authHeader) {
       return NextResponse.json(
-        { error: "認証情報がありません" },
+        { message: "認証情報がありません" },
         { status: 401 }
       );
     }
@@ -118,7 +118,7 @@ export async function GET(
     // 「Bearer xxxxx」
     if (!authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
-        { error: "認証形式が正しくありません" },
+        { message: "認証形式が正しくありません" },
         { status: 401 }
       );
     }
@@ -126,6 +126,14 @@ export async function GET(
     // Bearer の部分を外して、ログインtoken本体だけにする
     // .trim() で前後の空白を消す
     const token = authHeader.replace("Bearer ", "").trim();
+
+    // token が無い場合もエラー
+    if (!token) {
+      return NextResponse.json(
+        { message: "ログインが必要です" },
+        { status: 401 }
+      );
+    }
 
     // サーバー側でSupabaseを使う準備
     const supabase = createClientForServer();
@@ -139,38 +147,40 @@ export async function GET(
     // token が無効、またはユーザーが取得できない場合は、未ログイン扱いにする
     if (error || !user) {
       return NextResponse.json(
-        { error: "ログインが必要です" },
+        { message: "ログインが必要です" },
         { status: 401 }
       );
     }
 
-    // DBから今回の診断(id: diagnosisId)を本人に絞り(userId: user.id)1件取得
+    // DBから今回の診断(id: diagnosisId)を完了済みの本人の診断に絞り(userId: user.id)1件取得
     const currentDiagnosis = await prisma.diagnosis.findFirst({
       where: {
         id: diagnosisId,
         userId: user.id,
+        status: "COMPLETED",
       },
       include: {
         scores: {
           include: {
             nutrient: true,
-          }
-        }
+          },
+        },
       },
     });
 
     if (!currentDiagnosis) {
       return NextResponse.json(
-        { error: "診断結果が見つかりません" },
+        { message: "診断結果が見つかりません" },
         { status: 404 }
       );
     }
 
 
-    // 前回の診断をDBから 「userId: user.id」 で本人に絞り取得
+    // 前回の診断をDBから 「userId: user.id」 で完了済みの本人の診断に絞り取得
     const previousDiagnosis = await prisma.diagnosis.findFirst({
       where: {
         userId: user.id,
+        status: "COMPLETED",
         createdAt: {
           lt: currentDiagnosis.createdAt,
         },
@@ -197,10 +207,10 @@ export async function GET(
       }))
       .sort((a, b) => b.score - a.score);
     
-    // スコア上位3件
+    // スコアが高い順の上位3件(満たせている栄養素)
     const topNutrients = nutrientScores.slice(0, 3);
 
-    // スコア下位3件(不足している上位3栄養素)
+    // スコアが低い順の上位3件(不足傾向の栄養素)
     // nutrientScores で score が高い順に並べ替えた状態(配列)も表示したいので残して元の配列[...nutrientScores]を使用
     const lowNutrients = [...nutrientScores]
       .sort((a, b) => a.score - b.score)
@@ -214,7 +224,7 @@ export async function GET(
         (item) => item.nutrientId === current.nutrientId
       );
 
-      // 前回スコアが存在するかを true / false に変換(フロントに返し表示するデータとして使うため)
+      // 前回の診断結果に対して前回スコアが存在する栄養素なのかを true / false に変換(フロントに返し表示するデータとして使うため)
       const hasPrevious = !!previous;
        // 前回スコアがあればその値を使い、ない時nullにする。
       const previousScore = previous?.score ?? null;
@@ -227,6 +237,9 @@ export async function GET(
       let diffLabel = "前回データなし";
 
       // 差分の内容ごとの表示文の条件分岐
+      // score は高いほど満たせている扱いのため、 diff > 0 を改善として表示する
+      // 今回スコア - 前回スコア がプラスの場合
+      // = 点数が上がっている → 「+〇〇 改善」
       if (diff !== null) {
         if (diff > 0) {
           diffLabel = `+${diff} 改善`;
@@ -259,13 +272,13 @@ export async function GET(
     };
     
     // JSONで返す
-    return NextResponse.json(responseBody);
+    return NextResponse.json(responseBody, { status: 200 });
 
   } catch (error) {
     console.error("履歴詳細取得エラー", error);
 
     return NextResponse.json(
-      { error: "履歴詳細の取得に失敗しました" },
+      { message: "履歴詳細の取得に失敗しました" },
       { status: 500 }
     );
   }

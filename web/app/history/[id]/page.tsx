@@ -58,24 +58,23 @@ import SafeRadarChart from "@/components/SafeRadarChart";
 import { supabase } from "@/lib/supabase/client";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { GetDiagnosisHistoryDetailResponse } from "@/types/diagnosisApi";
+import type {
+  GetDiagnosisHistoryDetailResponse,
+  ApiErrorResponse,
+} from "@/types/diagnosisApi";
 
-
-// APIからのエラーを受け取るときの型
-// APIが失敗した時に error という文字列を返す可能性があるため、その形を定義
-type ApiErrorResponse = {
-  error?: string;
-};
 
 
 
 // 履歴詳細ページのコンポーネントを定義
 export default function HistoryDetailPage() {
-  const params = useParams();
   const router = useRouter();
 
+  // useParams で取得する id の型を<{ id: string }>() として定義
   // URLの [id] を文字列として取り出す
-  const id = params.id as string;
+  const params = useParams<{ id: string }>();
+  // URLの [id] から診断IDを取得
+  const id = params.id;
 
   // APIから取得した履歴詳細データを保存するstate
   // 最初はまだ取得していないので null
@@ -103,7 +102,7 @@ export default function HistoryDetailPage() {
         // 未ログイン時
         if (!token) {
           alert("ログインが必要です");
-          router.push("/login");
+          router.replace("/login");
           return;
         }
         
@@ -121,11 +120,11 @@ export default function HistoryDetailPage() {
         // APIから返ってきたJSONを読み取る
         const data = await res.json();
 
-        // エラー時の data の形は { error: "エラーメッセージ" } なので、ApiErrorResponse 型として扱う
+        // エラー時の data の形は { message: "エラーメッセージ" } なので、ApiErrorResponse 型として扱う
         if (!res.ok) {
           const errorData = data as ApiErrorResponse;
 
-          setErrorMessage(errorData.error ?? "履歴詳細の取得に失敗しました");
+          setErrorMessage(errorData.message ?? "履歴詳細の取得に失敗しました");
           return;
         }
         
@@ -163,6 +162,7 @@ export default function HistoryDetailPage() {
   //APIから来るデータをチャート用のデータ形に変換
   //nutrientはそのまま、score を total に変換して、SafeRadarChartに渡す。
   const ranking = historyDetail.nutrientScores.map((item) => ({
+    nutrientId: item.nutrientId,
     nutrient: item.nutrient,
     total: item.score,
   }));
