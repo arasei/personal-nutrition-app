@@ -46,10 +46,11 @@
 "use client";
 
 import { supabase } from "@/lib/supabase/client";
-import Link from "next/link"
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type {
+  ApiErrorResponse,
   DiagnosisHistoryItem,
   GetDiagnosisHistoryResponse,
 } from "@/types/diagnosisApi";
@@ -80,7 +81,7 @@ export default function HistoryPage() {
         // tokenが無い場合、未ログインとして /login に遷移する
         if (!token) {
           alert("ログインが必要です");
-          router.push("/login");
+          router.replace("/login");
           return;
         }
 
@@ -95,13 +96,18 @@ export default function HistoryPage() {
           cache: "no-store",
         });
 
-        // APIから返ってきたJSONに型を付ける
-        const data: GetDiagnosisHistoryResponse = await res.json();
+        // APIから返ってきたデータをJSONとして解析する
+        const responseData = await res.json();
 
+        // APIからエラーが返ってきた場合の処理
         if (!res.ok) {
-          setErrorMessage("履歴取得に失敗しました");
+          const errorData = responseData as ApiErrorResponse;
+          setErrorMessage(errorData.message ?? "履歴取得に失敗しました");
           return;
         }
+
+        // APIから返ってきたデータを型に当てはめる
+        const data = responseData as GetDiagnosisHistoryResponse;
 
         // APIから返ってきた履歴配列を stateに保存する
         setHistories(data.histories);
@@ -137,14 +143,14 @@ export default function HistoryPage() {
       {histories.map((history) => (
         // 履歴一覧 → 詳細リンクに遷移
         <Link href={`/history/${history.id}`} key={history.id}>
-          <div style={{ border: "1px solid gray", margin: "16px", padding: "16px"}}>
+          <div style={{ border: "1px solid gray", margin: "16px", padding: "16px" }}>
             {/* 日付表示 */}
             {/* データとして送られてきた日付を日本環境に対応した表示にする */}
             <p>
               日付: {new Date(history.createdAt).toLocaleDateString("ja-JP")}
             </p>
             {/* 上位3栄養素の表示 */}
-            <h3>上位3栄養素</h3>
+            <h3>不足しやすい栄養素 上位3つ</h3>
             <ul>
               {history.topNutrients.map((nutrient) => (
                 <li key={nutrient.nutrientId}>
@@ -156,5 +162,5 @@ export default function HistoryPage() {
         </Link>
       ))}
     </div>
-  )
+  );
 }
