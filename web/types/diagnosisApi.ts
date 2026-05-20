@@ -77,6 +77,49 @@ export type StartDiagnosisResponse = {
   message?: string;
 };
 
+
+
+
+
+// ------------------------------
+// 診断ステップ取得API
+// 
+// ------------------------------
+
+
+// 診断ステップ取得API から返ってくるJSONの型を定義
+
+// success: API の処理が成功したかどうか
+// message: エラー時などに返ってくるメッセージ。「?」があるため、返ってこない場合がある
+// diagnosisId?: 診断ID。「?」があるため、返ってこない場合がある
+// question?: 現在表示する質問データ。「?」があるため、失敗時存在しない場合がある。
+// id: 質問ID。AnswerForm に渡して、回答保存に使用。
+// questionText: 質問分。
+// order: 質問の順番。
+// total?: 全質問数。
+// isLast?: 現在の質問が最後かどうか。
+
+export type DiagnosisStepResponse = {
+  success: boolean;
+  message?: string;
+  diagnosisId?: string;
+  question?: {
+    id: string;
+    questionText: string;
+    order: number;
+  };
+  total?: number;
+  isLast?: boolean;
+};
+
+
+
+
+
+
+
+
+
 // ------------------------------
 // 回答保存API
 // POST /api/diagnosis/answers
