@@ -22,21 +22,29 @@
 
 // 流れ
 
-// /history ページ
-//    ↓
-// Supabaseから access_token を取得
-//    ↓
-// /api/diagnosis/history に token を送る
-//    ↓
-// API側で token を確認
-//    ↓
-// Supabaseから user.id を取得
-//    ↓
-// Prismaで Diagnosis を userId: user.id の履歴だけ検索
-//    ↓
-// 不足上位3栄養素だけ整形
-//    ↓
-// フロントに返す
+// /historyを開く
+//   ↓
+// Supabaseからsessionを取得
+//   ↓
+// access_tokenを取り出す
+//   ↓
+// /api/diagnosis/historyへ送る
+//   ↓
+// API側でtoken確認
+//   ↓
+// user.id を取得
+//   ↓
+// 本人の履歴だけ取得(Prisma で userId: user.id の履歴だけ検索)
+//   ↓
+// scores を score 昇順で取得
+//   ↓
+// 上位3栄養素だけ整形
+//   ↓
+// history/page.tsx に返す
+//   ↓
+// data.histories(履歴一覧)を画面に表示
+//   ↓
+// クリックで /history/[id] へ移動
 
 
 
@@ -56,7 +64,7 @@ export async function GET(req: Request) {
 
     if (!authHeader) {
       return NextResponse.json(
-        { message: "認証情報がありません" },
+        { success: false, message: "認証情報がありません" },
         { status: 401 }
       );
     }
@@ -64,7 +72,7 @@ export async function GET(req: Request) {
     // Authorizationヘッダー が"Bearer token" の形か確認
     if (!authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
-        { message: "認証形式が正しくありません" },
+        { success: false, message: "認証形式が正しくありません" },
         { status: 401 }
       );
     }
@@ -74,7 +82,7 @@ export async function GET(req: Request) {
 
     if (!token) {
       return NextResponse.json(
-        { message: "ログインが必要です" },
+        { success: false, message: "ログインが必要です" },
         { status: 401 }
       );
     }
@@ -90,7 +98,7 @@ export async function GET(req: Request) {
 
     if (error || !user) {
       return NextResponse.json(
-        { message: "ログインが必要です" },
+        { success: false, message: "ログインが必要です" },
         { status: 401 }
       );
     }
@@ -127,6 +135,7 @@ export async function GET(req: Request) {
     }));
 
     const responseBody: GetDiagnosisHistoryResponse = {
+      success: true,
       histories: formatted,
     };
 
@@ -136,7 +145,7 @@ export async function GET(req: Request) {
     console.error("診断履歴取得APIエラー:", error);
 
     return NextResponse.json(
-      { message: "診断履歴の取得に失敗しました" },
+      { success: false, message: "診断履歴の取得に失敗しました" },
       { status: 500 }
     );  
   }

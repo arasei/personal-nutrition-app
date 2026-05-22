@@ -24,9 +24,17 @@
 //   ↓
 // API側でtoken確認
 //   ↓
-// 本人の履歴だけ取得
+// user.id を取得
 //   ↓
-// data.historiesを画面に表示
+// 本人の履歴だけ取得(Prisma で userId: user.id の履歴だけ検索)
+//   ↓
+// scores を score 昇順で取得
+//   ↓
+// 上位3栄養素だけ整形
+//   ↓
+// history/page.tsx に返す
+//   ↓
+// data.histories(履歴一覧)を画面に表示
 //   ↓
 // クリックで /history/[id] へ移動
 
@@ -110,7 +118,8 @@ export default function HistoryPage() {
         const data = responseData as GetDiagnosisHistoryResponse;
 
         // APIから返ってきた履歴配列を stateに保存する
-        setHistories(data.histories);
+        // [] があることでAPIからhistories が取れなかった場合でも画面が落ちない。空の履歴として扱える
+        setHistories(data.histories ?? []);
       } catch (error) {
         console.error("failed to fetch history:",error);
         setErrorMessage("履歴取得中にエラーが発生しました");
