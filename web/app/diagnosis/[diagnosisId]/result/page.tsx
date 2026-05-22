@@ -128,6 +128,7 @@ export default function ResultPage() {
 
         // tokenが無い場合、未ログイン扱い
         if (!token) {
+          setError("ログインが必要です");
           router.replace("/login");
           return;
         }
@@ -155,6 +156,7 @@ export default function ResultPage() {
 
         // 成功時はAPIから診断結果データが返ってくるので、そのデータをDiagnosisResultResponse型として扱う
         const result = responseData as DiagnosisResultResponse;
+
         // APIから取得した結果データ(result)をstateに保存
         // これにより、画面が再描画されて、SafeRadarChartやランキング一覧にデータが渡って表示される
         setData(result);
@@ -168,9 +170,13 @@ export default function ResultPage() {
 
     // diagnosisIdがある時だけAPIを呼び出す
     // URLからIDが取れない状態でAPIを呼ばないため
-    if (diagnosisId) {
-      fetchResult();
+    if (!diagnosisId) {
+      setError("診断IDが見つかりません");
+      setLoading(false);
+      return;
     }
+
+    fetchResult();
   // diagnosisId または router が変わったときに useEffect を再実行する
   }, [diagnosisId, router]);
 

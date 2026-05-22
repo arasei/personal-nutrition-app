@@ -261,6 +261,7 @@ export type ResultDiffRankingItem = {
 
 
 export type DiagnosisResultResponse = {
+  success: true;
   ranking: ResultRankingItem[];
   diffRanking: ResultDiffRankingItem[];
 };
