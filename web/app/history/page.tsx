@@ -88,7 +88,7 @@ export default function HistoryPage() {
 
         // tokenが無い場合、未ログインとして /login に遷移する
         if (!token) {
-          alert("ログインが必要です");
+          setErrorMessage("ログインが必要です");
           router.replace("/login");
           return;
         }
