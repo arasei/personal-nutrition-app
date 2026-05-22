@@ -1,4 +1,5 @@
 // web/types/diagnosisApi.ts
+
 // 診断機能で使うAPIの以下のようなリクエスト/レスポンスの型をまとめるファイル
 // フロントからAPIへ送るbodyの型
 // APIからフロントへ返すJSONの型
@@ -21,6 +22,7 @@
 // APIでエラーが起きたときに返すレスポンスの型を定義
 // message: 画面に表示するエラーメッセージ
 export type ApiErrorResponse = {
+  success: false;
   message?: string;
 };
 
@@ -301,6 +303,7 @@ export type DiagnosisHistoryItem = {
 // histories: 診断履歴の配列
 
 export type GetDiagnosisHistoryResponse = {
+  success: true;
   histories: DiagnosisHistoryItem[];
 };
 
