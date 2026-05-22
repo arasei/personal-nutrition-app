@@ -101,7 +101,7 @@ export default function HistoryDetailPage() {
 
         // 未ログイン時
         if (!token) {
-          alert("ログインが必要です");
+          setErrorMessage("ログインが必要です");
           router.replace("/login");
           return;
         }
@@ -120,7 +120,7 @@ export default function HistoryDetailPage() {
         // APIから返ってきたJSONを読み取る
         const data = await res.json();
 
-        // エラー時の data の形は { message: "エラーメッセージ" } なので、ApiErrorResponse 型として扱う
+        // エラー時の data の形は { success: false, message: "エラーメッセージ" } なので、ApiErrorResponse 型として扱う
         if (!res.ok) {
           const errorData = data as ApiErrorResponse;
 

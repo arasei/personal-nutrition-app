@@ -354,6 +354,7 @@ export type DiagnosisHistoryDetailDifference = {
 // differences: 前回との差分一覧
 
 export type GetDiagnosisHistoryDetailResponse = {
+  success: true;
   id: string;
   createdAt: string;
   nutrientScores: DiagnosisHistoryDetailScore[];

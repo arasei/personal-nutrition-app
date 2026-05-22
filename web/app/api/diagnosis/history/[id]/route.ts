@@ -96,7 +96,7 @@ export async function GET(
 
     if (!diagnosisId) {
       return NextResponse.json(
-        { message: "診断IDが必要です" },
+        { success: false, message: "診断IDが必要です" },
         { status: 400 }
       );
     }
@@ -108,7 +108,7 @@ export async function GET(
     // Authorization が無い場合は、ログインユーザーを判断できないのでエラーを返す
     if (!authHeader) {
       return NextResponse.json(
-        { message: "認証情報がありません" },
+        { success: false, message: "認証情報がありません" },
         { status: 401 }
       );
     }
@@ -118,7 +118,7 @@ export async function GET(
     // 「Bearer xxxxx」
     if (!authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
-        { message: "認証形式が正しくありません" },
+        { success: false, message: "認証形式が正しくありません" },
         { status: 401 }
       );
     }
@@ -130,7 +130,7 @@ export async function GET(
     // token が無い場合もエラー
     if (!token) {
       return NextResponse.json(
-        { message: "ログインが必要です" },
+        { success: false, message: "ログインが必要です" },
         { status: 401 }
       );
     }
@@ -147,12 +147,13 @@ export async function GET(
     // token が無効、またはユーザーが取得できない場合は、未ログイン扱いにする
     if (error || !user) {
       return NextResponse.json(
-        { message: "ログインが必要です" },
+        { success: false, message: "ログインが必要です" },
         { status: 401 }
       );
     }
 
     // DBから今回の診断(id: diagnosisId)を完了済みの本人の診断に絞り(userId: user.id)1件取得
+    // URL の ID が正しくても、ログイン中ユーザー本人の診断でなければ取得できない状態
     const currentDiagnosis = await prisma.diagnosis.findFirst({
       where: {
         id: diagnosisId,
@@ -170,7 +171,7 @@ export async function GET(
 
     if (!currentDiagnosis) {
       return NextResponse.json(
-        { message: "診断結果が見つかりません" },
+        { success: false, message: "診断結果が見つかりません" },
         { status: 404 }
       );
     }
@@ -263,6 +264,7 @@ export async function GET(
     });
 
     const responseBody: GetDiagnosisHistoryDetailResponse = {
+      success: true,
       id: currentDiagnosis.id,
       createdAt: currentDiagnosis.createdAt.toISOString(),
       nutrientScores,
@@ -278,7 +280,7 @@ export async function GET(
     console.error("履歴詳細取得エラー", error);
 
     return NextResponse.json(
-      { message: "履歴詳細の取得に失敗しました" },
+      { success: false, message: "履歴詳細の取得に失敗しました" },
       { status: 500 }
     );
   }
