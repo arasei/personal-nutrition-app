@@ -1,5 +1,6 @@
 // web/app/api/diagnosis/start/route.ts
 
+
 // 診断を開始するためのAPI
 // クライアント(StartButton.tsx)からのリクエストを受け取り、Supabase の access_tokenを使用して認証されたユーザーを確認し、
 // その認証済みユーザーの user.id を使い、Prisma の User テーブルに同じ id の User が存在するようにしてから、
@@ -73,13 +74,33 @@
 
 import { prisma } from "@/lib/prisma";
 import { createClientForServer } from "@/lib/supabase/server";
-import { StartDiagnosisResponse } from "@/types/diagnosisApi";
+import type { StartDiagnosisResponse } from "@/types/diagnosisApi";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
+    const authHeader = request.headers.get("Authorization");
+
+    if (!authHeader) {
+      const responseBody: StartDiagnosisResponse = {
+        success: false,
+        message: "認証情報がありません",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
+    }
+
+    if (!authHeader.startsWith("Bearer ")) {
+      const responseBody: StartDiagnosisResponse = {
+        success: false,
+        message: "認証形式が正しくありません",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
+    }
+
     //クライアントが送ったAuthorization ヘッダーから token を取得
-    const token = request.headers.get("Authorization") ?? "";
+    const token = authHeader.replace("Bearer ", "").trim();
 
     // tokenがない場合は未ログインとして扱う
     // tokenがあるか空かどうかをチェック
@@ -88,7 +109,7 @@ export async function POST(request: NextRequest) {
     if (!token) {
       const responseBody: StartDiagnosisResponse = {
         success: false,
-        message: "Unauthorized",
+        message: "ログインが必要です",
       };
 
       return NextResponse.json(responseBody, { status: 401 });
@@ -124,7 +145,8 @@ export async function POST(request: NextRequest) {
     });
 
     //DiagnosisテーブルにDiagnosisを1件作成
-    // Supabaseから取得した user.id を使用
+    // Diagnosis 作成時にログイン中ユーザーへ紐付ける
+    // Supabaseから取得した user.id を使用して、この診断をログイン中ユーザー本人の診断として作成
     const diagnosis = await prisma.diagnosis.create({
       data: {
         userId: user.id,
