@@ -55,7 +55,9 @@ import type { DiagnosisStepResponse } from "@/types/diagnosisApi";
 
 // 診断ステップ画面で表示する「現在の質問」を取得するAPI
 // GET /api/diagnosis/step?diagnosisId=xxx&step=1
-export async function GET( request:NextRequest ): Promise<NextResponse<DiagnosisStepResponse>> {
+export async function GET(
+  request:NextRequest
+): Promise<NextResponse<DiagnosisStepResponse>> {
   try {
     // フロントから送られてきた Authorization header を取得
     const authorization = request.headers.get("Authorization");
@@ -72,7 +74,7 @@ export async function GET( request:NextRequest ): Promise<NextResponse<Diagnosis
     }
 
     // Bearer token から Bearer を取り除き、token 本体を取得
-    const token = authorization.replace("Bearer ", "");
+    const token = authorization.replace("Bearer ", "").trim();
 
     // サーバー側の Supabase client を作成
     const supabase = createClientForServer();
@@ -148,6 +150,8 @@ export async function GET( request:NextRequest ): Promise<NextResponse<Diagnosis
       },
       select: {
         id: true,
+        status: true,
+        currentStep: true,
       },
     });
 
@@ -159,6 +163,30 @@ export async function GET( request:NextRequest ): Promise<NextResponse<Diagnosis
           message: "診断データが見つかりません",
         },
         { status: 404 }
+      );
+    }
+
+    // 完了済み診断なら step を表示しない
+    // 完了済み診断の質問ページを開く動きを防ぎ、完了済み診断の回答の変更を防ぐため
+    if (diagnosis.status === "COMPLETED") {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "この診断はすでに完了しています",
+        },
+        { status: 400 }
+      );
+    }
+
+    // currentStep と stepNum が違う場合は表示しない
+    // URL を直接触り、先の質問を表示することを防ぐため
+    if (diagnosis.currentStep !== stepNum) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "現在のステップと表示ステップが一致しません",
+        },
+        { status: 400 }
       );
     }
 

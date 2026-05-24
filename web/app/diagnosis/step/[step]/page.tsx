@@ -243,16 +243,6 @@ export default function DiagnosisStepPage() {
         order={stepNum} 
         isLast={data.isLast ?? false} 
       />
-
-      {/* 戻るリンク */}
-      {/* stepが2以上の場合表示 */}
-      {stepNum > 1 && (
-        <div style={{ marginTop: 16 }}>
-          <Link href={`/diagnosis/step/${stepNum - 1}?diagnosisId=${encodeURIComponent(diagnosisId)}`}>
-            戻る
-          </Link>
-        </div>
-      )}
     </main>
   );
 }
