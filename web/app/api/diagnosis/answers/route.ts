@@ -354,6 +354,7 @@ export async function POST(request: NextRequest) {
       select: { 
         id: true,
         status: true,
+        currentStep: true,
       },
     });
 
@@ -371,6 +372,17 @@ export async function POST(request: NextRequest) {
       const responseBody: SaveDiagnosisAnswersResponse = {
         success: false,
         message: "Diagnosis already completed",
+      };
+
+      return NextResponse.json(responseBody, { status: 400 });
+    }
+
+    // 「今、この診断は Step 何番を回答する状態か？」・「送られてきた order はそれと一致しているか？」をチェック
+    // URL を直接触り、本来の順番ではない質問に回答されることを防ぐため
+    if (diagnosis.currentStep !== order) {
+      const responseBody: SaveDiagnosisAnswersResponse = {
+        success: false,
+        message: "現在のステップと回答ステップが一致しません",
       };
 
       return NextResponse.json(responseBody, { status: 400 });
