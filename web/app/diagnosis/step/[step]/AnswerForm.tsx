@@ -100,6 +100,7 @@ export default function AnswerForm({
   // 回答入力欄の値を保存する場所
   const [answer, setAnswer] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   // フォーム送信時に実行する関数
   // FormEvent<HTMLFormElement> でフォーム送信イベントであることをTypeScriptに伝える
@@ -110,6 +111,8 @@ export default function AnswerForm({
     try {
       // 送信中状態にする
       setIsLoading(true);
+      // 送信開始時に前回エラーを消す
+      setErrorMessage("");
 
       // 入力された文字列を数値に変換
       const answerValue = Number(answer);
@@ -117,8 +120,13 @@ export default function AnswerForm({
       // 入力値が有効な整数かチェック
       // 不正だった場合、returnでユーザーに知らせる。
       // 不正な回答値のままAPIへ送らない
-      if (!Number.isFinite(answerValue) || !Number.isInteger(answerValue)) {
-        alert("回答は整数で入力してください");
+      if (
+        !Number.isFinite(answerValue) ||
+        !Number.isInteger(answerValue) ||
+        answerValue < 1 ||
+        answerValue > 3
+      ) {
+        setErrorMessage("回答は1~3の整数で入力してください");
         return;
       }
 
@@ -130,7 +138,7 @@ export default function AnswerForm({
       // tokenが無い場合、未ログイン扱い。
       // return で未ログインのままAPIへ送らない
       if (!token) {
-        alert("ログインが必要です");
+        setErrorMessage("ログインが必要です");
         router.push("/login");
         return;
       }
@@ -168,13 +176,13 @@ export default function AnswerForm({
 
       // HTTPとして失敗、またはAPI処理として失敗した場合のエラー
       if (!res.ok || !data.success) {
-        alert(data.message ?? "回答保存に失敗しました");
+        setErrorMessage(data.message ?? "回答保存に失敗しました");
         return;
       }
 
       // 次の遷移先が返ってきていない場合のエラー
       if (!data.nextHref) {
-        alert("次の遷移先を取得できませんでした");
+        setErrorMessage("次の遷移先を取得できませんでした");
         return;
       }
 
@@ -185,7 +193,7 @@ export default function AnswerForm({
       // 開発者向けエラー表示
       console.error("failed to save answer:", error);
       // ユーザー向けエラー表示
-      alert("回答保存に失敗しました");
+      setErrorMessage("回答保存に失敗しました");
     } finally {
       // 送信中状態を解除
       setIsLoading(false);
@@ -204,7 +212,9 @@ export default function AnswerForm({
         // ユーザーが入力するたびに、answer stateを更新。入力値を answer に保存するため
         onChange={(event) => setAnswer(event.target.value)}
         // 入力欄が空のときに表示される案内文
-        placeholder="回答を入力"
+        placeholder="1~3で入力"
+        min={1}
+        max={3}
         // 空欄では送信できないようにする
         required
         style={{ padding: 8, width: 320 }}
@@ -219,6 +229,12 @@ export default function AnswerForm({
         {/* ボタンの表示内容 */}
         {isLoading ? "保存中..." : isLast ? "結果" : "次へ"}
       </button>
+
+      {errorMessage && (
+        <p style={{ color: "red", marginTop: 8 }}>
+          {errorMessage}
+        </p>
+      )}
     </form>
   );
 }

@@ -331,12 +331,14 @@ export async function POST(request: NextRequest) {
       !questionId ||
       typeof value !== "number" ||
       !Number.isInteger(value) ||
+      value < 1 ||
+      value > 3 ||
       typeof order !== "number" ||
       !Number.isInteger(order)
     ) {
       const responseBody: SaveDiagnosisAnswersResponse = {
         success: false,
-        message: "Invalid request body",
+        message: "回答値は1~3の整数で入力してください",
       };
       return NextResponse.json(responseBody, { status: 400 });
     }
@@ -436,9 +438,6 @@ export async function POST(request: NextRequest) {
 
     // 最後の質問の場合の処理
     // スコア集計・完了処理実行
-
-
-
     if (isLast) {
 
       // 今回の診断に紐づく回答一覧を全て取得
@@ -449,6 +448,18 @@ export async function POST(request: NextRequest) {
           value: true,
         },
       });
+
+      // 全質問数に対して同じ回答数があるかチェック
+      // 全質問数に対して回答数が多すぎる、少なすぎる状態を防ぐため
+      // 未回答の質問がある状態で診断を完了させない
+      if (answers.length !== total) {
+        const responseBody: SaveDiagnosisAnswersResponse = {
+          success: false,
+          message: "全ての質問に回答してください",
+        };
+
+        return NextResponse.json(responseBody, { status: 400 });
+      }
 
       // 質問IDと栄養素IDの対応表を取得
       const questions = await prisma.diagnosisQuestion.findMany({
