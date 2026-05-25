@@ -20,7 +20,11 @@
 // 共通エラーレスポンス
 // ------------------------------
 // APIでエラーが起きたときに返すレスポンスの型を定義
-// message: 画面に表示するエラーメッセージ
+
+// message?: 画面に表示するメッセージ
+
+// API が失敗した時は success: false を返す
+// 画面に出すメッセージは message に入る
 export type ApiErrorResponse = {
   success: false;
   message?: string;
@@ -50,6 +54,9 @@ export type StartDiagnosisRequest = Record<string, never>;
 
 // 診断開始APIから返るレスポンスbodyの型を定義
 
+// success: true の時は diagnosisId が必要
+// success: false の時は message が使える
+
 // なぜ必要
 
 // フロント側で
@@ -73,11 +80,12 @@ export type StartDiagnosisRequest = Record<string, never>;
 
 // diagnosisIdとmessageが常に両方返ってくるわけではないため「?」をつけている。
 
-export type StartDiagnosisResponse = {
-  success: boolean;
-  diagnosisId?: string;
-  message?: string;
-};
+export type StartDiagnosisResponse =
+  | {
+      success: true;
+      diagnosisId: string;
+    }
+  | ApiErrorResponse;
 
 
 
@@ -92,27 +100,29 @@ export type StartDiagnosisResponse = {
 // 診断ステップ取得API から返ってくるJSONの型を定義
 
 // success: API の処理が成功したかどうか
-// message: エラー時などに返ってくるメッセージ。「?」があるため、返ってこない場合がある
-// diagnosisId?: 診断ID。「?」があるため、返ってこない場合がある
-// question?: 現在表示する質問データ。「?」があるため、失敗時存在しない場合がある。
+// diagnosisId: 診断ID。
+// question: 現在表示する質問データ。
 // id: 質問ID。AnswerForm に渡して、回答保存に使用。
 // questionText: 質問分。
 // order: 質問の順番。
-// total?: 全質問数。
-// isLast?: 現在の質問が最後かどうか。
+// total: 全質問数。
+// isLast: 現在の質問が最後かどうか。
 
-export type DiagnosisStepResponse = {
-  success: boolean;
-  message?: string;
-  diagnosisId?: string;
-  question?: {
-    id: string;
-    questionText: string;
-    order: number;
-  };
-  total?: number;
-  isLast?: boolean;
-};
+// question・total・isLast が必ずあることが必須
+
+export type DiagnosisStepResponse =
+  | {
+      success: true;
+      diagnosisId: string;
+      question: {
+        id: string;
+        questionText: string;
+        order: number;
+      };
+      total: number;
+      isLast: boolean;
+    }
+  | ApiErrorResponse;
 
 
 
@@ -173,11 +183,18 @@ export type SaveDiagnosisAnswersRequest = {
 
 //回答保存APIから返すレスポンスbodyの型
 
+// 回答成功時は必ず次の遷移先が必要
+// 成功時は nextHref が必須
+
+// Step1回答後 → Step2へ
+// Step10回答後 → 結果ページへ
+
+
 // なぜ必要
 
 // 成功/失敗のレスポンスの型をフロントとサーバーで共通化するため
 
-// nextHref?: string;
+// nextHref: string;
 // 何している？
 
 // 保存後に遷移するURLを表している
@@ -195,13 +212,13 @@ export type SaveDiagnosisAnswersRequest = {
 
 // 成功時 → nextHrefを返す
 // 失敗時 → messageを返す
-// そのため、「?」とする
 
-export type SaveDiagnosisAnswersResponse = {
-  success: boolean;
-  nextHref?: string;
-  message?: string;
-};
+export type SaveDiagnosisAnswersResponse =
+  | {
+      success: true;
+      nextHref: string;
+    }
+  | ApiErrorResponse;
 
 
 // ------------------------------
@@ -237,6 +254,10 @@ export type ResultDiffRankingItem = {
 
 
 // 診断結果APIから返ってくる全体のレスポンスの型を定義
+
+// 成功したら必ず success: true
+// 成功したら必ず ranking がある
+// 成功したら必ず diffRanking がある
 
 
 
@@ -301,7 +322,11 @@ export type DiagnosisHistoryItem = {
 };
 
 // 診断履歴一覧APIから返ってくるレスポンス全体の型
+
 // histories: 診断履歴の配列
+
+// 履歴一覧取得に成功したら histories が必ず配列で返る
+// 履歴が0件でも [] として返る
 
 export type GetDiagnosisHistoryResponse = {
   success: true;

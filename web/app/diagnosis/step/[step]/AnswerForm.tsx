@@ -70,6 +70,7 @@ import { supabase } from "@/lib/supabase/client";
 import type {
   SaveDiagnosisAnswersRequest,
   SaveDiagnosisAnswersResponse,
+  ApiErrorResponse,
 } from "@/types/diagnosisApi";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -174,13 +175,21 @@ export default function AnswerForm({
       // APIから返ってきたデータをJSON形式で、SaveDiagnosisAnswerResponse型で受け取る
       const data: SaveDiagnosisAnswersResponse = await res.json();
 
-      // HTTPとして失敗、またはAPI処理として失敗した場合のエラー
-      if (!res.ok || !data.success) {
+      // HTTP処理がエラーの場合の処理
+      if (!res.ok) {
+        const errorData = data as ApiErrorResponse;
+        setErrorMessage(errorData.message ?? "回答保存に失敗しました");
+        return;
+      }
+
+      // API処理がエラーの場合の処理
+      if (!data.success) {
         setErrorMessage(data.message ?? "回答保存に失敗しました");
         return;
       }
 
       // 次の遷移先が返ってきていない場合のエラー
+      // 成功時は nextHref は必須としているので削除しても可能
       if (!data.nextHref) {
         setErrorMessage("次の遷移先を取得できませんでした");
         return;
@@ -203,7 +212,7 @@ export default function AnswerForm({
   // 画面表示するHTMLを返す
   return (
     // 回答入力フォーム
-    <form onSubmit={handleSubmit} style={{ marginTop: 16 }}>
+    <form onSubmit={handleSubmit} noValidate style={{ marginTop: 16 }}>
       {/* 数値入力欄 */}
       <input
         type="number"

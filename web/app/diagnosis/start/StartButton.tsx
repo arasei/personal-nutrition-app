@@ -81,7 +81,10 @@
 "use client";
 
 import { supabase } from "@/lib/supabase/client";
-import type { StartDiagnosisResponse } from "@/types/diagnosisApi";
+import type {
+  StartDiagnosisResponse,
+  ApiErrorResponse,
+} from "@/types/diagnosisApi";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -127,13 +130,21 @@ export default function StartButton() {
       //APIからのレスポンスをStartDiagnosisResponse型(共通の型)で受け取る
       const data: StartDiagnosisResponse = await res.json();
 
-      //API呼び出し失敗時
-      if (!res.ok || !data.success) {
+      // HTTP処理がエラーの場合の処理
+      if (!res.ok) {
+        const errorData = data as ApiErrorResponse;
+        setErrorMessage(errorData.message ?? "診断開始に失敗しました");
+        return;
+      }
+
+      // API処理がエラーの場合の処理
+      if (!data.success) {
         setErrorMessage(data.message ?? "診断開始に失敗しました");
         return;
       }
 
       //API呼び出しは成功したが、診断ID(diagnosisId)が返ってこない時
+      // data.success === true の時点で、型上は diagnosisId は必須のため削除しても可能
       if (!data.diagnosisId) {
         setErrorMessage("diagnosisIdの取得に失敗しました");
         return;
