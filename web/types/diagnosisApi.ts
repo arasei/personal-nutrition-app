@@ -259,6 +259,8 @@ export type ResultDiffRankingItem = {
 // 成功したら必ず ranking がある
 // 成功したら必ず diffRanking がある
 
+// 失敗時は success: false と message が入る
+
 
 
 // ranking: ResultRankingItem[];
@@ -281,11 +283,13 @@ export type ResultDiffRankingItem = {
 // 履歴比較や改善・悪化の表示のため
 
 
-export type DiagnosisResultResponse = {
-  success: true;
-  ranking: ResultRankingItem[];
-  diffRanking: ResultDiffRankingItem[];
-};
+export type DiagnosisResultResponse =
+  | {
+      success: true;
+      ranking: ResultRankingItem[];
+      diffRanking: ResultDiffRankingItem[];
+    }
+  | ApiErrorResponse;
 
 
 

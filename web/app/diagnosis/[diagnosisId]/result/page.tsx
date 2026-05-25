@@ -89,6 +89,14 @@ import type {
 } from "@/types/diagnosisApi";
 
 
+// DiagnosisResultResponse には成功時のデータと失敗時のデータの両方が入る可能性がある
+// DiagnosisResultResponse の中から success: true の型(成功時のデータ)だけを取り出す
+type DiagnosisResultSuccessResponse = Extract<
+  DiagnosisResultResponse,
+  { success: true }
+>;
+
+
 
 // このページはブラウザ側で動くので、最初に await で止まる形ではなく、
 // いったん画面を返してから useEffect でデータを取りに行く流れ
@@ -101,7 +109,8 @@ export default function ResultPage() {
   const diagnosisId = params.diagnosisId;
 
   // APIから受け取る診断結果データを保存する場所
-  const [data, setData] = useState<DiagnosisResultResponse | null>(null);
+  // data に入るのは成功データだけ
+  const [data, setData] = useState<DiagnosisResultSuccessResponse | null>(null);
   // 読み込み中かどうかを管理する場所
   const [loading, setLoading] = useState(true);
   // エラーメッセージを保存する場所
@@ -145,21 +154,24 @@ export default function ResultPage() {
         });
 
         // APIから返ってきたレスポンスをJSONとして取得
-        const responseData = await response.json();
+        const responseData: DiagnosisResultResponse = await response.json();
 
-        // API側でエラーが返ってきた場合の処理
+        // HTTP処理がエラーの場合の処理
         if (!response.ok) {
           const errorData = responseData as ApiErrorResponse;
           setError(errorData.message ?? "結果取得に失敗しました");
           return;
         }
 
-        // 成功時はAPIから診断結果データが返ってくるので、そのデータをDiagnosisResultResponse型として扱う
-        const result = responseData as DiagnosisResultResponse;
+        // API処理がエラーの場合の処理
+        if (!responseData.success) {
+          setError(responseData.message ?? "結果取得に失敗しました");
+          return;
+        }
 
-        // APIから取得した結果データ(result)をstateに保存
+        // APIから取得した結果データ(responseData)をstateに保存
         // これにより、画面が再描画されて、SafeRadarChartやランキング一覧にデータが渡って表示される
-        setData(result);
+        setData(responseData);
       } catch (error) {
         console.error("結果取得エラー:", error);
         setError("結果取得に失敗しました");
