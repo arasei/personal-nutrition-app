@@ -321,6 +321,9 @@ export type DiagnosisHistoryItem = {
   topNutrients: DiagnosisHistoryTopNutrient[];
 };
 
+
+
+
 // 診断履歴一覧APIから返ってくるレスポンス全体の型
 
 // histories: 診断履歴の配列
@@ -328,10 +331,15 @@ export type DiagnosisHistoryItem = {
 // 履歴一覧取得に成功したら histories が必ず配列で返る
 // 履歴が0件でも [] として返る
 
-export type GetDiagnosisHistoryResponse = {
-  success: true;
-  histories: DiagnosisHistoryItem[];
-};
+// 成功時 → histories が必ずある
+// 失敗時 → message が使える
+
+export type GetDiagnosisHistoryResponse =
+  | {
+      success: true;
+      histories: DiagnosisHistoryItem[];
+    }
+  | ApiErrorResponse;
 
 
 // ------------------------------

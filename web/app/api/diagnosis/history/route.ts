@@ -63,28 +63,34 @@ export async function GET(req: Request) {
     const authHeader = req.headers.get("Authorization");
 
     if (!authHeader) {
-      return NextResponse.json(
-        { success: false, message: "認証情報がありません" },
-        { status: 401 }
-      );
+      const responseBody: GetDiagnosisHistoryResponse = {
+        success: false,
+        message: "認証情報がありません",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
     }
 
     // Authorizationヘッダー が"Bearer token" の形か確認
     if (!authHeader.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { success: false, message: "認証形式が正しくありません" },
-        { status: 401 }
-      );
+      const responseBody: GetDiagnosisHistoryResponse = {
+        success: false,
+        message: "認証形式が正しくありません",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
     }
 
     // "Bearer xxxxx" から token部分だけを取り出す
     const token = authHeader.replace("Bearer ", "").trim();
 
     if (!token) {
-      return NextResponse.json(
-        { success: false, message: "ログインが必要です" },
-        { status: 401 }
-      );
+      const responseBody: GetDiagnosisHistoryResponse = {
+        success: false,
+        message: "ログインが必要です",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
     }
 
     // Supabaseのサーバー用クライアントを作成
@@ -97,10 +103,12 @@ export async function GET(req: Request) {
     } = await supabase.auth.getUser(token);
 
     if (error || !user) {
-      return NextResponse.json(
-        { success: false, message: "ログインが必要です" },
-        { status: 401 }
-      );
+      const responseBody: GetDiagnosisHistoryResponse = {
+        success: false,
+        message: "ログインが必要です",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
     }
 
     
@@ -144,10 +152,12 @@ export async function GET(req: Request) {
   } catch (error) {
     console.error("診断履歴取得APIエラー:", error);
 
-    return NextResponse.json(
-      { success: false, message: "診断履歴の取得に失敗しました" },
-      { status: 500 }
-    );  
+    const responseBody: GetDiagnosisHistoryResponse = {
+      success: false,
+      message: "診断履歴の取得に失敗しました",
+    };
+
+    return NextResponse.json(responseBody, {status: 500 });
   }
 }
 
