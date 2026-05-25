@@ -64,6 +64,11 @@ import type {
 } from "@/types/diagnosisApi";
 
 
+// APIから取得した履歴詳細データの型を定義(成功時だけ使用する型)
+type HistoryDetailSuccessResponse = Extract<
+  GetDiagnosisHistoryDetailResponse,
+  { success: true }
+>;
 
 
 // 履歴詳細ページのコンポーネントを定義
@@ -78,7 +83,7 @@ export default function HistoryDetailPage() {
 
   // APIから取得した履歴詳細データを保存するstate
   // 最初はまだ取得していないので null
-  const [historyDetail, setHistoryDetail] = useState<GetDiagnosisHistoryDetailResponse | null>(null);
+  const [historyDetail, setHistoryDetail] = useState<HistoryDetailSuccessResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -120,7 +125,8 @@ export default function HistoryDetailPage() {
         // APIから返ってきたJSONを読み取る
         const data = await res.json();
 
-        // エラー時の data の形は { success: false, message: "エラーメッセージ" } なので、ApiErrorResponse 型として扱う
+        // HTTP処理がエラーの場合
+        // エラー時の data の形は { success: false, message: "エラーメッセージ" } なので、ApiErrorResponse 型として扱い、エラーmessage を表示する 
         if (!res.ok) {
           const errorData = data as ApiErrorResponse;
 
@@ -131,6 +137,12 @@ export default function HistoryDetailPage() {
         // 成功時は履歴詳細データとして扱う
         // 成功時の data の形は GetDiagnosisHistoryDetailResponse 型として扱う
         const historyData = data as GetDiagnosisHistoryDetailResponse;
+
+        // API処理がエラーの場合の処理
+        if (!historyData.success) {
+          setErrorMessage(historyData.message ?? "履歴詳細の取得に失敗しました");
+          return;
+        }
 
         setHistoryDetail(historyData);
       } catch (error) {

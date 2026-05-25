@@ -95,10 +95,12 @@ export async function GET(
     const { id: diagnosisId } = await params;
 
     if (!diagnosisId) {
-      return NextResponse.json(
-        { success: false, message: "診断IDが必要です" },
-        { status: 400 }
-      );
+      const responseBody: GetDiagnosisHistoryDetailResponse = {
+        success: false,
+        message: "診断IDが必要です",
+      };
+
+      return NextResponse.json(responseBody, { status: 400 });
     }
 
     // フロント(web/app/history/[id]/page.tsx)から送られてきたAuthorization ヘッダー を取得
@@ -107,20 +109,24 @@ export async function GET(
 
     // Authorization が無い場合は、ログインユーザーを判断できないのでエラーを返す
     if (!authHeader) {
-      return NextResponse.json(
-        { success: false, message: "認証情報がありません" },
-        { status: 401 }
-      );
+      const responseBody: GetDiagnosisHistoryDetailResponse = {
+        success: false,
+        message: "認証情報がありません",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
     }
 
     // tokenの形式が正しいかを確認
     // 期待する形
     // 「Bearer xxxxx」
     if (!authHeader.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { success: false, message: "認証形式が正しくありません" },
-        { status: 401 }
-      );
+      const responseBody: GetDiagnosisHistoryDetailResponse = {
+        success: false,
+        message: "認証形式が正しくありません",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
     }
     
     // Bearer の部分を外して、ログインtoken本体だけにする
@@ -129,10 +135,12 @@ export async function GET(
 
     // token が無い場合もエラー
     if (!token) {
-      return NextResponse.json(
-        { success: false, message: "ログインが必要です" },
-        { status: 401 }
-      );
+      const responseBody: GetDiagnosisHistoryDetailResponse = {
+        success: false,
+        message: "ログインが必要です",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
     }
 
     // サーバー側でSupabaseを使う準備
@@ -146,10 +154,12 @@ export async function GET(
 
     // token が無効、またはユーザーが取得できない場合は、未ログイン扱いにする
     if (error || !user) {
-      return NextResponse.json(
-        { success: false, message: "ログインが必要です" },
-        { status: 401 }
-      );
+      const responseBody: GetDiagnosisHistoryDetailResponse = {
+        success: false,
+        message: "ログインが必要です",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
     }
 
     // DBから今回の診断(id: diagnosisId)を完了済みの本人の診断に絞り(userId: user.id)1件取得
@@ -170,10 +180,12 @@ export async function GET(
     });
 
     if (!currentDiagnosis) {
-      return NextResponse.json(
-        { success: false, message: "診断結果が見つかりません" },
-        { status: 404 }
-      );
+      const responseBody: GetDiagnosisHistoryDetailResponse = {
+        success: false,
+        message: "診断結果が見つかりません",
+      };
+
+      return NextResponse.json(responseBody, { status: 404 });
     }
 
 
@@ -279,9 +291,11 @@ export async function GET(
   } catch (error) {
     console.error("履歴詳細取得エラー", error);
 
-    return NextResponse.json(
-      { success: false, message: "履歴詳細の取得に失敗しました" },
-      { status: 500 }
-    );
+    const responseBody: GetDiagnosisHistoryDetailResponse = {
+      success: false,
+      message: "履歴詳細の取得に失敗しました",
+    };
+
+    return NextResponse.json(responseBody, { status: 500 });
   }
 }

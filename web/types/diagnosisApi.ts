@@ -381,18 +381,24 @@ export type DiagnosisHistoryDetailDifference = {
 
 
 // 診断履歴詳細APIから返ってくるレスポンス全体の型
+
 // createdAt は APIレスポンスでは文字列として扱う
 // nutrientScores: 全栄養素スコア一覧
 // topNutrients: スコアが高い上位栄養素
 // lowNutrients: スコアが低い上位栄養素
 // differences: 前回との差分一覧
 
-export type GetDiagnosisHistoryDetailResponse = {
-  success: true;
-  id: string;
-  createdAt: string;
-  nutrientScores: DiagnosisHistoryDetailScore[];
-  topNutrients: DiagnosisHistoryDetailScore[];
-  lowNutrients: DiagnosisHistoryDetailScore[];
-  differences: DiagnosisHistoryDetailDifference[];
-};
+// 成功時は詳細データが必ずある
+// 失敗時は message が使える
+
+export type GetDiagnosisHistoryDetailResponse =
+  | {
+      success: true;
+      id: string;
+      createdAt: string;
+      nutrientScores: DiagnosisHistoryDetailScore[];
+      topNutrients: DiagnosisHistoryDetailScore[];
+      lowNutrients: DiagnosisHistoryDetailScore[];
+      differences: DiagnosisHistoryDetailDifference[];
+    }
+  | ApiErrorResponse;
