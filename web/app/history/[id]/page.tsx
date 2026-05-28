@@ -144,6 +144,7 @@ export default function HistoryDetailPage() {
           return;
         }
 
+        // historyData.success を確認しているので setHistoryDetail(historyData) には成功データだけ入る
         setHistoryDetail(historyData);
       } catch (error) {
         console.error("failed to fetch history detail:", error);

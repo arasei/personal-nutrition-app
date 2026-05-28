@@ -105,7 +105,7 @@ export default function HistoryPage() {
         });
 
         // APIから返ってきたデータをJSONとして解析する
-        const responseData = await res.json();
+        const responseData: GetDiagnosisHistoryResponse = await res.json();
 
         // HTTP処理がエラーの場合の処理
         if (!res.ok) {
@@ -114,20 +114,17 @@ export default function HistoryPage() {
           return;
         }
 
-        // APIから返ってきたデータを型に当てはめる
-        const data = responseData as GetDiagnosisHistoryResponse;
-
         // API処理がエラーの場合の処理(データが返って来ない、取得できない時)
         // success: true の時だけ histories を使えるようにする
-        if (!data.success) {
-          setErrorMessage(data.message ?? "履歴取得に失敗しました");
+        if (!responseData.success) {
+          setErrorMessage(responseData.message ?? "履歴取得に失敗しました");
           return;
         }
 
         // APIから返ってきた履歴配列を stateに保存する
-        // 履歴データがある時だけ setHistories(data.histories) する仕様
-        // success:  true の場合、histories は必ず存在する。
-        setHistories(data.histories);
+        // 履歴データ(0件の場合でも)を setHistories(data.histories) で保存する仕様
+        // success:  true の場合、histories は必ず配列として存在する。
+        setHistories(responseData.histories);
       } catch (error) {
         console.error("failed to fetch history:",error);
         setErrorMessage("履歴取得中にエラーが発生しました");

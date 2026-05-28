@@ -1,5 +1,6 @@
 // web/app/diagnosis/start/StartButton.tsx
 
+
 // 診断開始ボタンコンポーネント
 
 // 診断開始ボタンを押したときに、ログイン中ユーザーの Supabase session から access_token を取得し、

@@ -212,6 +212,7 @@ export default function AnswerForm({
   // 画面表示するHTMLを返す
   return (
     // 回答入力フォーム
+    // noValidate でブラウザの標準のエラーではなく、自分で書いたエラーメッセージを表示する
     <form onSubmit={handleSubmit} noValidate style={{ marginTop: 16 }}>
       {/* 数値入力欄 */}
       <input

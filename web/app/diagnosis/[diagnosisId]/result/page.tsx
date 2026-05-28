@@ -109,7 +109,8 @@ export default function ResultPage() {
   const diagnosisId = params.diagnosisId;
 
   // APIから受け取る診断結果データを保存する場所
-  // data に入るのは成功データだけ
+  // type DiagnosisResultSuccessResponse = ... によりdata に入るのは成功データだけ
+  // ranking / diffRanking を安全に使える
   const [data, setData] = useState<DiagnosisResultSuccessResponse | null>(null);
   // 読み込み中かどうかを管理する場所
   const [loading, setLoading] = useState(true);
@@ -170,6 +171,7 @@ export default function ResultPage() {
         }
 
         // APIから取得した結果データ(responseData)をstateに保存
+        // 成功時だけ setData(responseData) を行う
         // これにより、画面が再描画されて、SafeRadarChartやランキング一覧にデータが渡って表示される
         setData(responseData);
       } catch (error) {

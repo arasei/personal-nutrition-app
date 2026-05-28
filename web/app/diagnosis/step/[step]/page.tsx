@@ -154,7 +154,7 @@ export default function DiagnosisStepPage() {
         // 未ログインで守りたいページなので replace で行う
         // ブラウザの戻るボタンでまた診断ステップページへ戻りにくくするため
         if (!token) {
-          setErrorMessage("ログインが必要です")
+          setErrorMessage("ログインが必要です");
           router.replace("/login");
           return;
         }
@@ -191,6 +191,7 @@ export default function DiagnosisStepPage() {
         }
         
         // API から 返ってきたデータ を 保存する
+        // json.success が true の時だけ setData(json) を行う
         setData(json);
       } catch (error) {
         // 開発者向けエラー
