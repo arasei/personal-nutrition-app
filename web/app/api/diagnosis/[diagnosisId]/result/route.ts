@@ -1,6 +1,7 @@
 // web/app/api/diagnosis/[diagnosisId]/result/route.ts
 
 
+
 // 画面に見せるための結果データを作るAPI
 // ログイン中の本人の完了済み診断情報だけをDBから取得し、保存済みscores から栄養素ランキングと前回との差分を作ってJSONで返すAPI
 
@@ -117,7 +118,7 @@ export async function GET(request: Request, { params }: Props) {
     if (!diagnosisId) {
       const responseBody: DiagnosisResultResponse = {
         success: false,
-        message: "診断IDが必要です"
+        message: "診断IDが必要です",
       };
 
       return NextResponse.json(responseBody, { status: 400 });
@@ -130,7 +131,7 @@ export async function GET(request: Request, { params }: Props) {
     if (!authHeader) {
       const responseBody: DiagnosisResultResponse = {
         success: false,
-        message: "未ログインです"
+        message: "未ログインです",
       };
 
       return NextResponse.json(responseBody, { status: 401 });

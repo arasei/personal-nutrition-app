@@ -16,6 +16,42 @@
 
 
 
+
+// ------------------------------------
+// APIレスポンスの共通ルール
+// ------------------------------------
+
+// このファイルで定義しているAPIレスポンスは、基本的に以下の形に揃える。
+
+// 成功時:
+// success: true
+// 必要なデータを必ず返す
+
+// 失敗時:
+// success: false
+// 画面に表示する message を返す
+
+// そのため、フロント側では data.success を確認して、
+// success: true の時だけ成功時のデータを使う。
+// success: false の時は message を表示する
+
+// 例.
+// if (!data.success) {
+//   setErrorMessage(data.message ?? "エラーが発生しました");
+//   return;
+// }
+
+// この形にすることで、フロント側とAPI側で
+// 「成功時に何が返るか」
+// 「失敗時に何が返るか」
+// を完全に共有できる
+
+
+
+
+
+
+
 // ------------------------------
 // 共通エラーレスポンス
 // ------------------------------
@@ -54,8 +90,8 @@ export type StartDiagnosisRequest = Record<string, never>;
 
 // 診断開始APIから返るレスポンスbodyの型を定義
 
-// success: true の時は diagnosisId が必要
-// success: false の時は message が使える
+// success: true の時は diagnosisId が必ず返る
+// success: false の時は ApiErrorResponse として message が返る可能性がある
 
 // なぜ必要
 
@@ -78,7 +114,7 @@ export type StartDiagnosisRequest = Record<string, never>;
 //   message: "Unauthorized",
 // }
 
-// diagnosisIdとmessageが常に両方返ってくるわけではないため「?」をつけている。
+
 
 export type StartDiagnosisResponse =
   | {
@@ -103,7 +139,7 @@ export type StartDiagnosisResponse =
 // diagnosisId: 診断ID。
 // question: 現在表示する質問データ。
 // id: 質問ID。AnswerForm に渡して、回答保存に使用。
-// questionText: 質問分。
+// questionText: 質問文。
 // order: 質問の順番。
 // total: 全質問数。
 // isLast: 現在の質問が最後かどうか。

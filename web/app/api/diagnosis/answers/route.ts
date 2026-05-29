@@ -1,5 +1,6 @@
 // web/app/api/diagnosis/answers/route.ts
 
+
 // 作成済み diagnosis に1問分の回答を保存するAPI
 // 診断開始API(web/app/api/diagnosis/start)で作成済みのdiagnosisのID(diagnosisId)をクライアントから受け取り、
 // ログイン中ユーザー本人の診断であることを確認したうえで回答を保存するAPI

@@ -1,6 +1,7 @@
 // web/app/api/diagnosis/start/route.ts
 
 
+
 // 診断を開始するためのAPI
 // クライアント(StartButton.tsx)からのリクエストを受け取り、Supabase の access_tokenを使用して認証されたユーザーを確認し、
 // その認証済みユーザーの user.id を使い、Prisma の User テーブルに同じ id の User が存在するようにしてから、

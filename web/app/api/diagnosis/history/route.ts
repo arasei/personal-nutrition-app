@@ -1,6 +1,7 @@
 // web/app/api/diagnosis/history/route.ts
 
 
+
 // 履歴APIの設計
 // ログイン中ユーザーのtokenを確認し、本人の完了済み診断履歴だけを新しい順に取得するAPI
 // 各診断のスコア(scores)を不足度が高い順(score昇順)に並べ、上位3栄養素だけを返す
@@ -124,8 +125,8 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc", },
       include: {
         scores:{
-          orderBy: { score: "asc", },
-          include: { nutrient: true, },
+          orderBy: { score: "asc" },
+          include: { nutrient: true },
         },
       },
     });
@@ -148,7 +149,7 @@ export async function GET(req: Request) {
     };
 
     //変換したデータをJSON形式でフロントに返す
-    return NextResponse.json(responseBody, {status: 200 });
+    return NextResponse.json(responseBody, { status: 200 });
   } catch (error) {
     console.error("診断履歴取得APIエラー:", error);
 
@@ -157,7 +158,7 @@ export async function GET(req: Request) {
       message: "診断履歴の取得に失敗しました",
     };
 
-    return NextResponse.json(responseBody, {status: 500 });
+    return NextResponse.json(responseBody, { status: 500 });
   }
 }
 

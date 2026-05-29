@@ -1,5 +1,6 @@
 // web/app/api/diagnosis/history/[id]/route.ts
 
+
 // 指定した診断IDの履歴詳細を取得するAPI
 // 履歴詳細ページ(web/app/history/[id]/page.tsx)から送られてきたAuthorizationヘッダーのtokenからログイン中ユーザーを確認し、
 // その本人の診断である場合だけ、本人の診断詳細だけを取得し、
