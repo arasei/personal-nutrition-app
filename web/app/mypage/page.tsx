@@ -27,6 +27,16 @@
 // router.push で /mypageへ遷移
 //   ↓
 // /mypage
+//   ↓
+// Supabase から現在の session を取得
+//   ↓
+// session から access_token を確認
+//   ↓
+// token が無い場合 → /login に遷移
+//   ↓
+// token がある場合 → マイページを表示
+//   ↓
+// 診断開始ボタン・履歴リンクを表示
 //   ├─ 診断を始める → /diagnosis/start
 //   └─ 履歴を見る   → /history
 
