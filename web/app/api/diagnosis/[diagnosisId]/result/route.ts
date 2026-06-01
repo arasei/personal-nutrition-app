@@ -3,7 +3,7 @@
 
 
 // 画面に見せるための結果データを作るAPI
-// ログイン中の本人の完了済み診断情報だけをDBから取得し、保存済みscores から栄養素ランキングと前回との差分を作ってJSONで返すAPI
+// ログイン中ユーザー本人の完了済み診断情報だけをDBから取得し、保存済みscores から栄養素ランキングと前回との差分を作ってJSONで返すAPI
 
 // 「この診断IDの結果を見せて」と言われた時に、本当にその人の結果か確認して、本人のものなら集計して返す仕組み
 
@@ -65,27 +65,23 @@
 // ↓
 // URLからdiagnosisIdを受け取る
 // ↓
-// Authorizationからtoken取得
+// Authorization header から token 取得
 // ↓
-// token が無い場合は401を返す
+// Supabaseで token 検証
 // ↓
-// Supabaseでログイン中ユーザー情報を取得し、確認
+// ログインユーザー取得
 // ↓
-// diagnosisId + userId で本人の診断か確認
+// diagnosisId 取得
 // ↓
-// 本人の診断でなければ404を返す
+// diagnosisId + user.id + COMPLETED で本人の診断だけ取得
 // ↓
-// 本人の診断であれば、保存済み scores を取得
+// ranking 作成
 // ↓
-// scores からrankingを作成
+// previousDiagnosis 取得
 // ↓
-// 前回診断取得(previousDiagnosis取得)
+// diffRanking 作成
 // ↓
-// previousScoreMap 作成
-// ↓
-// diffRanking 作成(前回との差分計算)
-// ↓
-// JSONで返す
+// 型付きレスポンス返却
 
 
 
@@ -112,9 +108,39 @@ type Props = {
 // params から diagnosisId を取得
 export async function GET(request: Request, { params }: Props) {
   try {
-    // URLの[diagnosisId]を取得
+    // API に 送られてきた request の Authorization header から token を取得
+    // Authorization: token の形を想定する
+    // 「?? ""」 は Authorization header がない場合、token を空文字にする(未ログイン扱いにするため)
+    const token = request.headers.get("Authorization") ?? "";
+
+    // サーバー側で API Route用のSupabaseクライアント作成
+    // Supabaseで token を検証し、ログイン中ユーザーを取得するため
+    const supabase = createClientForServer();
+
+    // token を supabaseに渡して token から ログイン中ユーザー情報を取得
+    // token が正しければ user が返る
+    // token が空・不正・期限切れの場合、error が返る
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser(token);
+
+    // token が無い・不正・期限切れの場合は未ログイン扱い
+    // ユーザー取得失敗(userErrorがある) or 未ログイン(userが無い)の場合はこのAPIを停止
+    // 未ログインのままこのAPIを使わせないため
+    if (userError || !user) {
+      const responseBody: DiagnosisResultResponse = {
+        success: false,
+        message: "未ログインです",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
+    }
+
+    // token検証後に URL の diagnosisId を取得・確認
     const { diagnosisId } = await params;
 
+    // URL に診断IDがない場合
     if (!diagnosisId) {
       const responseBody: DiagnosisResultResponse = {
         success: false,
@@ -122,60 +148,6 @@ export async function GET(request: Request, { params }: Props) {
       };
 
       return NextResponse.json(responseBody, { status: 400 });
-    }
-
-    // request から Authorization header を取得(Bearer xxxxx)
-    const authHeader = request.headers.get("Authorization");
-
-    // Authorization header が無い場合は未ログイン扱い
-    if (!authHeader) {
-      const responseBody: DiagnosisResultResponse = {
-        success: false,
-        message: "未ログインです",
-      };
-
-      return NextResponse.json(responseBody, { status: 401 });
-    }
-
-    // Authorization header が Bearer形式でなければエラー
-    if (!authHeader.startsWith("Bearer ")) {
-      const responseBody: DiagnosisResultResponse = {
-        success: false,
-        message: "認証形式が正しくありません",
-      };
-
-      return NextResponse.json(responseBody, { status: 401 });
-    }
-    // "Bearer "を取り除いて、.trim() で前後の空白も削除してtokenだけを取得
-    const token = authHeader.replace("Bearer ", "").trim();
-
-    // tokenが空なら未ログイン扱い
-    if (!token) {
-      const responseBody: DiagnosisResultResponse = {
-        success: false,
-        message: "未ログインです",
-      };
-
-      return NextResponse.json(responseBody, { status: 401 });
-    }
-
-    // サーバー側で API Route用のSupabaseクライアント作成
-    const supabase = createClientForServer();
-    // token を supabaseに渡して token から ログイン中ユーザー情報を取得
-    const { data, error: userError } = await supabase.auth.getUser(token);
-
-    // Supabase から返ってきたユーザー情報を data.user に入れる
-    const user = data.user;
-
-    // ユーザー取得失敗 or 未ログインの場合はこのAPIを停止
-    // 未ログインのままこのAPIを使わせないため
-    if (userError || !user) {
-      const responseBody: DiagnosisResultResponse = {
-        success: false,
-        message: "未ログインです"
-      };
-
-      return NextResponse.json(responseBody, { status: 401 });
     }
 
     // 今回の診断データを取得
@@ -193,7 +165,6 @@ export async function GET(request: Request, { params }: Props) {
     // userId: 前回診断取得に使う
     // createdAt: 前回診断を探す基準に使う
     // scores: この診断に紐づく保存済みスコアを取得・各スコアに紐づく栄養素情報も一緒に取得(ランキング作成に使うため)
-
     const currentDiagnosis = await prisma.diagnosis.findFirst({
       where: {
         id: diagnosisId,
@@ -212,6 +183,7 @@ export async function GET(request: Request, { params }: Props) {
       },
     });
 
+    // 存在しない・他人の診断・未完了診断の場合
     // 今回の診断データが取得できなかった場合(存在しない診断IDと他人の診断IDと診断が未完了の場合)、エラーにする
     if (!currentDiagnosis) {
       const responseBody: DiagnosisResultResponse = {
@@ -245,7 +217,7 @@ export async function GET(request: Request, { params }: Props) {
         total: item.score,
       }));
 
-    // 今回より前に行った同じユーザーの診断を1件取得
+    // 今回より前の診断を同じユーザーに限定して1件取得
     // 前回との差分を出すため
     // { lt: currentDiagnosis.createdAt,}で今回の診断より前の日付を指定
     // orderBy: 今回より前の診断の中で1番新しい順で並べる(前回診断を1件だけ取るため)
@@ -254,13 +226,20 @@ export async function GET(request: Request, { params }: Props) {
       where: {
         userId: currentDiagnosis.userId,
         status: "COMPLETED",
-        createdAt: { lt: currentDiagnosis.createdAt, },
+        createdAt: {
+          lt: currentDiagnosis.createdAt,
+        },
       },
-      orderBy: { createdAt: "desc" },
-      include: { scores: true },
+      orderBy: {
+        createdAt: "desc",
+      },
+      include: {
+        scores: true,
+      },
     });
 
     // 前回スコアマップ
+    // 前回スコアを nutrientId ごとに取り出しやすくする
 
     // 差分計算用の箱(前回の栄養素スコアを入れておくための箱)
     // key: nutrientId
@@ -276,11 +255,14 @@ export async function GET(request: Request, { params }: Props) {
       }
     }
 
+    // 今回スコアと前回スコアの差分を作成
     // 今回ランキング各栄養素ごとに、前回との差分を計算し追加
     // 画面に「前回+2」、「前回-1」のように表示するため
     const diffRanking = ranking.map((item) => {
+
       // 同じ栄養素の前回スコアを取得
       const previousScore = previousScoreMap[item.nutrientId];
+
       const diff = previousScore !== undefined ? item.total - previousScore : null;
 
       // 差分付きランキングデータを作成し、フロントに返す
@@ -292,6 +274,7 @@ export async function GET(request: Request, { params }: Props) {
       };
     });
 
+    // 型付きレスポンスを返す
     // このAPIが返すJSONの型を指定
     const responseBody: DiagnosisResultResponse = {
       success: true,
