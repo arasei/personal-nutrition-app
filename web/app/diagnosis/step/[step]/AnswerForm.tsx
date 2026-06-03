@@ -1,7 +1,8 @@
 // web/app/diagnosis/step/[step]/AnswerForm.tsx
 
 
-// ユーザーが入力した回答を 回答保存API(/api/diagnosis/answers)に送信し、APIから返ってきた nextHref に画面遷移するフォームコンポーネント
+// ユーザーが入力した回答を 回答保存API(/api/diagnosis/answers)に送信し、
+// APIから返ってきた nextHref に画面遷移するフォームコンポーネント
 
 
 // Supabase session から token を取得してAPIへ送る
@@ -15,49 +16,53 @@
 // /api/diagnosis/answers/route.ts を呼ぶフォーム
 
 
-// web/app/diagnosis/step/[step]/AnswerForm.tsx 内の流れ
-
-// 回答を入力
-// ↓
-// 数値チェック
-// ↓
-// Supabase token を取得
-// ↓
-// SaveDiagnosisAnswersRequest 型の body を作る
-// ↓
-// POST /api/diagnosis/answers
-// ↓
-// nextHref へ遷移
-
 
 
 // 流れ
 
-// /diagnosis/step/1?diagnosisId=xxx
+// AnswerForm.tsx
 //   ↓
-// page.tsx が開く
+// ユーザーが回答を入力
 //   ↓
-// useParams で step を取る
+// 回答値が 1〜3 の整数か確認
 //   ↓
-// useSearchParams で diagnosisId を取る
+// Supabase から token を取得
 //   ↓
-// Supabase から token を取る
-//   ↓
-// GET /api/diagnosis/step
-//   ↓
-// API側で本人確認
-//   ↓
-// 質問データを返す
-//   ↓
-// 画面に質問を表示
-//   ↓
-// AnswerForm で回答を入力
+// diagnosisId / questionId / value / order を作る
 //   ↓
 // POST /api/diagnosis/answers
 //   ↓
-// 保存成功
+// API側で token 確認
 //   ↓
-// nextHref へ移動
+// user を取得
+//   ↓
+// diagnosisId + user.id で本人確認
+//   ↓
+// Diagnosis が COMPLETED 済みではないか確認
+//   ↓
+// currentStep と order を確認
+//   ↓
+// questionId と order を確認
+//   ↓
+// 最後の質問か判定
+//   ↓
+
+// 最後ではない場合
+//   ├─ 回答保存
+//   ├─ currentStep を次へ更新
+//   └─ 次の質問URLを返す
+
+// 最後の質問の場合
+//   ├─ 回答保存
+//   ├─ 全回答を取得
+//   ├─ 栄養素スコア計算
+//   ├─ DiagnosisNutrientScore 保存
+//   ├─ Diagnosis を COMPLETED に更新
+//   └─ 結果ページURLを返す
+
+// AnswerForm.tsx
+//   ↓
+// APIから返ってきた nextHref に router.push で遷移
 
 
 

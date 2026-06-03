@@ -51,141 +51,51 @@
 
 
 
-// bodyで受け取る値
-
-// diagnosisId: どの診断に対する回答か
-// questionId: どの質問に対する回答か
-// value: 回答値
-// order: 現在の質問番号
-
-
-
-
-
-
-// userIdをbodyから受け取らない理由
-
-// userId はクライアントから送らせず、Authorization ヘッダーの token を使って
-// サーバー側で Supabase から取得する。
-// これにより、他人の userId を送って回答を保存する流れを防ぐ。
-
-
-
-
-
-
-// 認可処理
-
-// diagnosisId と Supabase から取得した user.id を使って Diagnosis を検索する。
-// 一致する Diagnosis が存在しない場合は、本人の診断ではないため 403 Forbidden を返す。
-// これにより、他人の diagnosisId に回答を保存できないようにする。
-
-
-
-
-
-// 回答保存の考え方
-
-// DiagnosisAnswer は「1つの診断 × 1つの質問 = 1回答」のため、
-// createMany ではなく upsert を使う。
-// 初回回答なら create、同じ質問に再回答した場合は update する。
-
-
-
-
-
-// 最後の質問ではない場合
-
-// 回答保存後、Diagnosis の currentStep を order + 1 に更新する。
-// レスポンスで次の質問ページのURLを nextHref として返す。
-// 例: /diagnosis/step/2?diagnosisId=xxx
-
-
-
-
-// 最後の質問の場合
-
-// 回答保存後、今回の診断に紐づく全回答を取得する。
-// 質問IDから栄養素IDをたどり、栄養素ごとの合計スコアを計算する。
-// 古い DiagnosisNutrientScore を削除し、新しいスコアを保存する。
-// Diagnosis を COMPLETED に更新し、completedAt を保存する。
-// レスポンスで結果ページのURLを nextHref として返す。
-
-
-
-
-
-// transaction を使う理由
-
-// 最後の質問では、以下の複数のDB更新をまとめて行うため。
-// ・古い DiagnosisNutrientScore の削除
-// ・新しい DiagnosisNutrientScore の作成
-// ・Diagnosis の完了更新
-// 途中で失敗した場合に中途半端な状態を残さないため、prisma.$transaction を使う。
-
-
-
-
-
-// レスポンスの考え方
-// 成功時: { success: true, nextHref: "..." }
-// 認証失敗時: { success: false, message: "Unauthorized" }
-// 認可失敗時: { success: false, message: "Forbidden" }
-// リクエスト不正時: { success: false, message: "Invalid request body" }
-// サーバーエラー時: { success: false, message: "Failed to save diagnosis answer" }
-// スコア計算失敗時: { success: false, message: "Failed to calculate score" }
-// フロントとサーバーで共通型 SaveDiagnosisAnswersResponse を使い、レスポンスの形をそろえる。
-
-
-
-
-
-
-
-
-
-
 // 全体の流れ
 
 // AnswerForm.tsx
 //   ↓
-// Authorization: Bearer token
-// diagnosisId / questionId / value / order を渡す
+// ユーザーが回答を入力
 //   ↓
-// api/diagnosis/answers/route.ts
+// 回答値が 1〜3 の整数か確認
 //   ↓
-// Bearer tokenからtoken本体を取り出す
+// Supabase から token を取得
 //   ↓
-// Supabaseに token を渡し、user 確認(ログインユーザーかを確認)
+// diagnosisId / questionId / value / order を作る
 //   ↓
-// diagnosisId + user.id で本人の診断か確認
+// POST /api/diagnosis/answers
 //   ↓
-// questionId + order が正しい組み合わせか確認
+// API側で token 確認
 //   ↓
-// DiagnosisAnswerをupsert で回答をまとめて保存
+// user を取得
+//   ↓
+// diagnosisId + user.id で本人確認
+//   ↓
+// Diagnosis が COMPLETED 済みではないか確認
+//   ↓
+// currentStep と order を確認
+//   ↓
+// questionId と order を確認
 //   ↓
 // 最後の質問か判定
-//   ├─ No
-//   │   ↓
-//   │ currentStep更新
-//   │   ↓
-//   │ 次の質問URLを返す
-//   │
-//   └─ Yes
-//       ↓
-//       全回答取得
-//       ↓
-//       栄養素ごとにスコア集計
-//       ↓
-//       scoreRows作成(保存用スコア配列を作成)
-//       ↓
-//       古いscores削除
-//       ↓
-//       新しいscores保存
-//       ↓
-//       DiagnosisをCOMPLETEDに更新
-//       ↓
-//       結果ページURLを返す
+//   ↓
+
+// 最後ではない場合
+//   ├─ 回答保存
+//   ├─ currentStep を次へ更新
+//   └─ 次の質問URLを返す
+
+// 最後の質問の場合
+//   ├─ 回答保存
+//   ├─ 全回答を取得
+//   ├─ 栄養素スコア計算
+//   ├─ DiagnosisNutrientScore 保存
+//   ├─ Diagnosis を COMPLETED に更新
+//   └─ 結果ページURLを返す
+
+// AnswerForm.tsx
+//   ↓
+// APIから返ってきた nextHref に router.push で遷移
 
 
 
@@ -232,7 +142,7 @@ function buildQuestionMap(questions: QuestionItem[]) {
   return questionMap;
 }
 
-// 回答一覧と質問→栄養素の対応表を使って、栄養素ごとの合計点を作る関数
+// 回答一覧を元に、質問→栄養素の対応表を使って、栄養素ごとの合計点を作る関数
 function buildScoreMap(
   answers: AnswerItem[],
   questionMap: Record<string, string>
@@ -254,8 +164,7 @@ function buildScoreMap(
   return scoreMap;
 }
 
-// scoreMap を保存用の配列に変換する
-// 栄養素ごとの合計点を、保存しやすい配列形式に変換する
+// scoreMap(栄養素ごとの合計点) をDB保存用の配列に変換する
 // 表示順はresult/route.ts 側で並び替える。ここでは変換だけ行う。
 function buildScoreRows(scoreMap: Record<string, number>): ScoreRow[] {
   return Object.entries(scoreMap).map(([nutrientId, total]) => ({
@@ -422,40 +331,83 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(responseBody, { status: 400 });
     }
 
-    // 回答を保存(upsert)
-    // 初回回答 → create
-    // 再回答 → update
-    await prisma.diagnosisAnswer.upsert({
-      where: {
-        diagnosisId_questionId: {
-          diagnosisId,
-          questionId,
-        },
-      },
-      update: {
-        value,
-        answeredAt: new Date(),
-      },
-      create: {
-        diagnosisId,
-        questionId,
-        value,
-        answeredAt: new Date(),
-      },
-    });
-
-    // 現在の質問が最後かどうか判定
+    // 最後の質問かどうか判定
     const isLast = order >= total;
 
+    // 最後の質問ではない場合
+    if (!isLast) {
+      await prisma.$transaction(async (tx) => {
+        // 回答を保存
+        // 回答を保存(upsert)
+        // 初回回答 → create
+        // 再回答 → update
+        await tx.diagnosisAnswer.upsert({
+          where: {
+            diagnosisId_questionId: {
+              diagnosisId,
+              questionId,
+            },
+          },
+          update: {
+            value,
+            answeredAt: new Date(),
+          },
+          create: {
+            diagnosisId,
+            questionId,
+            value,
+            answeredAt: new Date(),
+          },
+        });
 
+        // 次のステップへ進める
+        // 診断の現在ステップ(currentStep)を次の質問番号に更新
+        await tx.diagnosis.update({
+          where: {
+            id: diagnosisId,
+          },
+          data: {
+            currentStep: order + 1,
+          },
+        });
+      });
 
-    // 最後の質問の場合の処理
-    // スコア集計・完了処理実行
-    if (isLast) {
+      const responseBody: SaveDiagnosisAnswersResponse = {
+        success: true,
+        nextHref: `/diagnosis/step/${order + 1}?diagnosisId=${diagnosisId}`,
+      };
 
-      // 今回の診断に紐づく回答一覧を全て取得
-      const answers = await prisma.diagnosisAnswer.findMany({
-        where: { diagnosisId },
+      return NextResponse.json(responseBody, {status: 200 });
+    }
+
+    // 最後の質問の場合
+    const resultPageHref = await prisma.$transaction(async (tx) => {
+
+      // 最後の回答を保存
+      await tx.diagnosisAnswer.upsert({
+        where: {
+          diagnosisId_questionId: {
+            diagnosisId,
+            questionId,
+          },
+        },
+        update: {
+          value,
+          answeredAt: new Date(),
+        },
+        create: {
+          diagnosisId,
+          questionId,
+          value,
+          answeredAt: new Date(),
+        },
+      });
+
+      // 今回の診断に紐づく全回答を取得
+      const answers = await tx.diagnosisAnswer.findMany({
+        where: {
+          diagnosisId,
+        },
         select: {
           questionId: true,
           value: true,
@@ -463,19 +415,14 @@ export async function POST(request: NextRequest) {
       });
 
       // 全質問数に対して同じ回答数があるかチェック
+      // 未回答がある場合、診断を完了させない
       // 全質問数に対して回答数が多すぎる、少なすぎる状態を防ぐため
-      // 未回答の質問がある状態で診断を完了させない
       if (answers.length !== total) {
-        const responseBody: SaveDiagnosisAnswersResponse = {
-          success: false,
-          message: "全ての質問に回答してください",
-        };
-
-        return NextResponse.json(responseBody, { status: 400 });
+        throw new Error("NOT_ALL_QUESTIONS_ANSWERED");
       }
 
-      // 質問IDと栄養素IDの対応表を取得
-      const questions = await prisma.diagnosisQuestion.findMany({
+      // 質問ID と 栄養素ID の対応表を取得
+      const questions = await tx.diagnosisQuestion.findMany({
         select: {
           id: true,
           nutrientId: true,
@@ -489,8 +436,62 @@ export async function POST(request: NextRequest) {
       // スコアマップをDB保存用のスコア配列に変換
       const scoreRows = buildScoreRows(scoreMap);
 
-      // スコアが算出できていない(scoreRowsが空)場合はエラー
+      // スコアが算出できていない(scoreRows が空)場合はエラー
       if (scoreRows.length === 0) {
+        throw new Error("FAILED_TO_CALCULATE_SCORE");
+      }
+
+      // 同じ診断IDの古いスコアを削除
+      await tx.diagnosisNutrientScore.deleteMany({
+        where: {
+          diagnosisId,
+        },
+      });
+
+      // 新しいスコアをまとめて保存
+      await tx.diagnosisNutrientScore.createMany({
+        data: scoreRows.map((row) => ({
+          diagnosisId,
+          nutrientId: row.nutrientId,
+          score: row.total,
+        })),
+      });
+
+      // 診断を完了状態に更新
+      await tx.diagnosis.update({
+        where: {
+          id: diagnosisId,
+        },
+        data: {
+          status: "COMPLETED",
+          completedAt: new Date(),
+          currentStep: total,
+        },
+      });
+
+      return `/diagnosis/${diagnosisId}/result`;
+    });
+
+    const responseBody: SaveDiagnosisAnswersResponse = {
+      success: true,
+      nextHref: resultPageHref,
+    };
+
+    return NextResponse.json(responseBody, {status: 200 });
+  } catch (error) {
+    console.error ("failed to save diagnosis answer:", error);
+
+    if (error instanceof Error) {
+      if (error.message === "NOT_ALL_QUESTIONS_ANSWERED") {
+        const responseBody: SaveDiagnosisAnswersResponse = {
+          success: false,
+          message: "全ての質問に回答してください",
+        };
+
+        return NextResponse.json(responseBody, { status: 400 });
+      }
+
+      if (error.message === "FAILED_TO_CALCULATE_SCORE") {
         const responseBody: SaveDiagnosisAnswersResponse = {
           success: false,
           message: "Failed to calculate score",
@@ -498,68 +499,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json(responseBody, { status: 400 });
       }
-
-      // 複数のDB更新を$transactionでまとめて実行
-      await prisma.$transaction(async (tx) => {
-        // 同じ診断IDの既存スコア削除
-        await tx.diagnosisNutrientScore.deleteMany({
-          where: { diagnosisId },
-        });
-
-        // 栄養素ごとのスコアをまとめて保存
-        await tx.diagnosisNutrientScore.createMany({
-          data: scoreRows.map((row) => ({
-            diagnosisId,
-            nutrientId: row.nutrientId,
-            score: row.total,
-          })),
-        });
-
-        // 診断を完了状態に更新
-        await tx.diagnosis.update({
-          where: { id: diagnosisId },
-          data: {
-            status: "COMPLETED",
-            completedAt: new Date(),
-            currentStep: total,
-          },
-        });
-      });
-
-      // 最後の質問の後の成功レスポンス
-      // nextHrefでフロントに次のURL(診断結果ページ)を返す設計
-      const responseBody: SaveDiagnosisAnswersResponse = {
-        success: true,
-        nextHref: `/diagnosis/${diagnosisId}/result`,
-      };
-
-      return NextResponse.json(responseBody, { status: 200 });
     }
-
-
-
-
-    // 最後の質問ではない場合の処理
-
-
-    // 診断の現在ステップ(currentStep)を次の質問番号に更新
-    await prisma.diagnosis.update({
-      where: { id: diagnosisId },
-      data: {
-        currentStep: order + 1,
-      },
-    });
-
-    // 次の質問ページのURLをレスポンスに入れる
-    const responseBody: SaveDiagnosisAnswersResponse = {
-      success: true,
-      nextHref: `/diagnosis/step/${order + 1}?diagnosisId=${diagnosisId}`,
-    };
-
-    return NextResponse.json(responseBody, { status: 200 });
-  } catch (error) {
-    // catch (error)で予期しないエラーの場合の処理
-    console.error("failed to save diagnosis answer:", error);
 
     const responseBody: SaveDiagnosisAnswersResponse = {
       success: false,
