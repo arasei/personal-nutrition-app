@@ -3,15 +3,14 @@
 
 // 診断開始ボタンコンポーネント
 
-// 診断開始ボタンを押したときに、ログイン中ユーザーの Supabase session から access_token を取得し、
+// 診断開始ボタンを押したときに、useSupabaseSession から access_token を取得し、
 // その token を /api/diagnosis/start に送る。
 // API側で token を検証し、Diagnosis レコードを作成した後、返ってきた diagnosisId を使って step1 に遷移する。
 
 
-// API方式で実装
 
 // handleStartDiagnosis関数内で
-// tokenをSupabaseから取得して、APIに渡す
+// useSupabaseSession から受け取った token をAPIに渡す
 // fetchでAPIを呼び、返ってきたdiagnosisIdを使ってrouter.pushでstep1に遷移する
 
 
@@ -30,8 +29,7 @@
 
 // このコンポーネントの役割
 // 「診断を始める」ボタンを表示する
-// ボタン押下時に Supabase から現在の session を取得する
-// session から access_token を取り出す
+// ボタン押下時に useSupabaseSession から取得済みの token を使う
 // token がない場合は未ログインとして /login に遷移する
 // token がある場合は /api/diagnosis/start を呼び出す
 // APIから diagnosisId を受け取る
@@ -42,46 +40,39 @@
 
 // 流れ
 
-// StartButton.tsx
+// 画面表示
 //   ↓
-// 診断を始めるボタンを押す
+// useSupabaseSession がログイン確認
 //   ↓
-// errorMessage を空にする
+// token を StartButton に渡す
 //   ↓
-// isLoading を true にする
-//   ↓
-// supabase.auth.getSession() で session を取得
+// ユーザーが「診断を始める」を押す
 //   ↓
 // token がない
-//   ↓
-// errorMessage に「ログインが必要です」を入れる
-//   ↓
-// /login に移動
-
-
-// 流れ(ログイン済みの場合)
+//   └─ /login へ移動
 
 // token がある
 //   ↓
-// /api/diagnosis/start に POST で送る
+// POST /api/diagnosis/start
 //   ↓
-// APIがDiagnosisを作成
+// API側で token を検証
 //   ↓
-// diagnosisId が返る
+// API側で user.id を取得
+//   ↓
+// Diagnosis 作成
+//   ↓
+// diagnosisId を返す
 //   ↓
 // /diagnosis/step/1?diagnosisId=... に移動
 
 
 
-// useRouter → 画面遷移用
-// useState → ローディング制御用
-// supabase → session 取得用
-
 
 
 "use client";
 
-import { supabase } from "@/lib/supabase/client";
+// ログイン情報を確認して token を返す役割
+import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
 import type {
   StartDiagnosisResponse,
   ApiErrorResponse,
@@ -92,8 +83,17 @@ import { useState } from "react";
 
 export default function StartButton() {
   const router = useRouter();
-  //開始処理中かどうかを管理するためのstate
-  const [isLoading, setIsLoading] = useState(false);
+
+  // Supabase のログイン確認・token取得は共通フックに任せる
+  // isSessionLoading: ログイン確認中
+  const {
+    token,
+    isLoading: isSessionLoading,
+  } = useSupabaseSession();
+
+  // 診断開始APIの処理中かどうかを管理するstate
+  // isStarting: 診断開始APIの通信中
+  const [isStarting, setIsStarting] = useState(false);
   // エラーメッセージを画面に表示するためのstate
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -102,16 +102,6 @@ export default function StartButton() {
     try {
       // 前回のエラー表示を消す
       setErrorMessage("");
-      // 処理開始時にローディング状態に切り替える
-      setIsLoading(true);
-
-      //現在のログイン情報(session)を取得
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      //sessionからaccess_tokenを取り出す
-      const token = session?.access_token;
 
       //tokenが無い=未ログイン
       if (!token) {
@@ -120,7 +110,12 @@ export default function StartButton() {
         return;
       }
 
+      // 診断開始API の通信状態にする
+      setIsStarting(true);
+
       //診断開始APIを呼ぶ
+      // API側はここの token を見て、
+      // 「この人はログイン済みか？」・「この人の user.id は何か？」を確認する
       const res = await fetch("/api/diagnosis/start", {
         method: "POST",
         headers: {
@@ -151,31 +146,34 @@ export default function StartButton() {
         return;
       }
 
-      //作成し、返ってきたdiagnosisIdを使い、step1に遷移
+      //診断作成が成功し、返ってきたdiagnosisIdを使い、step1に遷移
       router.push(`/diagnosis/step/1?diagnosisId=${data.diagnosisId}`);
     } catch (error) {
       console.error("Failed to start diagnosis:", error);
       setErrorMessage("診断開始に失敗しました");
     } finally {
-      setIsLoading(false);
+      setIsStarting(false);
     }
   };
+
+  // ログイン確認中 と 診断開始API通信中 はボタンを押せなくする
+  const isButtonDisabled = isSessionLoading || isStarting;
 
   return (
     <div>
       <button
         type="button"
         onClick={handleStartDiagnosis}
-        disabled={isLoading}
+        disabled={isButtonDisabled}
         style={{
           padding: "12px 16px",
           borderRadius: 8,
           border: "1px solid #ccc",
-          cursor: isLoading ? "not-allowed" : "pointer",
-          opacity: isLoading ? 0.7 : 1,
+          cursor: isButtonDisabled ? "not-allowed" : "pointer",
+          opacity: isButtonDisabled ? 0.7 : 1,
         }}
       >
-        {isLoading ? "開始中..." : "診断を始める"}
+        {isButtonDisabled ? "開始中..." : "診断を始める"}
       </button>
 
       {/* errorMessage があるときだけ表示する */}
