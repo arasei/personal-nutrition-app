@@ -84,15 +84,17 @@ async function fetchDiagnosisHistory(token: string): Promise<DiagnosisHistoryIte
 
   // HTTP処理がエラーの場合の処理
   if (!res.ok) {
-    const errorData = responseData as ApiErrorResponse;
-    throw new Error(errorData.message ?? "履歴取得に失敗しました");
+    const message = "message" in responseData && responseData.message ? responseData.message : "履歴取得に失敗しました";
+
+    throw new Error(message);
   }
 
   // API処理がエラーの場合の処理(データが返って来ない、取得できない時)
   // success: true の時だけ histories を使えるようにする
   if (!responseData.success) {
-    const errorData = responseData as ApiErrorResponse;
-    throw new Error(errorData.message ?? "履歴取得に失敗しました");
+    const message = "message" in responseData && responseData.message ? responseData.message : "履歴取得に失敗しました"
+
+    throw new Error(message);
   }
 
   // 画面で使いたい履歴配列だけ返す
@@ -134,19 +136,19 @@ export default function HistoryPage() {
   );
 
   if (isSessionLoading) {
-    return <p>ログイン情報を確認中です...</p>
+    return <p>ログイン情報を確認中です...</p>;
   }
 
   if (!token) {
-    return <p>ログインページへ移動しています...</p>
+    return <p>ログインページへ移動しています...</p>;
   }
 
   if (isHistoryLoading) {
-    return <p>履歴を読み込み中です...</p>
+    return <p>履歴を読み込み中です...</p>;
   }
 
   if (error) {
-    return <p>{error.message}</p>
+    return <p>{error.message}</p>;
   }
 
 
