@@ -79,8 +79,8 @@ import type {
 } from "@/types/diagnosisApi";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-// フォーム送信イベントの型
-import type { FormEvent } from "react";
+// フォームの値、エラー、送信中状態をまとめて管理するため
+import { useForm } from "react-hook-form";
 
 // AnswerForm が親コンポーネントから受け取る値(props)の型を定義
 
@@ -95,6 +95,13 @@ type AnswerFormProps = {
   isLast: boolean;
 };
 
+// フォームで扱う値の型を定義
+// HTML の inputは、type="number" でも値を文字列として扱うことが多いため、answer: string とする
+// 画面では "1" として受け取り、APIに送信する前に Number() で 1 に変換する
+type AnswerFormValues = {
+  answer: string;
+};
+
 // props を AnswerFormProps の型で必要な値を受け取る
 export default function AnswerForm({
   diagnosisId,
@@ -103,28 +110,31 @@ export default function AnswerForm({
   isLast,
 }: AnswerFormProps) {
   const router = useRouter();
-  // 回答入力欄の値を保存する場所
-  const [answer, setAnswer] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  // フォーム送信時に実行する関数
-  // FormEvent<HTMLFormElement> でフォーム送信イベントであることをTypeScriptに伝える
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    // フォーム送信時のブラウザ標準動作(リロード)を止める
-    event.preventDefault();
+  // フォーム管理に必要な道具を取り出す
+  const {
+    register, // input と react-hook-form を繋ぐ
+    handleSubmit, // フォーム送信時の処理を安全に実行する
+    formState: { errors, isSubmitting }, // errors: 入力エラーを表示するために使う。isSubmitting: 送信中かどうかを判断する。
+  } = useForm<AnswerFormValues>({
+    defaultValues: {
+      answer: "",
+    },
+  });
 
+  // フォーム送信時に実行する処理
+  const onSubmit = async (values: AnswerFormValues) => {
     try {
-      // 送信中状態にする
-      setIsLoading(true);
       // 送信開始時に前回エラーを消す
       setErrorMessage("");
 
-      // 入力された文字列を数値に変換
-      const answerValue = Number(answer);
+      // 入力値を 数値(number) に変換する
+      // フォームから受け取った "1" を 1 に変換
+      // API側では value を数値として扱っているため
+      const answerValue = Number(values.answer);
 
       // 入力値が有効な整数かチェック
-      // 不正だった場合、returnでユーザーに知らせる。
       // 不正な回答値のままAPIへ送らない
       if (
         !Number.isFinite(answerValue) ||
@@ -136,26 +146,20 @@ export default function AnswerForm({
         return;
       }
 
-      // Supabaseから現在のログインsession を取得
+      // Supabase から 現在のログインsession を取得
       const result = await supabase.auth.getSession();
       // session から access_token を取り出す
       const token = result.data.session?.access_token;
 
-      // tokenが無い場合、未ログイン扱い。
-      // return で未ログインのままAPIへ送らない
+      // token が無い場合、未ログイン扱い
+      // 未ログインのままAPIへ送らない
       if (!token) {
         setErrorMessage("ログインが必要です");
         router.push("/login");
         return;
       }
 
-      // APIに送るデータ(body)を SaveDiagnosisAnswersRequest型として送るために定義
-      // 送信データのエラーを防ぐため型を揃える
-
-      // diagnosisId: どの診断か
-      // questionId: どの質問か
-      // value: 回答値
-      // order: 何問目か
+      // APIに送るデータ
       const requestBody: SaveDiagnosisAnswersRequest = {
         diagnosisId,
         questionId,
@@ -167,89 +171,90 @@ export default function AnswerForm({
       const res = await fetch("/api/diagnosis/answers", {
         // 回答を保存する
         method: "POST",
-        // APIに送るheaders情報
-        // Supabaseのtokenを入れ、JSON形式にする
+        // APIに送る headers情報
+        // Supabase の token を送る
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        // APIへ送るデータをJSON文字列に変換
+        // APIへ送るデータをJSON形式にする
         body: JSON.stringify(requestBody),
       });
 
-      // APIから返ってきたデータをJSON形式で、SaveDiagnosisAnswerResponse型で受け取る
-      const data: SaveDiagnosisAnswersResponse = await res.json();
+      // APIから返ってきたデータを成功時の型(SaveDiagnosisResponse)と失敗時の型(ApiErrorResponse)に分けて受け取る
+      const data: SaveDiagnosisAnswersResponse | ApiErrorResponse = await res.json();
 
       // HTTP処理がエラーの場合の処理
       if (!res.ok) {
-        const errorData = data as ApiErrorResponse;
-        setErrorMessage(errorData.message ?? "回答保存に失敗しました");
+        const message = "message" in data && data.message ? data.message : "回答保存に失敗しました";
+
+        setErrorMessage(message);
         return;
       }
 
       // API処理がエラーの場合の処理
       if (!data.success) {
-        setErrorMessage(data.message ?? "回答保存に失敗しました");
+        const message = "message" in data && data.message ? data.message : "回答保存に失敗しました";
+
+        setErrorMessage(message);
         return;
       }
 
-      // 次の遷移先が返ってきていない場合のエラー
-      // 成功時は nextHref は必須としているので削除しても可能
-      if (!data.nextHref) {
+      // APIから返ってきた data に nextHref が入ってない・遷移先(data.nextHref)が無い場合の処理
+      if (!("nextHref" in data) || !data.nextHref) {
         setErrorMessage("次の遷移先を取得できませんでした");
         return;
       }
 
       // APIから返ってきたURLに画面遷移する
-      // API方式ではAPI側で redirect() しないため、フロント側で遷移する
       router.push(data.nextHref);
     } catch (error) {
-      // 開発者向けエラー表示
       console.error("failed to save answer:", error);
-      // ユーザー向けエラー表示
       setErrorMessage("回答保存に失敗しました");
-    } finally {
-      // 送信中状態を解除
-      setIsLoading(false);
     }
   };
 
-  // 画面表示するHTMLを返す
   return (
-    // 回答入力フォーム
-    // noValidate でブラウザの標準のエラーではなく、自分で書いたエラーメッセージを表示する
-    <form onSubmit={handleSubmit} noValidate style={{ marginTop: 16 }}>
-      {/* 数値入力欄 */}
+    // react-hook-form のhandleSubmit を通して、 onSubmit を実行する
+    <form onSubmit={handleSubmit(onSubmit)} noValidate style={{ marginTop: 16}}>
       <input
         type="number"
-        name="answer"
-        value={answer}
-        // ユーザーが入力するたびに、answer stateを更新。入力値を answer に保存するため
-        onChange={(event) => setAnswer(event.target.value)}
-        // 入力欄が空のときに表示される案内文
         placeholder="1~3で入力"
         min={1}
         max={3}
-        // 空欄では送信できないようにする
-        required
         style={{ padding: 8, width: 320 }}
+        // input の値を answer という名前の入力欄で react-hook-form に管理させる
+        // 送信時に values.answer として受け取る
+        // {...register("answer", {...})} : register から返ってきた input 用の設定を、input にまとめて渡している
+        {...register("answer", {
+          // register(react-hook-form)側の required 使う
+          required: "回答を入力してください",
+          // 入力値が 1 未満の場合のエラー
+          min: {
+            value: 1,
+            message: "回答は1以上で入力してください",
+          },
+          // 入力値が 3 より大きい場合のエラー
+          max: {
+            value: 3,
+            message: "回答は3以下で入力してください",
+          },
+        })}
       />
 
       <button
         type="submit"
-        // 保存中はボタンを押せないようにする。二重送信を防ぐ。
-        disabled={isLoading}
+        disabled={isSubmitting}
         style={{ marginLeft: 8, padding: "8px 12px" }}
       >
-        {/* ボタンの表示内容 */}
-        {isLoading ? "保存中..." : isLast ? "結果" : "次へ"}
+        {isSubmitting ? "保存中..." : isLast ? "結果" : "次へ"}
       </button>
 
-      {errorMessage && (
-        <p style={{ color: "red", marginTop: 8 }}>
-          {errorMessage}
-        </p>
+      {errors.answer?.message && (
+        <p style={{ color: "red", marginTop: 8 }}>{errors.answer.message}</p>
       )}
+
+      {errorMessage && <p style={{ color: "red", marginTop: 8 }}>{errorMessage}</p>}
     </form>
   );
 }
