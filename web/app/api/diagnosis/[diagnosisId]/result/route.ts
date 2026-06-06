@@ -109,9 +109,10 @@ type Props = {
 export async function GET(request: Request, { params }: Props) {
   try {
     // API に 送られてきた request の Authorization header から token を取得
-    // Authorization: token の形を想定する
+    // Authorization: Bearer <access_token> の形を想定する
     // 「?? ""」 は Authorization header がない場合、token を空文字にする(未ログイン扱いにするため)
-    const token = request.headers.get("Authorization") ?? "";
+    const authHeader = request.headers.get("Authorization") ?? "";
+    const token = authHeader.replace("Bearer ", "").trim();
 
     // サーバー側で API Route用のSupabaseクライアント作成
     // Supabaseで token を検証し、ログイン中ユーザーを取得するため
