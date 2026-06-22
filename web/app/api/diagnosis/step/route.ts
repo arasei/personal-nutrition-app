@@ -1,43 +1,87 @@
 // web/app/api/diagnosis/step/route.ts
 
-// 診断ステップ画面から呼ばれて、現在の質問データを返すAPI
-// サーバー側で本人確認してDBから質問を取得
+// 全体の概要
+// - 診断ステップ画面(`web/app/diagnosis/step/[step]/page.tsx`)から呼ばれて、現在のURL の step に対応する質問データを返すAPI
+// - サーバー側で本人確認してDBから質問を取得
 
 
-// Authorization token確認
 
-// Supabaseでログインユーザー確認
 
+
+// ポイント
+// - diagnosis.currentStep: DB に保存されている、現在、ユーザーが進めるべきステップ
+// - stepNum: URL から取得した、画面に表示しようとしているステップ番号
+
+// 例. 
+// if (diagnosis.currentStep !== stepNum) {...} は以下を比較する。
+// 現在はステップ3までしか進んでいないのに、
+// URLを直接書き換えてステップ5を見ようとしている
+// ↓
+// 表示させない
+
+
+
+
+
+
+// このファイル内の流れ
+
+// `web/app/diagnosis/step/[step]/page.tsx`
+// ↓
+// GET /api/diagnosis/step?diagnosisId=xxx&step=1
+// ↓
+// `web/app/api/diagnosis/step/route.ts`
+// ↓
+// 認証
+// getAuthenticatedUser(request)
+// getAuthenticatedUser.ts で token 検証し、ログインユーザー情報(user)を確認し、取得
+// ↓
+// user.id を取得し、使用可能
+// ↓
 // diagnosisId + user.id で本人の診断か確認
+// ↓
+// currentStep(現在のステップ) と stepNum(URLで指定された表示したいstep番号) を比較
+// ↓
+// 質問数 total を取得
+// ↓
+// order = stepNum の質問を1件取得
+// ↓
+// question / total / isLast を返す
 
-// step番号チェック
-
-// 質問取得
-
-// total / isLast を返却
 
 
 
+// 全体の流れ
 
-// 流れ
-
-// web/app/diagnosis/step/[step]/page.tsx
+// `web/app/diagnosis/step/[step]/page.tsx` を開く
+//   ↓
+// `/diagnosis/step/1?diagnosisId=xxx`
+//   ↓
+// useParams で URL から step を取る
+//   ↓
+// useSearchParams で diagnosisId を取る
+//   ↓
+// Supabase session から token を取る
 //   ↓
 // GET /api/diagnosis/step?diagnosisId=xxx&step=1
 //   ↓
-// Authorization: Bearer token
+// `web/app/api/diagnosis/step/route.ts`
 //   ↓
-// route.ts
+// 認証
+// getAuthenticatedUser(request)
+// getAuthenticatedUser.ts で token 検証し、ログインユーザー情報(user)確認し、取得
 //   ↓
-// Supabaseで Authorization token を確認
-//   ↓
-// user.id を取得し、ログイン中ユーザーかどうかを確認
+// user.id を取得し、使用可能
 //   ↓
 // Prismaで diagnosisId + user.id で本人の診断かどうかを確認
 //   ↓
+// currentStep と URL の step が一致するか比較し、確認
+//   ↓
+// 質問数 total を取得
+//   ↓
 // DiagnosisQuestion から order = step の番号に合う質問を取得
 //   ↓
-// page.tsx に以下を返す
+// page.tsx に以下を返す(質問データ)
 // {
 //   success: true,
 //   question,
@@ -45,25 +89,40 @@
 //   isLast
 // }
 //   ↓
-// page.tsx が質問を表示
+// page.tsx が画面に質問を表示
+//   ↓
+// AnswerForm.tsx で回答を入力
+//   ↓
+// POST /api/diagnosis/answers
+//   ↓
+// `/api/diagnosis/answers` に回答保存成功
+//   ↓
+// nextHref へ移動
+// 次の質問ページ(`web/app/diagnosis/step/[step]/page.tsx`) 
+// or
+// 結果ページ(`web/app/diagnosis/[diagnosisId]/result/page.tsx`)
+
+
 
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClientForServer } from "@/lib/supabase/server";
 import type { DiagnosisStepResponse } from "@/types/diagnosisApi";
+import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 
 // 診断ステップ画面で表示する「現在の質問」を取得するAPI
-// GET /api/diagnosis/step?diagnosisId=xxx&step=1
+// - GET /api/diagnosis/step?diagnosisId=xxx&step=1
 export async function GET(
   request: NextRequest
 ): Promise<NextResponse<DiagnosisStepResponse>> {
   try {
-    // フロントから送られてきた Authorization header を取得
-    const authorization = request.headers.get("Authorization");
+    // ----------------------------------認証チェック-------------------------------------------
 
-    // Authorization header がない、または Bearer 形式ではない場合の処理
-    if (!authorization?.startsWith("Bearer ")) {
+    // 共通の認証処理を呼び出し、実行
+    const authResult = await getAuthenticatedUser(request);
+
+    // ログインしていない・token が不正・token が期限切れ の場合の処理
+    if (authResult.error) {
       const responseBody: DiagnosisStepResponse = {
         success: false,
         message: "ログインが必要です",
@@ -71,39 +130,11 @@ export async function GET(
 
       return NextResponse.json(responseBody, { status: 401 });
     }
-
-    // Bearer token から Bearer を取り除き、token 本体を取得
-    const token = authorization.replace("Bearer ", "").trim();
-
-    // token が空の場合
-    // Authorization: Bearer のような tokenが存在しない中途半端なリクエストを弾く
-    if (!token) {
-      const responseBody: DiagnosisStepResponse = {
-        success: false,
-        message: "ログインが必要です",
-      };
-
-      return NextResponse.json(responseBody, { status: 401 });
-    }
-
-    // サーバー側の Supabase client を作成
-    const supabase = createClientForServer();
-
-    // token を Supabase に渡して、ログイン中ユーザー情報を確認して取得
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token);
-
-    // Supabase側でエラー or userが取得できない場合
-    if (error || !user) {
-      const responseBody: DiagnosisStepResponse = {
-        success: false,
-        message: "ログイン情報を確認できませんでした",
-      };
-
-      return NextResponse.json(responseBody, { status: 401 });
-    }
+    
+    // ここまで来た場合、ログイン中ユーザーであることが確定する
+    // 以降、 user.id を使用可能
+    const user = authResult.user;
+    // ----------------------------------------------------------------------------------------------
 
     // URL から diagnosisId と step を取得(クエリパラメータ取得)
     const diagnosisId = request.nextUrl.searchParams.get("diagnosisId");
@@ -130,7 +161,7 @@ export async function GET(
     }
 
     // step を数値に変換
-    // URL から取得した step は文字列。数値にする必要がある。
+    // - URL から取得した step は文字列。数値にする必要がある。
     const stepNum = Number(step);
 
     // step が番号として正しいかチェック
@@ -147,8 +178,10 @@ export async function GET(
       return NextResponse.json(responseBody, { status: 400 });
     }
 
+    // ----------------------------------認可チェック-------------------------------------------
+
     // diagnosisId と user.id でログイン中ユーザー本人の診断か確認
-    // 「この診断IDは存在するか」と「ログイン中ユーザー本人の診断か」
+    // - 「この診断IDは存在するか」と「ログイン中ユーザー本人の診断か」
     const diagnosis = await prisma.diagnosis.findFirst({
       where: {
         id: diagnosisId,
@@ -170,9 +203,10 @@ export async function GET(
 
       return NextResponse.json(responseBody, { status: 404 });
     }
+    // ----------------------------------------------------------------------------------------------
 
     // 完了済み診断なら step を表示しない
-    // 完了済み診断の質問ページを開く動きを防ぎ、完了済み診断の回答の変更を防ぐため
+    // - 完了済み診断の質問ページを開く動きを防ぎ、完了済み診断の再回答・回答の変更を防ぐため
     if (diagnosis.status === "COMPLETED") {
       const responseBody: DiagnosisStepResponse = {
         success: false,
@@ -183,7 +217,9 @@ export async function GET(
     }
 
     // currentStep と stepNum が違う場合は表示しない
-    // URL を直接触り、先の質問を表示することを防ぐため
+    // - diagnosis.currentStep: DB に保存されている、現在、ユーザーが進めるべきステップ番号
+    // - stepNum: URL で指定された表示したいステップ番号
+    // - URL を直接触り、先の質問を表示することを防ぐため
     if (diagnosis.currentStep !== stepNum) {
       const responseBody: DiagnosisStepResponse = {
         success: false,
@@ -207,7 +243,7 @@ export async function GET(
     }
 
     // step が 全質問数(total) を超えてないか確認
-    if(stepNum > total) {
+    if (stepNum > total) {
       const responseBody: DiagnosisStepResponse = {
         success: false,
         message: "存在しないステップ番号です",
@@ -239,8 +275,8 @@ export async function GET(
     }
 
     // 成功レスポンス
-    // question / total / isLast をフロントに返す(質問データ)
-    // isLast: stepNum === total, 最後の質問かどうか
+    // - question / total / isLast をフロントに返す(質問データ)
+    // - isLast: stepNum === total, 最後の質問かどうか
     const responseBody: DiagnosisStepResponse = {
       success: true,
       diagnosisId: diagnosis.id,
