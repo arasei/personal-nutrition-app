@@ -9,7 +9,7 @@
 
 
 // ポイント
-// - diagnosis.currentStep: DB に保存されている、現在、ユーザーが進めるべきステップ
+// - diagnosis.currentStep: DB に保存されている、現在、ユーザーが回答するべきステップ
 // - stepNum: URL から取得した、画面に表示しようとしているステップ番号
 
 // 例. 
@@ -40,7 +40,7 @@
 // ↓
 // diagnosisId + user.id で本人の診断か確認
 // ↓
-// currentStep(現在のステップ) と stepNum(URLで指定された表示したいstep番号) を比較
+// currentStep(現在の回答するべきステップ) と stepNum(URLで指定された表示したいstep番号) を比較
 // ↓
 // 質問数 total を取得
 // ↓
@@ -217,7 +217,7 @@ export async function GET(
     }
 
     // currentStep と stepNum が違う場合は表示しない
-    // - diagnosis.currentStep: DB に保存されている、現在、ユーザーが進めるべきステップ番号
+    // - diagnosis.currentStep: DB に保存されている、現在、ユーザーが回答するべきステップ番号
     // - stepNum: URL で指定された表示したいステップ番号
     // - URL を直接触り、先の質問を表示することを防ぐため
     if (diagnosis.currentStep !== stepNum) {
