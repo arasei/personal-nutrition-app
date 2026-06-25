@@ -1,56 +1,54 @@
 // web/app/diagnosis/step/[step]/AnswerForm.tsx
 
 
-// ユーザーが入力した回答を 回答保存API(/api/diagnosis/answers)に送信し、
+// 全体の概要
+// - ユーザーが入力した回答を 回答保存API(/api/diagnosis/answers)に送信し、
 // APIから返ってきた nextHref に画面遷移するフォームコンポーネント
 
 
-// Supabase session から token を取得してAPIへ送る
-
+// 役割
+// useSupabaseSession で token を検証し、取得してAPIへ送る
 // userId を送らず、diagnosisId / questionId / value / order を送る
-
 // SaveDiagnosisAnswersRequest を使って request body に型を付ける
-
 // APIから返った nextHref を使って画面遷移する
-
-// /api/diagnosis/answers/route.ts を呼ぶフォーム
-
+// `/api/diagnosis/answers/route.ts` を呼ぶためのフォーム
 
 
 
-// 流れ
+
+// - このファイル内の流れ
+
+// /diagnosis/step/1?diagnosisId=xxx
+
+// `web/app/diagnosis/step/[step]/page.tsx`
 
 // AnswerForm.tsx
 //   ↓
-// ユーザーが回答を入力
+// 認証
+// useSupabaseSession で token を取得し、ログイン確認
+//   ↓
+// ユーザーがフォームに回答を入力
 //   ↓
 // 回答値が 1〜3 の整数か確認
 //   ↓
-// Supabase から token を取得
-//   ↓
-// diagnosisId / questionId / value / order を作る
+// diagnosisId / questionId / value / order を作る。(API側で中身を作成するための箱)
 //   ↓
 // POST /api/diagnosis/answers
+// `web/app/diagnosis/step/[step]/AnswerForm.tsx` が token を `web/app/api/diagnosis/answers/route.ts` へ リクエストを送る
 //   ↓
-// API側で token 確認
+// `web/app/api/diagnosis/answers/route.ts`
 //   ↓
-// user を取得
+// API側で 以下を検証
+// - 本人確認
+// - この診断は完了済みかどうか判定
+// - 現在の答えるべき質問ステップ(currentStep) と URL の ステップ(order)が正しいか判定
+// - 表示するべき質問内容(questionId) と URL の ステップ(order)が正しいか判定
+// - 最後の質問(isLast)か判定
 //   ↓
-// diagnosisId + user.id で本人確認
-//   ↓
-// Diagnosis が COMPLETED 済みではないか確認
-//   ↓
-// currentStep と order を確認
-//   ↓
-// questionId と order を確認
-//   ↓
-// 最後の質問か判定
-//   ↓
-
 // 最後ではない場合
 //   ├─ 回答保存
 //   ├─ currentStep を次へ更新
-//   └─ 次の質問URLを返す
+//   └─ 次の質問URL(nextHref)を返す
 
 // 最後の質問の場合
 //   ├─ 回答保存
@@ -59,19 +57,77 @@
 //   ├─ DiagnosisNutrientScore 保存
 //   ├─ Diagnosis を COMPLETED に更新
 //   └─ 結果ページURLを返す
-
-// AnswerForm.tsx
 //   ↓
-// APIから返ってきた nextHref に router.push で遷移
+// AnswerForm.tsx に結果ページURL を返す
+//   ↓
+// `web/app/api/diagnosis/answers/route.ts` から返ってきた 次の質問URL(nextHref) に router.push で遷移
 
 
+
+
+
+// - 全体の流れ
+
+// `web/app/diagnosis/step/[step]/page.tsx` を開く
+//   ↓
+// /diagnosis/step/1?diagnosisId=xxx
+//   ↓
+// useParams で URL から step を取る
+//   ↓
+// useSearchParams で diagnosisId を取る
+//   ↓
+// Supabase session から token を取る
+//   ↓
+// `web/app/api/diagnosis/step/route.ts`
+// GET /api/diagnosis/step?diagnosisId=xxx&step=1
+//   ↓
+// 認証
+// getAuthenticatedUser(request) で token を検証し、ログイン中ユーザーかどうかを確認し、取得
+//   ↓
+// ログイン中ユーザー情報を取得後、user.id を取得し、使用可能
+//   ↓
+// 認可
+// Prismaで diagnosisId + user.id で本人の診断かどうかを確認
+//   ↓
+// currentStep と URL の step が一致するか比較し、確認
+//   ↓
+// 質問数 total を取得
+//   ↓
+// DiagnosisQuestion から order = step の番号に合う質問を取得
+//   ↓
+// page.tsx に以下を返す(質問データ)
+// {
+//   success: true,
+//   question,
+//   total,
+//   isLast
+// }
+//   ↓
+// page.tsx が画面に質問を表示
+//   ↓
+// `web/app/diagnosis/step/[step]/AnswerForm.tsx`
+//   ↓
+// AnswerForm.tsx で回答を入力(フォームに回答入力)
+//   ↓
+// POST /api/diagnosis/answers
+//   ↓
+// `web/app/api/diagnosis/answers/route.ts`
+//   ↓
+// /api/diagnosis/answers 内で回答保存成功
+//   ↓
+// AnswerForm.tsx に結果ページURL を返す
+//   ↓
+// `web/app/api/diagnosis/answers/route.ts` から返ってきた nextHref に router.push で遷移
+// 次の質問ページ(`web/app/diagnosis/step/[step]/page.tsx`) 
+// or
+// 結果ページ(`web/app/diagnosis/[diagnosisId]/result/page.tsx`)
 
 
 
 
 "use client";
 
-import { supabase } from "@/lib/supabase/client";
+import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
 import type {
   SaveDiagnosisAnswersRequest,
   SaveDiagnosisAnswersResponse,
@@ -83,11 +139,10 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 // AnswerForm が親コンポーネントから受け取る値(props)の型を定義
-
-// diagnosisId: どの診断に回答を保存するかを示すID
-// questionId: どの質問に対する回答かを示すID
-// order: 現在の質問番号
-// isLast: 現在の質問が最後かどうか
+// - diagnosisId: どの診断に回答を保存するかを示すID
+// - questionId: どの質問に対する回答かを示すID
+// - order: 現在の質問番号
+// - isLast: 現在の質問が最後かどうか
 type AnswerFormProps = {
   diagnosisId: string;
   questionId: string;
@@ -96,8 +151,8 @@ type AnswerFormProps = {
 };
 
 // フォームで扱う値の型を定義
-// HTML の inputは、type="number" でも値を文字列として扱うことが多いため、answer: string とする
-// 画面では "1" として受け取り、APIに送信する前に Number() で 1 に変換する
+// - HTML の inputは、type="number" でも値を文字列として扱うことが多いため、answer: string とする
+// - 画面では "1" として受け取り、APIに送信する前に Number() で 1 に変換する
 type AnswerFormValues = {
   answer: string;
 };
@@ -110,13 +165,24 @@ export default function AnswerForm({
   isLast,
 }: AnswerFormProps) {
   const router = useRouter();
+
+// token: API へ送る access_token
+// isSessionLoading: Supabase での ログイン状態
+  const { token, isLoading: isSessionLoading } = useSupabaseSession();
+
   const [errorMessage, setErrorMessage] = useState("");
 
+
+
   // フォーム管理に必要な道具を取り出す
+  // - register: input と react-hook-form を繋ぐ
+  // - handleSubmit: フォーム送信時の処理を安全に実行するため
+  // - errors: 入力エラーを表示するために使う
+  // - isSubmitting: 送信中かどうかを判断する
   const {
-    register, // input と react-hook-form を繋ぐ
-    handleSubmit, // フォーム送信時の処理を安全に実行する
-    formState: { errors, isSubmitting }, // errors: 入力エラーを表示するために使う。isSubmitting: 送信中かどうかを判断する。
+    register, 
+    handleSubmit, 
+    formState: { errors, isSubmitting }, 
   } = useForm<AnswerFormValues>({
     defaultValues: {
       answer: "",
@@ -130,12 +196,12 @@ export default function AnswerForm({
       setErrorMessage("");
 
       // 入力値を 数値(number) に変換する
-      // フォームから受け取った "1" を 1 に変換
-      // API側では value を数値として扱っているため
+      // - フォームから受け取った "1" を 1 に変換
+      // - API側では value を数値として扱っているため
       const answerValue = Number(values.answer);
 
       // 入力値が有効な整数かチェック
-      // 不正な回答値のままAPIへ送らない
+      // - 不正な回答値のままAPIへ送らない
       if (
         !Number.isFinite(answerValue) ||
         !Number.isInteger(answerValue) ||
@@ -146,13 +212,16 @@ export default function AnswerForm({
         return;
       }
 
-      // Supabase から 現在のログインsession を取得
-      const result = await supabase.auth.getSession();
-      // session から access_token を取り出す
-      const token = result.data.session?.access_token;
+      // Supabase がログイン状態を確認中なら、回答を送らない
+      if (isSessionLoading) {
+        setErrorMessage(
+          "ログイン情報を確認中です。少し待ってから再度お試しください"
+        );
+        return;
+      }
 
-      // token が無い場合、未ログイン扱い
-      // 未ログインのままAPIへ送らない
+      // ログイン確認後も、token が無い場合、未ログイン扱い
+      // - 未ログインのままAPIへ送らない
       if (!token) {
         setErrorMessage("ログインが必要です");
         router.push("/login");
@@ -169,10 +238,10 @@ export default function AnswerForm({
 
       // 回答保存APIを呼び出し、リクエストを送る
       const res = await fetch("/api/diagnosis/answers", {
-        // 回答を保存する
+        // 回答を保存するメソッド
         method: "POST",
         // APIに送る headers情報
-        // Supabase の token を送る
+        // - Supabase の token を送る
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -206,7 +275,7 @@ export default function AnswerForm({
         return;
       }
 
-      // APIから返ってきたURLに画面遷移する
+      // APIから返ってきたURL(nextHref)に画面遷移する
       router.push(data.nextHref);
     } catch (error) {
       console.error("failed to save answer:", error);
@@ -224,8 +293,8 @@ export default function AnswerForm({
         max={3}
         style={{ padding: 8, width: 320 }}
         // input の値を answer という名前の入力欄で react-hook-form に管理させる
-        // 送信時に values.answer として受け取る
-        // {...register("answer", {...})} : register から返ってきた input 用の設定を、input にまとめて渡している
+        // - 送信時に values.answer として受け取る
+        // - {...register("answer", {...})} : register から返ってきた input 用の設定を、input にまとめて渡している
         {...register("answer", {
           // register(react-hook-form)側の required 使う
           required: "回答を入力してください",
@@ -242,12 +311,13 @@ export default function AnswerForm({
         })}
       />
 
+      {/* ボタンは、ログイン確認中・回答を保存中 は押せないようにしている */}
       <button
         type="submit"
-        disabled={isSubmitting}
+        disabled={isSubmitting || isSessionLoading}
         style={{ marginLeft: 8, padding: "8px 12px" }}
       >
-        {isSubmitting ? "保存中..." : isLast ? "結果" : "次へ"}
+        {isSessionLoading ? "ログイン確認中..." : isSubmitting ? "保存中..." : isLast ? "結果を見る" : "次へ"}
       </button>
 
       {errors.answer?.message && (
