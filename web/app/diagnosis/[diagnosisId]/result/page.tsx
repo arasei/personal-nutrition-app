@@ -136,21 +136,26 @@
 // useSWR(APIのURL,データ取得するための共通関数) として指定する。
 // 指定したデータの取得するための共通関数(fetcher) として作成。
 //   ↓
-// const fetcher(共通関数) の中で、fetch(url) を行うことで、
+// const fetcher(共通関数) の中で、fetch(url) とすることで、
+// GET /api/diagnosis/[diagnosisId]/result を行う
 // API(`web/app/api/diagnosis/[diagnosisId]/result.route.ts`) を呼ぶ
 // API が毎回違うため、SWR を使用している
 //   ↓
+// `web/app/api/diagnosis/[diagnosisId]/result.route.ts`
+//   ↓
 // API側 で Authorization header に token を受け取る
 //   ↓
-// route.ts 側で supabase.auth.getUser(token) で token を検証
+// API側で supabase.auth.getUser(token) で token を検証
 //   ↓
 // user.id と diagnosisId で本人の診断だけ取得
 //   ↓
 // ranking / diffranking を作成
 //   ↓
-// JSON形式で本人の診断結果だけ返す
+// JSON形式で本人の診断結果だけフロント(`web/app/diagnosis/[diagnosisId]/result/page.tsx`)に返す
 //   ↓
-// page.tsx が画面にチャートとランキングを表示
+// `web/app/diagnosis/[diagnosisId]/result/page.tsx`
+//   ↓
+// フロント側が画面にチャートとランキングを表示
 
 
 
