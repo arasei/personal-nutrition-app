@@ -17,6 +17,22 @@
 // - role="status"
 // → 読み込み状態のメッセージだと補助技術へ伝える
 
+
+
+
+// このファイル内の流れ
+// 各ページ
+//   ↓
+// isLoading / isSessionLoading を確認
+//   ↓
+// <PageLoading /> を返す
+//   ↓
+// PageLoading.tsx
+//   ↓
+// 指定した message を表示
+//   ↓
+// message 未指定なら「読み込み中...」を表示
+
 type PageLoadingProps = {
   message?: string;
 };
