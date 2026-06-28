@@ -159,6 +159,8 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Input } from "@/components/ui/Input";
+import { Label } from "@/components/ui/Label";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -215,32 +217,45 @@ export default function LoginPage() {
 
         {/* 入力必須項目 */}
         <div>
-          <label htmlFor="email" className="mb-1 block text-sm font-medium">
+          <Label htmlFor="email">
             メールアドレス
-          </label>
-          <input
+          </Label>
+          <Input
             id="email"
+            name="email"
             type="email" 
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded border px-3 py-2"
+            autoComplete="email"
             placeholder="example@example.com"
           />
         </div>
 
         {/* 入力必須項目 */}
+
+        {/*
+        autoComplete : 
+        signup
+        → new-password
+        → 新しく作るパスワード
+
+        login
+        → current-password
+        → 既に登録済みのパスワード
+        */}
         <div>
-          <label htmlFor="password" className="mb-1 block text-sm font-medium">
+          <Label htmlFor="password">
             パスワード
-          </label>
-          <input 
+          </Label>
+          <Input 
             id="password"
+            name="password"
             type="password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded border px-3 py-2"
+            autoComplete="current-password"
             placeholder="パスワードを入力"
           />
         </div>
