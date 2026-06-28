@@ -128,7 +128,7 @@ import type {
   DiagnosisStepResponse,
   ApiErrorResponse,
 } from "@/types/diagnosisApi";
-
+import { PageLoading } from "@/components/ui/PageLoading";
 
 
 
@@ -251,11 +251,7 @@ export default function DiagnosisStepPage() {
 
   // 読み込み中の画面表示
   if (isLoading) {
-    return (
-      <main style={{ padding: "24px" }}>
-        <p>読み込み中...</p>
-      </main>
-    );
+    return <PageLoading />;
   }
 
   // errorMessage がある or data がない or data.success がない or diagnosisId がないの状況の場合、

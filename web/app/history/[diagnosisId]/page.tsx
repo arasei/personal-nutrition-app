@@ -204,6 +204,7 @@ import type {
   ApiErrorResponse,
   GetDiagnosisHistoryDetailResponse,
 } from "@/types/diagnosisApi";
+import { PageLoading } from "@/components/ui/PageLoading";
 
 
 // APIから取得した履歴詳細データの型を定義(成功時だけ使用する型)
@@ -310,11 +311,7 @@ export default function HistoryDetailPage() {
 
   // API取得中・ログイン確認中の表示
   if (isSessionLoading || isLoading) {
-    return (
-      <main style={{ padding: 24 }}>
-        <p>読み込み中...</p>
-      </main>
-    );
+    return <PageLoading />;
   }
 
   // エラー時のメッセージ表示
