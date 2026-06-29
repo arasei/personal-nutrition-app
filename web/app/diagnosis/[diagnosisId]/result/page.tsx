@@ -215,7 +215,7 @@
 
 "use client";
 
-import Link from "next/link";
+import LinkButton from "@/components/ui/LinkButton";
 import useSWR from "swr";
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -381,25 +381,29 @@ export default function ResultPage() {
         className="mt-8 flex flex-wrap gap-3"
       >
         {/*
-          Link でページ遷移を可能にする
-          - あらかじめ行き先が決まっている通常ページ移動のため Link を使用する
+          LinkButton でページ遷移を可能にする
+          - あらかじめ行き先が決まっている通常ページ移動のため LinkButton を使用する
         */}
+        {/*
+          - 今回の履歴詳細を見る
+          → primary
+          → 黒背景・白文字
 
-        {/* 履歴詳細ページへ の <Link></Link> を用意し、今回の診断ID(diagnosisId) を元に`web/app/history/[diagnosisId]/page.tsx` へ遷移可能にする */}
-        <Link 
-          href={`/history/${diagnosisId}`}
-          className="rounded bg-black px-4 py-2 text-white"
-        >
+          - マイページへ
+          → secondary
+          → 白背景・枠線
+        */}
+        {/* 履歴詳細ページへ の <LinkButton></LinkButton> を用意し、今回の診断ID(diagnosisId) を元に`web/app/history/[diagnosisId]/page.tsx` へ遷移可能にする */}
+        {/* primary: 主ボタン */}
+        <LinkButton href={`/history/${diagnosisId}`}>
           今回の履歴詳細を見る
-        </Link>
+        </LinkButton>
 
-        {/* マイページへ の <Link></Link> を用意し、`web/app/mypage/page.tsx` へ遷移可能にする */}
-        <Link
-          href="/mypage"
-          className="rounded border px-4 py-2"
-        >
+        {/* マイページへ の <LinkButton></LinkButton> を用意し、`web/app/mypage/page.tsx` へ遷移可能にする */}
+        {/* secondary: 副ボタン */}
+        <LinkButton href="/mypage" variant="secondary">
           マイページへ
-        </Link>
+        </LinkButton>
       </nav>
     </main>
   );

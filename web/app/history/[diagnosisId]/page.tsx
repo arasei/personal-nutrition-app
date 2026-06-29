@@ -77,8 +77,8 @@
 //   ↓
 // `web/app/history/[diagnosisId]/page.tsx` で返ってきた値・データを元に画面に診断履歴詳細を表示
 //   ↓
-// - 「履歴一覧へ戻る」 の <Link>...</Link> をクリックで `web/app/history/page.tsx`(履歴一覧ページ) へ遷移可能
-// - 「マイページへ」 の <Link>...</Link> をクリックで `web/app/mypage/page.tsx`(マイページ) へ遷移可能
+// - 「履歴一覧へ戻る」 の <LinkButton>...</LinkButton> をクリックで `web/app/history/page.tsx`(履歴一覧ページ) へ遷移可能
+// - 「マイページへ」 の <LinkButton>...</LinkButton> をクリックで `web/app/mypage/page.tsx`(マイページ) へ遷移可能
 
 
 
@@ -198,7 +198,7 @@
 "use client";
 
 
-import Link from "next/link";
+import LinkButton from "@/components/ui/LinkButton";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
@@ -329,13 +329,10 @@ export default function HistoryDetailPage() {
           {errorMessage}
         </p>
 
-        <button
-          type="button"
-          onClick={() => router.push("/history")}
-          className="rounded bg-black px-4 py-2 text-white"
-        >
+        {/* API 処理ではなく、行き先が固定された通常のページ移動のため、<LinkButton></LinkButton> で遷移する */}
+        <LinkButton href="/history">
           履歴一覧へ戻る
-        </button>
+        </LinkButton>
       </main>
     );
   }
@@ -350,13 +347,10 @@ export default function HistoryDetailPage() {
 
         <p>履歴詳細が見つかりません。</p>
 
-        <button
-          type="button"
-          onClick={() => router.push("/history")}
-          className="rounded bg-black px-4 py-2 text-white"
-        >
+        {/* API 処理ではなく、行き先が固定された通常のページ移動のため、<LinkButton></LinkButton> で履歴一覧ページへ遷移する */}
+        <LinkButton href="/history">
           履歴一覧へ戻る
-        </button>
+        </LinkButton>
       </main>
     );
   }
@@ -471,25 +465,24 @@ export default function HistoryDetailPage() {
       </section>
 
       {/*  
-        Link でページ遷移を可能にする
-        - あらかじめ行き先が決まっている通常ページ移動のため Link を使用する
+        LinkButton でページ遷移を可能にする
+        - あらかじめ行き先が決まっている通常ページ移動のため LinkButton を使用する
       */}
-      <nav className="mt-8 flex flex-wrap gap-3">
-        {/* 履歴一覧へ遷移できる導線(<Link>...</Link>) を置く */}
-        <Link
-          href="/history"
-          className="rounded bg-black px-4 py-2 text-white"
-        >
+      <nav
+        aria-label="履歴詳細の移動"
+        className="mt-8 flex flex-wrap gap-3"
+      >
+        {/* 履歴一覧へ遷移できる導線(<LinkButton>...</LinkButton>) を置く */}
+        {/* primary: 主ボタン */}
+        <LinkButton href="/history">
           履歴一覧へ戻る
-        </Link>
+        </LinkButton>
 
-        {/* マイページへの遷移できる導線(<Link>...</Link>) を置く */}
-        <Link
-          href="/mypage"
-          className="rounded border px-4 py-2"
-        >
+        {/* マイページへの遷移できる導線(<LinkButton>...</LinkButton>) を置く */}
+        {/* secondary: 副ボタン */}
+        <LinkButton href="/mypage" variant="secondary">
           マイページへ
-        </Link>
+        </LinkButton>
       </nav>
     </main>
   );
