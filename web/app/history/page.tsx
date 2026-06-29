@@ -169,8 +169,10 @@
 // ↓
 // `web/app/history/page.tsx` で 履歴一覧(histories)表示
 // ↓
-// <Link href={`/history/${history.id}`} key={history.id}>
+// - <Link href={`/history/${history.id}`} key={history.id}>
 // 診断履歴詳細のリンクを1つクリックで `web/app/history/[diagnosisId]/page.tsx`(診断履歴詳細ページ) へ遷移可能
+// - 「← マイページへ」 の <Link>...</Link> をクリックで `web/app/mypage/mypage.tsx`(マイページ) へ遷移可能
+
 
 
 
@@ -407,12 +409,25 @@ export default function HistoryPage() {
 
 
   return (
-    <div>
-      <h1>診断履歴</h1>
+    <div className="mx-auto w-full max-w-4xl px-4 py-8">
+      {/* マイページへ戻る導線(<Link>...</Link>)を置く */}
+      {/*  
+        Link でページ遷移を可能にする
+        - あらかじめ行き先が決まっている通常ページ移動のため Link を使用する
+      */}
+      <nav aria-label="履歴一覧の移動">
+        <Link href="/mypage" className="text-sm underline">
+          ← マイページへ
+        </Link>
+      </nav>
+
+      <h1 className="mt-4 text-2xl font-bold">
+        診断履歴
+      </h1>
 
       {(!histories || histories.length === 0) && <p>履歴がありません</p>}
 
-      {/* 履歴一覧を表示 */}
+      {/* 履歴カード一覧を表示 */}
       {/* mapで1件ずつ履歴を表示 */}
       {histories?.map((history) => (
         // 履歴一覧 → 詳細リンクに遷移
