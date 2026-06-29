@@ -47,7 +47,7 @@
 // /api/diagnosis/abc123/result
 
 // - そのため、
-// const response = await fetch(url, {
+// const response = await fetch(url, {...}
 // は、実質こう書いているのと同じです。
 // const response = await fetch(
 //   `/api/diagnosis/${diagnosisId}/result`,
@@ -156,6 +156,9 @@
 // `web/app/diagnosis/[diagnosisId]/result/page.tsx`
 //   ↓
 // フロント側が画面にチャートとランキングを表示
+//   ↓
+// 「今回の履歴詳細を見る」・「マイページ」 の<Link>...</Link> から
+// `web/app/history/[diagnosisId]/page.tsx`・`web/app/mypage/page.tsx` へ遷移可能
 
 
 
@@ -212,6 +215,7 @@
 
 "use client";
 
+import Link from "next/link";
 import useSWR from "swr";
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -245,12 +249,12 @@ export default function ResultPage() {
   const diagnosisId = params.diagnosisId;
 
   // ログイン中の token と ログイン状態を確認中かどうかを取得する(ログイン確認)
-  // session 取得処理をページごとに書かず、共通フックにまとめて実行
-  // SWR にも isLoading があるため、名前がぶつからないように useSupabaseSession の isLoading は isSessionLoading と名前を変える
+  // - session 取得処理をページごとに書かず、共通フックにまとめて実行
+  // - SWR にも isLoading があるため、名前がぶつからないように useSupabaseSession の isLoading は isSessionLoading と名前を変える
   const { token, isLoading: isSessionLoading } = useSupabaseSession();
 
   // SWR を使い API を呼びだす
-  // この関数の中で SWR で指定したURL(url) を fetch(url)を行い、取得し、API を呼び出し、結果を処理する
+  // - この関数の中で SWR で指定したURL(url) を fetch(url)を行い、取得し、API を呼び出し、結果を処理する
   const fetcher = async (url: string): Promise<DiagnosisResultSuccessResponse> => {
     // token が無い場合、未ログイン扱い
     if (!token) {
@@ -371,6 +375,32 @@ export default function ResultPage() {
           </div>
         ))}
       </section>
+
+      <nav
+        aria-label="診断結果の移動"
+        className="mt-8 flex flex-wrap gap-3"
+      >
+        {/*
+          Link でページ遷移を可能にする
+          - あらかじめ行き先が決まっている通常ページ移動のため Link を使用する
+        */}
+
+        {/* 履歴詳細ページへ の <Link></Link> を用意し、今回の診断ID(diagnosisId) を元に`web/app/history/[diagnosisId]/page.tsx` へ遷移可能にする */}
+        <Link 
+          href={`/history/${diagnosisId}`}
+          className="rounded bg-black px-4 py-2 text-white"
+        >
+          今回の履歴詳細を見る
+        </Link>
+
+        {/* マイページへ の <Link></Link> を用意し、`web/app/mypage/page.tsx` へ遷移可能にする */}
+        <Link
+          href="/mypage"
+          className="rounded border px-4 py-2"
+        >
+          マイページへ
+        </Link>
+      </nav>
     </div>
   );
 }
