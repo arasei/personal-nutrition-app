@@ -19,14 +19,14 @@
 
 // ポイント
 
-// - web/app/history/[diagnosisId]/page.tsx での画面表示内容
 
-// 診断日
-// レーダーチャート
-// 全栄養素のスコア一覧
-// 満たせている上位栄養素
-// 不足傾向の栄養素
-// 前回との差分
+// web/app/history/[diagnosisId]/page.tsx での画面表示内容
+// - 診断日
+// - レーダーチャート
+// - 全栄養素のスコア一覧
+// - 満たせている上位栄養素
+// - 不足傾向の栄養素
+// - 前回との差分
 
 
 
@@ -320,10 +320,20 @@ export default function HistoryDetailPage() {
   // エラー時のメッセージ表示
   if (errorMessage) {
     return (
-      <main style={{ padding: 24 }}>
-        <h1>履歴詳細</h1>
-        <p style={{ color: "red" }}>{errorMessage}</p>
-        <button type="button" onClick={() => router.push("/history")}>
+      <main className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8">
+        <h1 className="text-2xl font-bold">
+          履歴詳細
+        </h1>
+
+        <p className="text-red-600">
+          {errorMessage}
+        </p>
+
+        <button
+          type="button"
+          onClick={() => router.push("/history")}
+          className="rounded bg-black px-4 py-2 text-white"
+        >
           履歴一覧へ戻る
         </button>
       </main>
@@ -333,10 +343,18 @@ export default function HistoryDetailPage() {
   // 読み込み完了後、履歴詳細データが無い場合のエラー表示
   if (!historyDetail) {
     return (
-      <main style={{ padding: 24 }}>
-        <h1>履歴詳細</h1>
+      <main className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8">
+        <h1 className="text-2xl font-bold">
+          履歴詳細
+        </h1>
+
         <p>履歴詳細が見つかりません。</p>
-        <button type="button" onClick={() => router.push("/history")}>
+
+        <button
+          type="button"
+          onClick={() => router.push("/history")}
+          className="rounded bg-black px-4 py-2 text-white"
+        >
           履歴一覧へ戻る
         </button>
       </main>
@@ -364,8 +382,10 @@ export default function HistoryDetailPage() {
 
 
   return (
-    <main style={{ padding: 24 }}>
-      <h1>履歴詳細</h1>
+    <main className="mx-auto w-full max-w-4xl px-4 py-8">
+      <h1 className="text-2xl font-bold">
+        履歴詳細
+      </h1>
 
       {/* 日付表示 */}
       {/* API側から toISOString() で文字列で返ってくるので new Date(...) で日付表示に変換 */}
@@ -374,8 +394,8 @@ export default function HistoryDetailPage() {
       </p>
 
       {/* 栄養素スコアチャート */}
-      <section>
-        <h2>
+      <section className="mt-6">
+        <h2 className="text-xl font-semibold">
           栄養素スコアチャート
         </h2>
 
@@ -383,7 +403,7 @@ export default function HistoryDetailPage() {
       </section>
 
       {/* 全栄養素のスコアを1件ずつ表示 */}
-      <section style={{ marginTop: 24 }}>
+      <section className="mt-6">
         <h2>栄養素スコア一覧</h2>
 
         {historyDetail.nutrientScores.length === 0 ? (
@@ -400,7 +420,7 @@ export default function HistoryDetailPage() {
       </section>
 
       {/* 満たせている上位3件 */}
-      <section>
+      <section className="mt-6">
         <h2>満たせている栄養素 上位3件</h2>
         {historyDetail.topNutrients.length === 0 ? (
           <p>表示できる栄養素がありません。</p>
@@ -416,7 +436,7 @@ export default function HistoryDetailPage() {
       </section>
 
       {/* 不足傾向の下位3件 */}
-      <section style={{ marginTop: 24 }}>
+      <section className="mt-6">
         <h2>不足傾向の栄養素 下位3件</h2>
 
         {historyDetail.lowNutrients.length === 0 ? (
@@ -433,7 +453,7 @@ export default function HistoryDetailPage() {
       </section>
 
       {/* 各栄養素の前回との差分 */}
-      <section style={{ marginTop: 24 }}>
+      <section className="mt-6">
         <h2>前回との差分</h2>
 
         {historyDetail.differences.length === 0 ? (

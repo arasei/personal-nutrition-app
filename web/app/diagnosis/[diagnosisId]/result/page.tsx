@@ -344,7 +344,7 @@ export default function ResultPage() {
   }
 
   return (
-    <div>
+    <main className="mx-auto w-full max-w-4xl px-4 py-8">
       <h1>診断結果</h1>
 
       <section>
@@ -401,6 +401,6 @@ export default function ResultPage() {
           マイページへ
         </Link>
       </nav>
-    </div>
+    </main>
   );
 }
