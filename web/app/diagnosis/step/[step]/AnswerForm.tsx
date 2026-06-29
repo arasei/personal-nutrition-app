@@ -138,6 +138,7 @@ import { useState } from "react";
 // フォームの値、エラー、送信中状態をまとめて管理するため
 import { useForm } from "react-hook-form";
 import { Input } from "@/components/ui/Input";
+import Button from "@/components/ui/Button";
 
 // AnswerForm が親コンポーネントから受け取る値(props)の型を定義
 // - diagnosisId: どの診断に回答を保存するかを示すID
@@ -320,17 +321,19 @@ export default function AnswerForm({
       />
 
       {/*
-        ボタンは、ログイン確認中・回答を保存中 は押せないようにしている
-        - 送信ボタン(<button>...</button>) を 新規登録・ログイン と 同じ幅 に制限する
+        - disabled={isSubmitting || isSessionLoading}
+        → ボタンは、ログイン確認中・回答を保存中 は押せないようにしている。二重送信を防げる
+        - 送信ボタン(<Button>...</Button>) を 新規登録・ログイン と 同じ幅 に制限する
         - w-full: 親の箱(このページでは<form>...</form>) 内で 横幅100% に設定する
+        - フォーム送信ボタン なので type="submit" としている
       */}
-      <button
+      <Button
         type="submit"
         disabled={isSubmitting || isSessionLoading}
-        className="w-full rounded bg-black px-4 py-2 text-white disabled:opacity-50"
+        className="w-full"
       >
         {isSessionLoading ? "ログイン確認中..." : isSubmitting ? "保存中..." : isLast ? "結果を見る" : "次へ"}
-      </button>
+      </Button>
 
       {errors.answer?.message && (
         <p className="text-sm text-red-600">
