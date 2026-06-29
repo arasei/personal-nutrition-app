@@ -5,8 +5,8 @@
 
 
 // 役割
-// - 主ボタンの共通スタイル
-// - 副ボタンの共通スタイル
+// - 主ボタン(primary)の共通スタイル
+// - 副ボタン(secondary)の共通スタイル
 // - disabled 時の見た目
 // - className で追加調整できる仕組み
 
@@ -39,7 +39,8 @@ import type {
 // → 白背景・枠線
 
 // ButtonHTMLAttributes<HTMLButtonElement>
-// - 通常の <button> に書ける機能・属性(type・onClick・disabled・aria-label・className など) を、そのまま使えるようにしている
+// - 通常の <button> に書ける機能・属性(type・onClick・disabled・aria-label・className など) を、
+// `web/components/ui/Button.tsx`でも使えるようにするための型を定義
 // - つまり、今の StartButton.tsx で使っている onClick と disabled も `web/components/ui/Button.tsx` に渡すことができ、使用可能
 type ButtonProps = PropsWithChildren<ButtonHTMLAttributes<HTMLButtonElement>& {variant?: "primary" | "secondary";}>;
 
