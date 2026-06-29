@@ -76,7 +76,9 @@
 // `web/app/history/[diagnosisId]/page.tsx`
 //   ↓
 // `web/app/history/[diagnosisId]/page.tsx` で返ってきた値・データを元に画面に診断履歴詳細を表示
-
+//   ↓
+// - 「履歴一覧へ戻る」 の <Link>...</Link> をクリックで `web/app/history/page.tsx`(履歴一覧ページ) へ遷移可能
+// - 「マイページへ」 の <Link>...</Link> をクリックで `web/app/mypage/page.tsx`(マイページ) へ遷移可能
 
 
 
@@ -196,6 +198,7 @@
 "use client";
 
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
@@ -447,11 +450,27 @@ export default function HistoryDetailPage() {
         )}
       </section>
 
-      <div style={{ marginTop: 32 }}>
-        <button type="button" onClick={() => router.push("/history")}>
+      {/*  
+        Link でページ遷移を可能にする
+        - あらかじめ行き先が決まっている通常ページ移動のため Link を使用する
+      */}
+      <nav className="mt-8 flex flex-wrap gap-3">
+        {/* 履歴一覧へ遷移できる導線(<Link>...</Link>) を置く */}
+        <Link
+          href="/history"
+          className="rounded bg-black px-4 py-2 text-white"
+        >
           履歴一覧へ戻る
-        </button>
-      </div>
+        </Link>
+
+        {/* マイページへの遷移できる導線(<Link>...</Link>) を置く */}
+        <Link
+          href="/mypage"
+          className="rounded border px-4 py-2"
+        >
+          マイページへ
+        </Link>
+      </nav>
     </main>
   );
 }
