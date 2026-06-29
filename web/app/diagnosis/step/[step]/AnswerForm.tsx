@@ -7,11 +7,11 @@
 
 
 // 役割
-// useSupabaseSession で token を検証し、取得してAPIへ送る
-// userId を送らず、diagnosisId / questionId / value / order を送る
-// SaveDiagnosisAnswersRequest を使って request body に型を付ける
-// APIから返った nextHref を使って画面遷移する
-// `/api/diagnosis/answers/route.ts` を呼ぶためのフォーム
+// - useSupabaseSession で token を検証し、取得してAPIへ送る
+// - userId を送らず、diagnosisId / questionId / value / order を送る
+// - SaveDiagnosisAnswersRequest を使って request body に型を付ける
+// - APIから返った nextHref を使って画面遷移する
+// - `/api/diagnosis/answers/route.ts` を呼ぶためのフォーム
 
 
 
@@ -19,9 +19,9 @@
 // - このファイル内の流れ
 
 // /diagnosis/step/1?diagnosisId=xxx
-
+//   ↓
 // `web/app/diagnosis/step/[step]/page.tsx`
-
+//   ↓
 // AnswerForm.tsx
 //   ↓
 // 認証
@@ -286,14 +286,20 @@ export default function AnswerForm({
 
   return (
     // react-hook-form のhandleSubmit を通して、 onSubmit を実行する
-    <form onSubmit={handleSubmit(onSubmit)} noValidate style={{ marginTop: 16}}>
+
+    // 入力欄(<form>...</form>) の 表示する幅 を 制限する
+    // - max-w-md: 最大幅 を 約448px に制限する
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      noValidate
+      className="mt-4 max-w-md space-y-3"
+    >
       <Input
         id="answer"
         type="number"
         placeholder="1~3で入力"
         min={1}
         max={3}
-        className="w-80"
         // input の値を answer という名前の入力欄で react-hook-form に管理させる
         // - 送信時に values.answer として受け取る
         // - {...register("answer", {...})} : register から返ってきた input 用の設定を、input にまとめて渡している
@@ -313,20 +319,30 @@ export default function AnswerForm({
         })}
       />
 
-      {/* ボタンは、ログイン確認中・回答を保存中 は押せないようにしている */}
+      {/*
+        ボタンは、ログイン確認中・回答を保存中 は押せないようにしている
+        - 送信ボタン(<button>...</button>) を 新規登録・ログイン と 同じ幅 に制限する
+        - w-full: 親の箱(このページでは<form>...</form>) 内で 横幅100% に設定する
+      */}
       <button
         type="submit"
         disabled={isSubmitting || isSessionLoading}
-        style={{ marginLeft: 8, padding: "8px 12px" }}
+        className="w-full rounded bg-black px-4 py-2 text-white disabled:opacity-50"
       >
         {isSessionLoading ? "ログイン確認中..." : isSubmitting ? "保存中..." : isLast ? "結果を見る" : "次へ"}
       </button>
 
       {errors.answer?.message && (
-        <p style={{ color: "red", marginTop: 8 }}>{errors.answer.message}</p>
+        <p className="text-sm text-red-600">
+          {errors.answer.message}
+        </p>
       )}
 
-      {errorMessage && <p style={{ color: "red", marginTop: 8 }}>{errorMessage}</p>}
+      {errorMessage && (
+        <p className="text-sm text-red-600">
+          {errorMessage}
+        </p>
+      )}
     </form>
   );
 }
