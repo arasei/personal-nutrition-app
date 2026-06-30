@@ -2,12 +2,12 @@
 
 
 // 全体の概要
-// - ユーザーが入力した回答を 回答保存API(/api/diagnosis/answers)に送信し、
+// - ユーザーが選択した回答を 回答保存API(/api/diagnosis/answers)に送信し、
 // APIから返ってきた nextHref に画面遷移するフォームコンポーネント
 
 
 // 役割
-// - useSupabaseSession で token を検証し、取得してAPIへ送る
+// - useSupabaseSession で token を 取得してAPIへ送り、token の検証と本人確認をAPI側で行う
 // - userId を送らず、diagnosisId / questionId / value / order を送る
 // - SaveDiagnosisAnswersRequest を使って request body に型を付ける
 // - APIから返った nextHref を使って画面遷移する
@@ -29,7 +29,7 @@
 //   ↓
 // ユーザーがフォームに回答を入力
 //   ↓
-// 回答値が 1〜3 の整数か確認
+// 回答値が answerOptions に含まれるか確認
 //   ↓
 // diagnosisId / questionId / value / order を作る。(API側で中身を作成するための箱)
 //   ↓
@@ -137,7 +137,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 // フォームの値、エラー、送信中状態をまとめて管理するため
 import { useForm } from "react-hook-form";
-import { Input } from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 
 // AnswerForm が親コンポーネントから受け取る値(props)の型を定義
@@ -153,11 +152,24 @@ type AnswerFormProps = {
 };
 
 // フォームで扱う値の型を定義
-// - HTML の inputは、type="number" でも値を文字列として扱うことが多いため、answer: string とする
+// - select から受け取った値を setValueAs で文字列から数値に変換する
 // - 画面では "1" として受け取り、APIに送信する前に Number() で 1 に変換する
+// - 未選択の場合、undefined になるため、answer は optional にする
 type AnswerFormValues = {
-  answer: string;
+  answer?: number;
 };
+
+// 選択肢の配列を定義
+// - value
+// → APIへ送る数値
+// - label
+// → 画面に見せる文章
+const answerOptions = [
+  { value: 1, label: "1：あまり当てはまらない" },
+  { value: 2, label: "2：どちらとも言えない" },
+  { value: 3, label: "3：当てはまる" },
+] as const;
+
 
 // props を AnswerFormProps の型で必要な値を受け取る
 export default function AnswerForm({
@@ -177,7 +189,7 @@ export default function AnswerForm({
 
 
   // フォーム管理に必要な道具を取り出す
-  // - register: input と react-hook-form を繋ぐ
+  // - register: select と react-hook-form を繋ぐ
   // - handleSubmit: フォーム送信時の処理を安全に実行するため
   // - errors: 入力エラーを表示するために使う
   // - isSubmitting: 送信中かどうかを判断する
@@ -187,7 +199,7 @@ export default function AnswerForm({
     formState: { errors, isSubmitting }, 
   } = useForm<AnswerFormValues>({
     defaultValues: {
-      answer: "",
+      answer: undefined,
     },
   });
 
@@ -197,20 +209,15 @@ export default function AnswerForm({
       // 送信開始時に前回エラーを消す
       setErrorMessage("");
 
-      // 入力値を 数値(number) に変換する
-      // - フォームから受け取った "1" を 1 に変換
-      // - API側では value を数値として扱っているため
-      const answerValue = Number(values.answer);
+      // 入力値を react-hook-form の setValueAs で数値(number) に変換した入力値を取り出す
+      // - API側では value を数値として扱っているため answerValue も number型 で扱う
+      const answerValue = values.answer;
 
-      // 入力値が有効な整数かチェック
-      // - 不正な回答値のままAPIへ送らない
       if (
-        !Number.isFinite(answerValue) ||
-        !Number.isInteger(answerValue) ||
-        answerValue < 1 ||
-        answerValue > 3
+        typeof answerValue !== "number" ||
+        !answerOptions.some((option) => option.value === answerValue)
       ) {
-        setErrorMessage("回答は1~3の整数で入力してください");
+        setErrorMessage("回答を選択してください");
         return;
       }
 
@@ -295,30 +302,36 @@ export default function AnswerForm({
       noValidate
       className="mt-4 max-w-md space-y-3"
     >
-      <Input
+      <select
         id="answer"
-        type="number"
-        placeholder="1~3で入力"
-        min={1}
-        max={3}
-        // input の値を answer という名前の入力欄で react-hook-form に管理させる
+        defaultValue=""
+        aria-invalid={Boolean(errors.answer)}
+        aria-describedby={errors.answer ? "answer-error" : undefined}
+        className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-gray-900"
+        // select の値を answer という名前の入力欄で react-hook-form に管理させる
         // - 送信時に values.answer として受け取る
-        // - {...register("answer", {...})} : register から返ってきた input 用の設定を、input にまとめて渡している
+        // - {...register("answer", {...})} : register から返ってきた select 用の設定を、select にまとめて渡している
         {...register("answer", {
           // register(react-hook-form)側の required 使う
-          required: "回答を入力してください",
-          // 入力値が 1 未満の場合のエラー
-          min: {
-            value: 1,
-            message: "回答は1以上で入力してください",
+          required: "回答を選択してください",
+          setValueAs:(value) => {
+            return value === "" ? undefined : Number(value);
           },
-          // 入力値が 3 より大きい場合のエラー
-          max: {
-            value: 3,
-            message: "回答は3以下で入力してください",
+          validate: (value) => {
+            return answerOptions.some((option) => option.value === value) ? true : "回答を選択してください";
           },
         })}
-      />
+      >
+        <option value="" disabled>
+          回答を選択してください
+        </option>
+
+        {answerOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
 
       {/*
         - disabled={isSubmitting || isSessionLoading}
@@ -336,7 +349,7 @@ export default function AnswerForm({
       </Button>
 
       {errors.answer?.message && (
-        <p className="text-sm text-red-600">
+        <p id="answer-error" className="text-sm text-red-600">
           {errors.answer.message}
         </p>
       )}
