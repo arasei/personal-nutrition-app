@@ -1,18 +1,27 @@
 // web/app/diagnosis/step/[step]/page.tsx
 
-// URL から step と diagnosisId を取得し、ログイン中ユーザーの token を使って診断ステップ取得APIを呼び、現在の質問を取得して表示するページ
-// 診断の各ステップごとに表示するページ
-// [step]は動的ルートで、URLの/diagnosis/step/1 や /diagnosis/step/2 の数字部分を受け取るページ
+// 全体の概要
+// - URL から step と diagnosisId を取得し、ログイン中ユーザーの token を使って診断ステップ取得APIを呼び、現在の質問を取得して表示するページ
+// - 診断の各ステップごとに表示するページ
+// - [step]は動的ルートで、URLの/diagnosis/step/1 や /diagnosis/step/2 の数字部分を受け取るページ
 
 
 
+
+// 役割
+// - 1問分の枠組みを表示
+// - 1問ずつ質問を表示する役割
+
+
+
+
+// ポイント
 // URLで状態を表す
-// 現在のステップ番号や診断IDをURLで管理する。
+// - 現在のステップ番号や診断IDをURLで管理する。
 
 // 例.
 // /diagnosis/step/2?diagnosisId=abc
 // なら、
-
 // step = 2
 // diagnosisId = abc
 // という状態がURLから分かる。
@@ -20,56 +29,88 @@
 
 
 
-// 1問分の枠組みを表示
-// 1問ずつ質問を表示する役割
+// - このファイル内の流れ
 
-
-
-
-// web/app/diagnosis/step/[step]/page.tsx 内の流れ
-
-// URLから step / diagnosisId を取得
+// `web/app/diagnosis/start/StartButton.tsx`
 // ↓
-// Supabase session から token を取得
+// diagnosisId を使い、`/diagnosis/step/1?diagnosisId=...` に遷移する
 // ↓
-// GET /api/diagnosis/step を呼ぶ
+// `web/app/diagnosis/step/[step]/page.tsx` を開く
 // ↓
-// 質問データを受け取る
+// useParams で URLから step
 // ↓
-// 画面に表示する
+// useSearchParams で diagnosisId を取得
+// ↓
+// 認証
+// useSupabaseSession で token を取得し、ログイン確認
+// ↓
+// GET /api/diagnosis/step
+// `web/app/diagnosis/step/[step]/page.tsx` が token を `web/app/api/diagnosis/step/route.ts` へ リクエストを送る
+// ↓
+// `web/app/api/diagnosis/step/route.ts`
+// ↓
+// API側 で 本人確認・step確認・質問数(total)取得・order = step の番号に合う質問取得し、整形し、
+// フロントに質問データを返す
+// ↓
+// `web/app/diagnosis/step/[step]/page.tsx`
+// ↓
+// 返ってきた質問データを使い、画面に質問を表示する
 // ↓
 // AnswerForm に必要な値を渡す
 
 
 
 
-// 流れ
+// - 全体の流れ
 
-// /diagnosis/step/1?diagnosisId=xxx
+// `web/app/diagnosis/step/[step]/page.tsx` を開く
 //   ↓
-// page.tsx が開く
+// /diagnosis/step/1?diagnosisId=xxx
 //   ↓
 // useParams で URL から step を取る
 //   ↓
 // useSearchParams で diagnosisId を取る
 //   ↓
-// Supabase session から token を取る
+// 認証
+// useSupabaseSession で token を取得し、ログイン確認
 //   ↓
-// GET /api/diagnosis/step
+// GET /api/diagnosis/step?diagnosisId=xxx&step=1
+// `web/app/diagnosis/step/[step]/page.tsx` が token を `web/app/api/diagnosis/step/route.ts` へ リクエストを送る
 //   ↓
-// API側で本人確認
+// `web/app/api/diagnosis/step/route.ts`
 //   ↓
-// 質問データを返す
+// getAuthenticatedUser(request) で token を検証し、ログイン中ユーザーかどうかを確認し、取得
 //   ↓
-// 画面に質問を表示
+// ログイン中ユーザー情報を取得後、user.id を取得し、使用可能
 //   ↓
-// AnswerForm で回答を入力
+// Prismaで diagnosisId + user.id で本人の診断かどうかを確認
+//   ↓
+// currentStep と URL の step が一致するか比較し、確認
+//   ↓
+// 質問数 total を取得
+//   ↓
+// DiagnosisQuestion から order = step の番号に合う質問を取得
+//   ↓
+// page.tsx に以下を返す(質問データ)
+// {
+//   success: true,
+//   question,
+//   total,
+//   isLast
+// }
+//   ↓
+// page.tsx が画面に質問を表示
+//   ↓
+// AnswerForm.tsx で回答を入力
 //   ↓
 // POST /api/diagnosis/answers
 //   ↓
-// 保存成功
+// /api/diagnosis/answers に回答保存成功
 //   ↓
 // nextHref へ移動
+// 次の質問ページ(web/app/diagnosis/step/[step]/page.tsx) 
+// or
+// 結果ページ(web/app/diagnosis/[diagnosisId]/result/page.tsx)
 
 
 
@@ -81,7 +122,7 @@
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase/client";
+import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
 import AnswerForm from "./AnswerForm";
 import type {
   DiagnosisStepResponse,
@@ -104,6 +145,8 @@ export default function DiagnosisStepPage() {
   // URL から diagnosisId を取得
   const diagnosisId = searchParams.get("diagnosisId");
 
+  const { token, isLoading: isSessionLoading } = useSupabaseSession();
+
   // API から取得した質問データを保存する場所
   const [data, setData] = useState<DiagnosisStepResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -111,15 +154,20 @@ export default function DiagnosisStepPage() {
 
   // useEffect() で diagnosisId・step・router が変わった時、API取得を行う
   useEffect(() => {
+    // Supabase がログイン状態を確認中は、API を呼ばず待つ
+    if (isSessionLoading) {
+      return;
+    }
+
     const fetchStep = async () => {
       // API取得処理
-      // エラーが起きる可能性のある処理を try/catch で行う
+      // - エラーが起きる可能性のある処理を try/catch で行う
       try {
         setIsLoading(true);
         setErrorMessage("");
 
         // diagnosisIdが存在するかチェック
-        // 回答保存には必ず、どの診断に対する回答かを示すdiagnosisId が必要
+        // - 回答保存には必ず、どの診断に対する回答かを示すdiagnosisId が必要
         if (!diagnosisId) {
           setErrorMessage("診断IDが見つかりません");
           return;
@@ -129,12 +177,11 @@ export default function DiagnosisStepPage() {
         const stepNum = Number(step);
 
         // stepNum が正しいステップ番号か確認
-
-        // !Number.isFinite(stepNum)
+        // - !Number.isFinite(stepNum)
         // → 数字として有効でない場合を弾く
-        // !Number.isInteger(stepNum)
+        // - !Number.isInteger(stepNum)
         // → 小数を弾く
-        // stepNum < 1
+        // - stepNum < 1
         // → 0以下を弾く
         if (
           !Number.isFinite(stepNum) ||
@@ -145,14 +192,9 @@ export default function DiagnosisStepPage() {
           return;
         }
 
-        // supabase から 現在のログインsession を取得
-        const result = await supabase.auth.getSession();
-        // session から access_tokenを取得
-        const token = result.data.session?.access_token;
-
-        // token がない場合、未ログイン扱い
-        // 未ログインで守りたいページなので replace で行う
-        // ブラウザの戻るボタンでまた診断ステップページへ戻りにくくするため
+        // ログイン確認完了後も、token がない場合、未ログイン扱い
+        // - 未ログインで守りたいページなので replace で行う
+        // - ブラウザの戻るボタンでまた診断ステップページへ戻りにくくするため
         if (!token) {
           setErrorMessage("ログインが必要です");
           router.replace("/login");
@@ -160,8 +202,8 @@ export default function DiagnosisStepPage() {
         }
 
         // API を呼び出し、現在の質問を取得
-        // encodeURIComponent(diagnosisId) でURL に入れる文字列を安全な形に変換する
-        // cache: "no-store" でキャッシュを使わず、毎回新しく取得する
+        // - encodeURIComponent(diagnosisId) でURL に入れる文字列を安全な形に変換する
+        // - cache: "no-store" でキャッシュを使わず、毎回新しく取得する
         const res = await fetch(
           `/api/diagnosis/step?diagnosisId=${encodeURIComponent(diagnosisId)}&step=${stepNum}`,
           {
@@ -191,7 +233,7 @@ export default function DiagnosisStepPage() {
         }
         
         // API から 返ってきたデータ を 保存する
-        // json.success が true の時だけ setData(json) を行う
+        // - json.success が true の時だけ setData(json) を行う
         setData(json);
       } catch (error) {
         // 開発者向けエラー
@@ -205,7 +247,7 @@ export default function DiagnosisStepPage() {
 
     fetchStep();
   // [diagnosisId, step, router] の値が変わる度に useEffect を実行する
-  }, [diagnosisId, step, router]);
+  }, [diagnosisId, step, router, token, isSessionLoading]);
 
   // 読み込み中の画面表示
   if (isLoading) {
@@ -228,7 +270,7 @@ export default function DiagnosisStepPage() {
   }
 
   // API から取得した質問の order を現在のステップ番号として使用
-  // DB側 の正しい順番で表示するため
+  // - DB側 の正しい順番で表示するため
   const stepNum = data.question.order;
 
   return (

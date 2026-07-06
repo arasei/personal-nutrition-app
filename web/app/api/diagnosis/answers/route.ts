@@ -1,86 +1,102 @@
 // web/app/api/diagnosis/answers/route.ts
 
 
-// 作成済み diagnosis に1問分の回答を保存するAPI
-// 診断開始API(web/app/api/diagnosis/start)で作成済みのdiagnosisのID(diagnosisId)をクライアントから受け取り、
-// ログイン中ユーザー本人の診断であることを確認したうえで回答を保存するAPI
-// 最後の質問の場合、スコア保存・診断完了・結果ページURL返却を行う
+// 全体の概要
+// - 作成済み diagnosis に1問分の回答を保存するAPI
+// 診断開始API(`web/app/api/diagnosis/start`)で作成済みのdiagnosisのID(diagnosisId)をクライアントから受け取り、
+// ログイン中ユーザー本人の診断であることを確認したうえで回答を保存し、
+// 最後の質問の場合、スコア計算し保存・診断完了・結果ページURLを返却を行うAPI
+
 
 // 役割
-// クライアントから送られた token を Authorization ヘッダーから受け取る。
-// tokenを元に Supabase でログイン中ユーザーを確認する
-// body から diagnosisId / questionId / value / order を受け取る
-// その diagnosisId がログイン中ユーザー本人のものか確認する
-// 本人の diagnosis に対して、1問分の回答(DiagnosisAnswer)を upsert でまとめて保存する
-// 最後の質問でなければ currentStep を次の番号に更新し、次の質問URL(nextHref)を渡す
-// 最後の質問なら、全回答を集計して DiagnosisNutrientScore を保存し、Diagnosis を完了状態に更新する
-// 成功 / 失敗のレスポンスを共通型 SaveDiagnosisAnswersResponse で返す
-// 開始APIで作成した診断(diagnosis)を再利用して、回答(diagnosisAnswer)をまとめて保存している
-// 本人確認をtoken検証で行い、さらにその診断(diagnosis)が本人のものであるかを確認し、
-// 本人の診断(diagnosis)にしか回答し、保存できないようにしている
+// - ユーザーが質問1問回答する度に呼ばれるAPI
+// - ログインしているか
+// - その診断は本人のものか
+// - 完了済み診断ではないか
+// - 回答値は正しいか
+// - 今回答すべきstepか
+// - questionIdはそのstepのものか
+// - 全質問に回答済みか
+// - スコア計算できるか
+
+
+
+// ポイント
+// - 新しく Diagnosis を作成しない
+// - クライアントから userId を受け取らない
+// - API Route内で redirect() しない
+// - 画面遷移は行わない
+// - 回答フォームの表示は行わない
 
 
 
 
-// このAPIがやること
+// - このファイル内の流れ
 
-// 1問分の回答を保存する
-// token からログイン中ユーザーを確認する
-// diagnosisId + userId で本人の診断か確認する
-// 1問1回答を upsert で保存している
-// 最後の質問の場合、栄養素スコアを集計して DiagnosisNutrientScore に保存する
-// 最後の質問の場合、Diagnosis を COMPLETED に更新する
-// transaction でまとめて更新している
-// questionId と order の不一致の場合、弾いてる
-// Bearer token形式 に対応している
-// 次に遷移するURLを nextHref として返す
-
-
-
-
-// このAPIがやらないこと
-
-// 新しく Diagnosis を作成しない
-// クライアントから userId を受け取らない
-// API Route内で redirect() しない
-// 画面遷移は行わない
-// 回答フォームの表示は行わない
-
-
+// AnswerForm.tsx
+// ↓
+// POST /api/diagnosis/answers
+// ↓
+// `web/app/api/diagnosis/answers/route.ts`
+// ↓
+// 認証
+// getAuthenticatedUser(request)
+// getAuthenticatedUser.ts で token 検証し、ログインユーザー情報(user)確認し、取得
+// ↓
+// user.id を取得し、使用可能
+// ↓
+// 認可
+// diagnosisId + user.id で本人確認
+// ↓
+// 回答値が1〜3か確認
+// ↓
+// currentStep(現在回答するべきステップ) と order(現在の回答ステップ) が一致するか確認
+// ↓
+// questionId と order が一致するか確認
+// ↓
+// 回答保存
+// ↓
+// 最後でなければ次のstepへ
+// ↓
+// 最後ならスコア計算して COMPLETED にする
+// ↓
+// `AnswerForm.ts`に 結果ページURL(nextHref)を返す
 
 
 
 
 // 全体の流れ
 
-// AnswerForm.tsx
-//   ↓
+// `web/app/diagnosis/step/[step]/AnswerForm.tsx`
+// ↓
 // ユーザーが回答を入力
-//   ↓
-// 回答値が 1〜3 の整数か確認
-//   ↓
-// Supabase から token を取得
-//   ↓
-// diagnosisId / questionId / value / order を作る
-//   ↓
+// ↓
 // POST /api/diagnosis/answers
-//   ↓
-// API側で token 確認
-//   ↓
-// user を取得
-//   ↓
+// ↓
+// `web/app/api/diagnosis/answers/route.ts`
+// ↓
+// 認証
+// getAuthenticatedUser(request)
+// getAuthenticatedUser.ts で token 検証し、ログインユーザー情報(user)確認し、取得
+// ↓
+// user.id を取得し、使用可能
+// ↓
+// diagnosisId / questionId / value / order を作る
+// ↓
+// 認可
 // diagnosisId + user.id で本人確認
-//   ↓
+// ↓
+// 回答値が1〜3か確認
+// ↓
 // Diagnosis が COMPLETED 済みではないか確認
-//   ↓
-// currentStep と order を確認
-//   ↓
-// questionId と order を確認
-//   ↓
+// ↓
+// currentStep と order が一致するか確認
+// ↓
+// questionId と order が一致するか確認
+// ↓
 // 最後の質問か判定
-//   ↓
-
-// 最後ではない場合
+// ↓
+// 最後の質問ではない場合
 //   ├─ 回答保存
 //   ├─ currentStep を次へ更新
 //   └─ 次の質問URLを返す
@@ -92,25 +108,27 @@
 //   ├─ DiagnosisNutrientScore 保存
 //   ├─ Diagnosis を COMPLETED に更新
 //   └─ 結果ページURLを返す
-
-// AnswerForm.tsx
-//   ↓
-// APIから返ってきた nextHref に router.push で遷移
-
-
-
-
-
+// ↓
+// `AnswerForm.tsx` に nextHref(結果ページURL) を返す
+// ↓
+// `web/app/api/diagnosis/answers/route.ts` から返ってきた nextHref に router.push で遷移
+// 次の質問ページ(`web/app/diagnosis/step/[step]/page.tsx`) 
+// or
+// 結果ページ(`web/app/diagnosis/[diagnosisId]/result/page.tsx`)
 
 
 
+
+
+
+
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClientForServer } from "@/lib/supabase/server";
+import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 import type {
   SaveDiagnosisAnswersRequest,
   SaveDiagnosisAnswersResponse,
 } from "@/types/diagnosisApi";
-import { NextRequest, NextResponse } from "next/server";
 
 // 回答1件分の型
 type AnswerItem = {
@@ -165,7 +183,7 @@ function buildScoreMap(
 }
 
 // scoreMap(栄養素ごとの合計点) をDB保存用の配列に変換する
-// 表示順はresult/route.ts 側で並び替える。ここでは変換だけ行う。
+// - 表示順はresult/route.ts 側で並び替える。ここでは変換だけ行う。
 function buildScoreRows(scoreMap: Record<string, number>): ScoreRow[] {
   return Object.entries(scoreMap).map(([nutrientId, total]) => ({
     nutrientId,
@@ -179,63 +197,53 @@ function buildScoreRows(scoreMap: Record<string, number>): ScoreRow[] {
 // POSTリクエストを受け取るAPI関数
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("Authorization");
+    // ------------------------------------------認証チェック---------------------------------------------
 
-    if (!authHeader) {
+    // 共通の認証処理を呼び出し、実行
+    const authResult = await getAuthenticatedUser(request);
+
+    // ログインしていない・token が不正・token が期限切れ の場合の処理
+    if (authResult.error) {
       const responseBody: SaveDiagnosisAnswersResponse = {
         success: false,
-        message: "Unauthorized",
+        message: "ログインが必要です",
       };
 
       return NextResponse.json(responseBody, { status: 401 });
     }
 
-    if (!authHeader.startsWith("Bearer ")) {
+    // ここまで来た場合、ログイン中ユーザーであることが確定する
+    // 以降、 user.id を使用可能
+    const user = authResult.user;
+    // -------------------------------------------------------------------------------------------------
+
+    // リクエストbodyをJSONとして読み取り、型をつける。取得失敗対策行っておく
+    // - answers/route.ts で request body としてユーザーの回答値を初めて受け取るため
+    // - 以降の本人確認・ステップ確認・回答保存には この body の値 を元に行なっていく重要な値のため
+    const body = (await request.json().catch(() => null)) as | SaveDiagnosisAnswersRequest | null;
+
+    if (!body) {
       const responseBody: SaveDiagnosisAnswersResponse = {
         success: false,
-        message: "Invalid authorization format",
+        message: "リクエスト内容が正しくありません",
       };
 
-      return NextResponse.json(responseBody, { status: 401 });
+      return NextResponse.json(responseBody, { status: 400 });
     }
 
-    //クライアントが送ってきたリクエストヘッダーからAuthorization(token)を取得
-    const token = authHeader.replace("Bearer ", "").trim();
 
-    // tokenがない場合は、未ログインとして扱い、
-    // 回答保存を許可しないために「401 Unauthorized」を返す
-    if (!token) {
-      const responseBody: SaveDiagnosisAnswersResponse = {
-        success: false,
-        message: "Unauthorized",
-      };
-
-      return NextResponse.json(responseBody, { status: 401 });
-    }
-
-    // サーバー側Supabaseクライアントを作成
-    const supabase = createClientForServer();
-
-    //tokenをSupabaseに渡して、そのtokenのユーザーを確認(ログイン中かどうか)(認証処理)
-    const { data, error, } = await supabase.auth.getUser(token);
-    // Supabaseから返ってきたユーザー情報を取り出す
-    const user = data.user;
-
-    if (error || !user) {
-      const responseBody: SaveDiagnosisAnswersResponse = {
-        success: false,
-        message: "Unauthorized",
-      };
-      return NextResponse.json(responseBody, { status: 401 });
-    }
-
-    //リクエストbodyをJSONとして読み取り、型をつける
-    const body: SaveDiagnosisAnswersRequest = await request.json();
-    // bodyから必要な値を取り出す
-    // userIdは受け取らない
+    // bodyから必要な値(診断ID・質問ID・回答値・順番)を取り出す
+    // - userId は body から受け取らない。
+    // - Supabase token から取得した user.id を使用するため
     const { diagnosisId, questionId, value, order } = body;
 
-    //bodyの中身が正しいかチェック
+
+    // 送られてきた bodyの中身が正しいかチェック
+    // - 診断ID(diagnosisId) の有無
+    // - 質問ID(questionId) の有無
+    // - 回答値(value)が整数かどうか
+    // - 回答値が 1~3 の数字かどうか
+    // - 現在の回答step(order) は整数かどうか
     if (
       !diagnosisId ||
       !questionId ||
@@ -253,15 +261,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(responseBody, { status: 400 });
     }
 
-    // 本人の診断か確認(認可処理)
-    // diagnosisId と user.id の両方が一致するもの
-    // 診断の id で診断の存在だけ確認
+    // ----------------------------------認可チェック-------------------------------------------
+    // 本人の診断か確認して取得(認可処理)
+    // - 指定された diagnosisId と ログイン中ユーザー本人の user.id の両方が一致する診断だけ取得
+    // - 他人の diagnosisId を送られても取得できない状態
+    // - この診断は本当にログイン中ユーザーのもの を確認
     const diagnosis = await prisma.diagnosis.findFirst({
-      where: { 
+      where: {
         id: diagnosisId,
         userId: user.id,
       },
-      select: { 
+      select: {
         id: true,
         status: true,
         currentStep: true,
@@ -271,24 +281,26 @@ export async function POST(request: NextRequest) {
     if (!diagnosis) {
       const responseBody: SaveDiagnosisAnswersResponse = {
         success: false,
-        message: "Forbidden",
+        message: "診断が見つかりません",
       };
 
-      return NextResponse.json(responseBody, { status: 403 });
+      return NextResponse.json(responseBody, { status: 404 });
     }
+    // ----------------------------------------------------------------------------------------------
 
-    // 完了済みの診断の場合は回答を保存させない
+    // 完了済みの診断の場合は回答を再回答できない(保存させない状態)
     if (diagnosis.status === "COMPLETED") {
       const responseBody: SaveDiagnosisAnswersResponse = {
         success: false,
-        message: "Diagnosis already completed",
+        message: "この診断はすでに完了しています",
       };
 
       return NextResponse.json(responseBody, { status: 400 });
     }
 
-    // 「今、この診断は Step 何番を回答する状態か？」・「送られてきた order はそれと一致しているか？」をチェック
-    // URL を直接触り、本来の順番ではない質問に回答されることを防ぐため
+    // 回答するべきstep(currentStep) と 現在の回答step(order) の一致しているか確認
+    // - 「今、この診断は Step 何番を回答する状態か？」・「送られてきた order はそれと一致しているか？」をチェック
+    // - URL や request を直接書き換えて、本来の順番ではない質問に回答されることを防ぐため
     if (diagnosis.currentStep !== order) {
       const responseBody: SaveDiagnosisAnswersResponse = {
         success: false,
@@ -299,19 +311,21 @@ export async function POST(request: NextRequest) {
     }
 
     // 質問総数チェック
-    // 今の order が最後の質問かどうか判断するため
+    // - 今の order が最後の質問かどうか判断するため
     const total = await prisma.diagnosisQuestion.count();
 
     if (total === 0 || order < 1 || order > total) {
       const responseBody: SaveDiagnosisAnswersResponse = {
         success: false,
-        message: "Invalid step",
+        message: "ステップが正しくありません",
       };
 
       return NextResponse.json(responseBody, { status: 400 });
     }
 
-    // questionId と order が本当に対応しているかのチェック
+    // questionId と order の対応確認
+    // - 送られてきた questionId が、本当にその order の質問か確認
+    // - step 1 の画面なのに step 2 の questionId を送る のような不正な送信を防ぐ
     const question = await prisma.diagnosisQuestion.findFirst({
       where: {
         id: questionId,
@@ -325,7 +339,7 @@ export async function POST(request: NextRequest) {
     if (!question) {
       const responseBody: SaveDiagnosisAnswersResponse = {
         success: false,
-        message: "Invalid question",
+        message: "質問が正しくありません",
       };
 
       return NextResponse.json(responseBody, { status: 400 });
@@ -334,13 +348,16 @@ export async function POST(request: NextRequest) {
     // 最後の質問かどうか判定
     const isLast = order >= total;
 
+    // 回答保存処理(transaction でまとめて行う)
     // 最後の質問ではない場合
+    // - 回答を保存
+    // - currentStep を次へ進める
     if (!isLast) {
       await prisma.$transaction(async (tx) => {
-        // 回答を保存
-        // 回答を保存(upsert)
-        // 初回回答 → create
-        // 再回答 → update
+        // 回答を保存処理
+        // - 回答を保存 → upsert
+        // - 初回回答 → create
+        // - 再回答 → update
         await tx.diagnosisAnswer.upsert({
           where: {
             diagnosisId_questionId: {
@@ -360,8 +377,8 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        // 次のステップへ進める
-        // 診断の現在ステップ(currentStep)を次の質問番号に更新
+        // 次のステップへ進める処理
+        // - 診断の現在ステップ(currentStep)を次の質問番号に遷移するため更新
         await tx.diagnosis.update({
           where: {
             id: diagnosisId,
@@ -377,12 +394,18 @@ export async function POST(request: NextRequest) {
         nextHref: `/diagnosis/step/${order + 1}?diagnosisId=${diagnosisId}`,
       };
 
-      return NextResponse.json(responseBody, {status: 200 });
+      return NextResponse.json(responseBody, { status: 200 });
     }
 
+    // 回答保存処理(transaction でまとめて行う)
     // 最後の質問の場合
+    // - 最後の回答保存
+    // - 全回答取得
+    // - スコア計算
+    // - 古いスコア削除
+    // - 新しいスコア保存
+    // - Diagnosis を COMPLETED に更新
     const resultPageHref = await prisma.$transaction(async (tx) => {
-
       // 最後の回答を保存
       await tx.diagnosisAnswer.upsert({
         where: {
@@ -403,7 +426,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 今回の診断に紐づく全回答を取得
+      // 今回の診断(diagnosisId)に紐づく全回答を取得
       const answers = await tx.diagnosisAnswer.findMany({
         where: {
           diagnosisId,
@@ -415,13 +438,13 @@ export async function POST(request: NextRequest) {
       });
 
       // 全質問数に対して同じ回答数があるかチェック
-      // 未回答がある場合、診断を完了させない
-      // 全質問数に対して回答数が多すぎる、少なすぎる状態を防ぐため
+      // - 未回答がある場合、診断を完了させない
+      // - 全質問数に対して回答数が多すぎる、少なすぎる状態を防ぐため
       if (answers.length !== total) {
         throw new Error("NOT_ALL_QUESTIONS_ANSWERED");
       }
 
-      // 質問ID と 栄養素ID の対応表を取得
+      // 質問ID(diagnosisQuestionId) と 栄養素ID(nutrientId) を取得
       const questions = await tx.diagnosisQuestion.findMany({
         select: {
           id: true,
@@ -431,24 +454,25 @@ export async function POST(request: NextRequest) {
 
       // 質問ID → 栄養素ID の対応表を作成
       const questionMap = buildQuestionMap(questions);
-      // 回答一覧を元に、栄養素ごとの合計点を作成
+      // 回答一覧 → 栄養素ごとの合計点 の対応表を作成
       const scoreMap = buildScoreMap(answers, questionMap);
-      // スコアマップをDB保存用のスコア配列に変換
+      // scoreMap をDB保存用のスコア配列に変換する表を作成
       const scoreRows = buildScoreRows(scoreMap);
 
-      // スコアが算出できていない(scoreRows が空)場合はエラー
+      // 回答値の有無・回答値を保存用に変換出来ているかチェック
       if (scoreRows.length === 0) {
         throw new Error("FAILED_TO_CALCULATE_SCORE");
       }
 
       // 同じ診断IDの古いスコアを削除
+      // - 再計算したスコアと2重登録にならないようするため
       await tx.diagnosisNutrientScore.deleteMany({
         where: {
           diagnosisId,
         },
       });
 
-      // 新しいスコアをまとめて保存
+      // 今回の診断の新しい栄養素スコアをまとめて保存
       await tx.diagnosisNutrientScore.createMany({
         data: scoreRows.map((row) => ({
           diagnosisId,
@@ -457,7 +481,8 @@ export async function POST(request: NextRequest) {
         })),
       });
 
-      // 診断を完了状態に更新
+      // 診断を完了状態("COMPLETED")に更新
+      // - この後、結果ページや履歴ページで表示対象になる
       await tx.diagnosis.update({
         where: {
           id: diagnosisId,
@@ -477,10 +502,11 @@ export async function POST(request: NextRequest) {
       nextHref: resultPageHref,
     };
 
-    return NextResponse.json(responseBody, {status: 200 });
+    return NextResponse.json(responseBody, { status: 200 });
   } catch (error) {
-    console.error ("failed to save diagnosis answer:", error);
+    console.error("failed to save diagnosis answer:", error);
 
+    // 全質問数に対して同じ回答数が無い場合のエラー処理
     if (error instanceof Error) {
       if (error.message === "NOT_ALL_QUESTIONS_ANSWERED") {
         const responseBody: SaveDiagnosisAnswersResponse = {
@@ -491,19 +517,22 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(responseBody, { status: 400 });
       }
 
+      // 回答値が存在しない・回答値を保存用に変換出来ていない(scoreRows が空)場合のエラー処理
       if (error.message === "FAILED_TO_CALCULATE_SCORE") {
         const responseBody: SaveDiagnosisAnswersResponse = {
           success: false,
-          message: "Failed to calculate score",
+          message: "スコア計算に失敗しました",
         };
 
         return NextResponse.json(responseBody, { status: 400 });
       }
     }
 
+    // 回答保存処理内で1つでも失敗している場合のエラー処理
+    // - transaction で行なっているため
     const responseBody: SaveDiagnosisAnswersResponse = {
       success: false,
-      message: "Failed to save diagnosis answer",
+      message: "回答の保存に失敗しました",
     };
 
     return NextResponse.json(responseBody, { status: 500 });

@@ -1,89 +1,212 @@
 // web/app/diagnosis/[diagnosisId]/result/page.tsx
 
-// ClientComponentでAPIを呼び出して、診断結果を画面に表示するページ
-
-// API(result/route.ts)から結果をもらう
-// もらったデータを表示するだけ
-
-// URLからdiagnosisIdを取得し、結果取得APIを呼んで、
+// 全体の概要
+// - URL の diagnosisId と Supabase の token を使って、
+// 結果取得API(`web/app/api/diagnosis/[diagnosisId]/result/route.ts`) を呼び出し、
+// 診断結果をチャートとランキングで表示するページ
+// - URLから diagnosisId を取得し、結果取得APIを呼んで、
 // 受け取った診断結果をチャートとランキング一覧で表示する
 
 
 
 
-// result/route.ts = データ作成担当
-// APIRouteが裏で結果データを作る
-
-// result/page.tsx = 画面表示担当
-// このpage.tsxはAPIから結果データを受け取って表示する
-// DBには直接触らず、表示だけを担当するページ
-
-
-
-// token 送信について
-
-// Supabase session から access_token を取得し、
-// Authorization header に token を付けて結果取得APIを呼び出す
-// result API側では token から user.id を取得し、
+// 認証・認可について
+// - Supabase session から access_token を取得し、
+// Authorization header に token を付けて結果取得APIを呼び出す。
+// - API側では token から user.id を取得し、
 // diagnosisId がログイン中ユーザー本人の診断か確認する
 
 
 
-// 今回のポイント
-// フロント側は token を Authorization header に入れてAPIを呼ぶ
-// API側は supabase.auth.getUser(token) で本人確認する
-// フロントとAPIで Authorization の形式を必ず揃える
-// データ取得と状態管理は SWR に寄せるとスッキリする
-// session取得は毎回 getSession せず useSupabaseSession にまとめる
-
-
-// なぜ普通の関数コンポーネント？
-// Client Component は「先に描画、あとで取得」だから
-
-// useEffect は未ログイン時にログインページへ遷移するために使う
-// データ取得自体は useSWR が担当する
 
 
 
-// 以下の時に使用するページ
-// 診断が完了した直後に結果を見る
-// 履歴一覧から過去の結果を見る
-// 前回との差分を確認する
-// 栄養バランスをチャートで見る
+
+// SWR について
+
+// fetch("api/diagnosis/start", ...)
+// - 呼び出すAPI が毎回固定なので、URL を直接書いている
+
+// fetch(url, ...)
+// - SWR から受け取ったAPI を使うため、毎回違う[diagnosisId] であるので url という変数にしている
+
+// 例.
+// useSWR(
+//   shouldFetch ? `/api/diagnosis/${diagnosisId}/result` : null,
+//   fetcher
+// );
+
+// ここでSWRに渡しているURLは、例えばこうなります。
+// 例.
+// diagnosisId = abc123
+// /api/diagnosis/abc123/result
+
+// - SWRは、そのURLを fetcher の引数として渡します。
+// const fetcher = async (url: string) => {
+// の url には、実際には以下が入ります。
+// /api/diagnosis/abc123/result
+
+// - そのため、
+// const response = await fetch(url, {
+// は、実質こう書いているのと同じです。
+// const response = await fetch(
+//   `/api/diagnosis/${diagnosisId}/result`,
+//   {
+//     method: "GET",
+//     headers: {
+//       Authorization: `Bearer ${token}`,
+//     },
+//   }
+// );
+
+// - SWRの流れ
+// diagnosisId
+// ↓
+// abc123
+// ↓
+// SWR のキーを作る
+// ↓
+// / api / diagnosis / abc123 / result
+// ↓
+// SWR が fetcher(url) を呼ぶ
+// ↓
+// url = "/api/diagnosis/abc123/result"
+// ↓
+// fetch(url) でAPIを呼ぶ
+
+
+// なぜ url にするのか
+// - SWR では、「APIのURL」と「取得関数」を分ける書き方をする
+// 例.
+// useSWR(APIのURL,データ取得関数);
+
+// - このファイルの場合
+// useSWR(
+//   `/api/diagnosis/${diagnosisId}/result`,
+//   fetcher
+// );
+
+// と書くことで、fetcher は「渡されたURLへGETする共通関数」になる
+// 以下のように書ける
+
+// const fetcher = async (url: string) => {
+//   return fetch(url);
+// };
+
+
+
+
+
+
+
+
+
+
+// ポイント
+// - フロント側は token を Authorization header に入れてAPIを呼ぶ
+// - SWR を使うことで、毎回変わる可能性がある [diagnosisId] にある diagnosisId を元に URL を作成している。
+// そして、useSWR(...) 内で作成した取得関数を使い、その中で、URL を呼び出している
+// - API側は supabase.auth.getUser(token) で本人確認する
+// - session 取得は毎回 getSession せず useSupabaseSession で行う
+
+
+
 
 
 
 // 役割
-// URLから diagnosisId を取る
-// tokenをAPIに渡す
-// APIから結果を受け取る
-// 画面に表示する
+// - URLから diagnosisId を取る
+// - tokenをAPIに渡す
+// - APIから診断結果を受け取る
+// - 画面に表示する
 
 
 
-// 流れ
+// - このファイル内の流れ
 
-// result/page.tsx
+// `web/app/diagnosis/[diagnosisId]/result/page.tsx`
 //   ↓
 // page.tsx が URL から diagnosisId を取得
 //   ↓
-// useSupabaseSession で token を取得
+// 認証
+// useSupabaseSession で token を取得し、ログイン確認
 //   ↓
 // token と diagnosisId が揃ったら SWR が動く
 //   ↓
-// fetcher が /api/diagnosis/[diagnosisId]/result を呼ぶ
+// useSWR(APIのURL,データ取得するための共通関数) として指定する。
+// 指定したデータの取得するための共通関数(fetcher) として作成。
 //   ↓
-// route.ts 側で Authorization header に token を受け取る
+// const fetcher(共通関数) の中で、fetch(url) とすることで、
+// GET /api/diagnosis/[diagnosisId]/result を行う
+// API(`web/app/api/diagnosis/[diagnosisId]/result.route.ts`) を呼ぶ
+// API が毎回違うため、SWR を使用している
 //   ↓
-// route.ts 側で supabase.auth.getUser(token) で token を検証
+// `web/app/api/diagnosis/[diagnosisId]/result.route.ts`
+//   ↓
+// API側 で Authorization header に token を受け取る
+//   ↓
+// API側で supabase.auth.getUser(token) で token を検証
 //   ↓
 // user.id と diagnosisId で本人の診断だけ取得
 //   ↓
 // ranking / diffranking を作成
 //   ↓
-// JSON形式で本人の診断結果だけ返す
+// JSON形式で本人の診断結果だけフロント(`web/app/diagnosis/[diagnosisId]/result/page.tsx`)に返す
 //   ↓
-// page.tsx が画面にチャートとランキングを表示
+// `web/app/diagnosis/[diagnosisId]/result/page.tsx`
+//   ↓
+// フロント側が画面にチャートとランキングを表示
+
+
+
+
+
+// 全体の流れ
+
+// AnswerForm.tsx に結果ページURL を返す
+// ↓
+// `web/app/api/diagnosis/answers/route.ts` から返ってきた nextHref に router.push で遷移
+// 次の質問ページ(`web/app/diagnosis/step/[step]/page.tsx`) 
+// or
+// 結果ページ(`web/app/diagnosis/[diagnosisId]/result/page.tsx`)
+// ↓
+// `web/app/diagnosis/[diagnosisId]/result/page.tsx`
+// ↓
+// useParams で URL から diagnosisId を取得
+// ↓
+// useSupabaseSession で token(ログイン状態) を取得
+// ↓
+// token と diagnosisId が揃ったら SWR が動かす
+// ↓
+// SWR で作成した、fetcher(指定したデータの取得するための共通関数) で `/api/diagnosis/[diagnosisId]/result` を呼ぶ
+// ↓
+// `web/app/api/diagnosis/[diagnosisId]/result/route.ts`
+// ↓
+// GET /api/diagnosis/[diagnosisId]/result
+// ↓
+// 認証
+// getAuthenticatedUser(request) で token を検証し、ログイン中ユーザーかどうかを確認し、取得
+// ↓
+// ログイン中ユーザー情報を取得後、user.id を取得し、使用可能
+// ↓
+// 認可
+// Prismaで diagnosisId + user.id で本人の診断かどうかを確認
+// ↓
+// URL の [id] から params で診断ID(diagnosisId) を取得
+// ↓
+// diagnosisId + user.id + COMPLETED で本人の診断だけ取得
+// ↓
+// 栄養素スコアランキング(ranking) 作成
+// ↓
+// 前回診断スコア(previousDiagnosis) を取得
+// ↓
+// 前回との差分(diffRanking) 作成
+// ↓
+// `web/app/diagnosis/[diagnosisId]/result/page.tsx` に ranking / diffRanking を返す(本人の診断結果をJSON形式で返す)
+// ↓
+// `web/app/diagnosis/[diagnosisId]/result/page.tsx` で画面に診断結果(チャート と ランキング) を表示
+
+
 
 
 
@@ -120,23 +243,28 @@ export default function ResultPage() {
   // URLから診断IDを取り出す
   const diagnosisId = params.diagnosisId;
 
-  // ログイン中の token と ログイン状態を確認中かどうかを取得する
+  // ログイン中の token と ログイン状態を確認中かどうかを取得する(ログイン確認)
+  // session 取得処理をページごとに書かず、共通フックにまとめて実行
   // SWR にも isLoading があるため、名前がぶつからないように useSupabaseSession の isLoading は isSessionLoading と名前を変える
   const { token, isLoading: isSessionLoading } = useSupabaseSession();
 
-  // SWR が API を呼ぶときに使う関数
-  // この関数の中で fetchし、API を呼び出し、結果を処理する
+  // SWR を使い API を呼びだす
+  // この関数の中で SWR で指定したURL(url) を fetch(url)を行い、取得し、API を呼び出し、結果を処理する
   const fetcher = async (url: string): Promise<DiagnosisResultSuccessResponse> => {
     // token が無い場合、未ログイン扱い
     if (!token) {
       throw new Error("ログインが必要です");
     }
 
-    // token をそのまま Authorization header に入れて API を呼び出す
+    // 取得した token(access_token) に Bearer を付けて Authorization header に入れて API を呼び出す。
+    // - useSupabaseSession.ts が返している token は access_token だけなので、
+    // フロント側でAPIへ送る時は 「Bearer 」 を付ける必要がある
+    // - API側の getAuthenticatedUser.ts が期待している形は以下の状態のため
+    // Authorization: `Bearer ${token}`
     const response = await fetch(url, {
       method: "GET",
       headers: {
-        Authorization: token,
+        Authorization: `Bearer ${token}`,
       },
       cache: "no-store", // 結果は毎回最新のものを見たいのでキャッシュしない
     });
@@ -164,8 +292,8 @@ export default function ResultPage() {
   const shouldFetch = !isSessionLoading && !!token && !!diagnosisId;
 
   // token がまだ無い・diagnosisId がまだ無い・ログイン確認中 の時はAPIを呼び出さない
-  // 条件が揃っているときだけAPI を呼び出す
-  // SWR は 第1引数に null を渡すと API を呼び出さないので、shouldFetch が false のときは null を渡す
+  // - 条件が揃っているときだけAPI を呼び出す
+  // - SWR は 第1引数に null を渡すと API を呼び出さないので、shouldFetch が false のときは null を渡してAPI呼び出しを止める
   const {
     data,
     error,
@@ -176,8 +304,8 @@ export default function ResultPage() {
   );
 
 
-  // APIを呼び出して結果を取得する関数
-  // 画面表示時やdiagnosisIdが変わったときにAPI(web/app/api/diagnosis/[diagnosisId]/result/route.ts)を呼び出し描画し、データ取得する。
+  // session 確認後、token が無ければログインページへ遷移する
+  // useEffect で、未ログイン時の場合のリダイレクト処理を行う
   useEffect(() => {
 
     if (!isSessionLoading && !token) {

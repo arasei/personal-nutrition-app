@@ -1,69 +1,122 @@
 // web/app/diagnosis/start/StartButton.tsx
 
 
-// 診断開始ボタンコンポーネント
+// 全体の概要
+// - 診断開始ボタンコンポーネント
+// - フロント側のログイン確認と認証に必要な token をAPIへ渡す係
+// - 「診断を始める」ボタンを押したときに token を付けて API を呼び出す
 
-// 診断開始ボタンを押したときに、useSupabaseSession から access_token を取得し、
-// その token を /api/diagnosis/start に送る。
-// API側で token を検証し、Diagnosis レコードを作成した後、返ってきた diagnosisId を使って step1 に遷移する。
+// - 診断開始ページ(`web/app/diagnosis/start/page.tsx`)で「診断を始める」ボタンを押したときに、
+// useSupabaseSession から access_token を取得し、その token(access_token) を `/api/diagnosis/start` に送る。
+// そして、API(`web/app/api/diagnosis/start/route.ts`) を呼び出す
 
-
-
-// handleStartDiagnosis関数内で
-// useSupabaseSession から受け取った token をAPIに渡す
-// fetchでAPIを呼び、返ってきたdiagnosisIdを使ってrouter.pushでstep1に遷移する
-
-
-// このコンポーネントがやらないこと
-// userId をクライアントから送らない
-// Diagnosis を直接作成しない
-// Prisma を直接使わない
-// 回答保存はしない
+// - API側で token を検証し、Diagnosis レコードを作成した後、
+// 返ってきた diagnosisId を使って step1 に遷移する。
 
 
-// userIdをクライアントから送らない
-// クライアントから userId を送ると、他人の userId を送れてしまう可能性があるため
-// 本人確認は API 側で token を検証して行う
+
+
+
+// ポイント
+// - handleStartDiagnosis関数内で、useSupabaseSession から受け取った token をAPI(`web/app/api/diagnosis/start/route.ts`)に渡す
+// - fetchでAPIを呼び、API から返ってきたdiagnosisIdを使ってrouter.pushでstep1に遷移する
+
+// - userIdをクライアントから送らない。
+// クライアントから userId を送ると、他人の userId を送れてしまう可能性があるため。
+
+// - 本人確認は API側で token を検証して行う。(認証)
+
+// - このファイルでは、Diagnosis は作成しない
 // API側で Supabase Auth から取得した user.id を使って Diagnosis を作成する
+
+// - このファイルでは、Prisma を直接使わない
+
+// - このファイルでは、回答保存はしない
+
+
 
 
 // このコンポーネントの役割
-// 「診断を始める」ボタンを表示する
-// ボタン押下時に useSupabaseSession から取得済みの token を使う
-// token がない場合は未ログインとして /login に遷移する
-// token がある場合は /api/diagnosis/start を呼び出す
-// APIから diagnosisId を受け取る
-// /diagnosis/step/1?diagnosisId=... に遷移する
+// - 「診断を始める」ボタン押下時に useSupabaseSession から token を取得
+// - token がない場合は未ログインとして `/login` に遷移する
+// - token がある場合は API(`web/app/api/diagnosis/start/route.ts`) を呼び出し、token を検証する
+// - API側(`web/app/api/diagnosis/start/route.ts`)から diagnosisId を受け取り、
+// 受け取った diagnosisId を使い 診断の質問ページ(`/diagnosis/step/1?diagnosisId=...`) に遷移する
 
 
 
 
-// 流れ
 
-// 画面表示
+// - このファイル内の流れ
+
+// `web/app/diagnosis/start/page.tsx`
+// ↓
+// ユーザーが ボタン「診断を始める」を押す
+// ↓
+// `web/app/diagnosis/start/StartButton.tsx`
 //   ↓
-// useSupabaseSession がログイン確認
+// 認証
+// useSupabaseSession.ts で token を取得して、ログイン確認
 //   ↓
-// token を StartButton に渡す
+// token を `diagnosis/start/StartButton.tsx` に渡す
 //   ↓
 // ユーザーが「診断を始める」を押す
 //   ↓
 // token がない
-//   └─ /login へ移動
-
-// token がある
-//   ↓
+//   └─ `/login` へ移動
+// or
+// token がある場合は  `/api/diagnosis/start` を呼ぶ
 // POST /api/diagnosis/start
 //   ↓
-// API側で token を検証
+// `web/app/api/diagnosis/start/route.ts`
 //   ↓
+// 認証
+// API側で getAuthenticatedUserで token を検証・user.id を取得・Diagnosis 作成
+//   ↓
+// API側から diagnosisId が返ってくる
+//   ↓
+// `web/app/diagnosis/start/StartButton.tsx`
+//   ↓
+// 返ってきた diagnosisId を使い、`/diagnosis/step/1?diagnosisId=...` に遷移する
+
+
+
+
+
+// 全体の流れ
+
+// `web/app/diagnosis/start/page.tsx`
+// ↓
+// ユーザーが ボタン「診断を始める」を押す
+// ↓
+// `web/app/diagnosis/start/StartButton.tsx` を呼び出す
+// ↓
+// `web/app/diagnosis/start/StartButton.tsx`
+// ↓
+// 認証
+// useSupabaseSession.ts で token を取得して、ログイン確認
+// ↓
+// token を `diagnosis/start/StartButton.tsx` に渡す
+// ↓
+// token がない場合は /login へ遷移
+// or
+// token がある場合は token を付けて `/api/diagnosis/start` を呼ぶ
+// POST /api/diagnosis/start
+// ↓
+// `web/app/api/diagnosis/start/route.ts`
+// ↓
+// 認証
+// API側(`web/app/api/diagnosis/start/route.ts`) で getAuthenticatedUser により token 検証
+// ↓
 // API側で user.id を取得
-//   ↓
-// Diagnosis 作成
-//   ↓
-// diagnosisId を返す
-//   ↓
-// /diagnosis/step/1?diagnosisId=... に移動
+// ↓
+// API側で Diagnosis 作成
+// ↓
+// API側から diagnosisId を  `web/app/diagnosis/start/StartButton.ts` に返す
+// ↓
+// `web/app/diagnosis/start/StartButton.ts`
+// ↓
+// 返ってきた diagnosisId を使い `/diagnosis/step/1?diagnosisId=xxx` に遷移
 
 
 
@@ -84,15 +137,18 @@ import { useState } from "react";
 export default function StartButton() {
   const router = useRouter();
 
-  // Supabase のログイン確認・token取得は共通フックに任せる
-  // isSessionLoading: ログイン確認中
+  // フロント側の ログイン確認・token取得は共通フック(useSupabaseSession) で行う
+  // 以下は、APIで認証を行うために必要な token を準備している
+  // - フロント側で token があるかを確認
+  // - APIへ送るための token を用意
+  // - isSessionLoading: ログイン確認中
   const {
     token,
     isLoading: isSessionLoading,
   } = useSupabaseSession();
 
   // 診断開始APIの処理中かどうかを管理するstate
-  // isStarting: 診断開始APIの通信中
+  // - isStarting: 診断開始APIの通信中
   const [isStarting, setIsStarting] = useState(false);
   // エラーメッセージを画面に表示するためのstate
   const [errorMessage, setErrorMessage] = useState("");
@@ -103,7 +159,7 @@ export default function StartButton() {
       // 前回のエラー表示を消す
       setErrorMessage("");
 
-      //tokenが無い=未ログイン
+      // tokenが無い = 未ログイン
       if (!token) {
         setErrorMessage("ログインが必要です");
         router.push("/login");
@@ -113,9 +169,9 @@ export default function StartButton() {
       // 診断開始API の通信状態にする
       setIsStarting(true);
 
-      //診断開始APIを呼ぶ
-      // API側はここの token を見て、
-      // 「この人はログイン済みか？」・「この人の user.id は何か？」を確認する
+      // 診断開始APIを呼ぶ
+      // - API側はここの token を見て、
+      // - 「この人はログイン済みか？」・「この人の user.id は何か？」を確認する
       const res = await fetch("/api/diagnosis/start", {
         method: "POST",
         headers: {
@@ -123,7 +179,7 @@ export default function StartButton() {
         },
       });
 
-      //APIからのレスポンスをStartDiagnosisResponse型(共通の型)で受け取る
+      // APIからのレスポンスを StartDiagnosisResponse型(共通の型) で受け取る
       const data: StartDiagnosisResponse = await res.json();
 
       // HTTP処理がエラーの場合の処理
@@ -139,14 +195,14 @@ export default function StartButton() {
         return;
       }
 
-      //API呼び出しは成功したが、診断ID(diagnosisId)が返ってこない時
+      // API呼び出しは成功したが、診断ID(diagnosisId)が返ってこない時
       // data.success === true の時点で、型上は diagnosisId は必須のため削除しても可能
       if (!data.diagnosisId) {
-        setErrorMessage("diagnosisIdの取得に失敗しました");
+        setErrorMessage("診断開始に失敗しました");
         return;
       }
 
-      //診断作成が成功し、返ってきたdiagnosisIdを使い、step1に遷移
+      // 診断作成が成功し、返ってきた diagnosisId を使い、step1に遷移
       router.push(`/diagnosis/step/1?diagnosisId=${data.diagnosisId}`);
     } catch (error) {
       console.error("Failed to start diagnosis:", error);
