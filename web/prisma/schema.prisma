@@ -150,6 +150,8 @@ model Profile {
 //updatedAt DateTime @updatedAt：更新日時（途中回答更新の監視に便利）。
 //answers DiagnosisAnswer[]：この診断で生まれた回答ログ一覧。
 //scores DiagnosisNutrientScore[]：この診断で算出された栄養素スコア一覧。
+// Diagnosis1件に対して、複数のDiagnosisNutrientScoreがぶら下がっている状態。
+// 1回の診断で鉄・亜鉛・ビタミンCなど複数の栄養スコアを持つから必要
 //@@index([userId])：ユーザー別に診断履歴を高速取得するための索引。
 
 //=========================================================

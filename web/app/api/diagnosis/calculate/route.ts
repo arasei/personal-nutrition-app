@@ -1,6 +1,6 @@
-//現在Server ComponentとしてDBから直接データ取得 → 集計 → 画面表示するページ(web/diagnosis/[diagnosisId]/result/page.tsx)に変更しているため、
-// API route.tsは現在使用していない状態ですが、今後必要に応じてAPI route.tsを呼び出す形に変更する可能性もあるため、コードは残しています。
-// 現在は使用していないAPI route.tsのコード --- IGNORE ---
+//現在の診断結果ページは Server Component 側(result/page.tsx)でDB取得 → スコア集計 → 画面表示まで完結しているため、
+//このAPIは(calculate/route.ts) は現時点では画面描画には使っていない。
+//ただし、今後の設計変更や再利用に備えてコードは保持している。
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
@@ -44,6 +44,17 @@ export async function POST(req: Request) {
       nutrientId,
       total,
     }));
+
+    //各栄養素スコアを1件ずつDBに保存する
+    for (const item of ranking) {
+      await prisma.diagnosisNutrientScore.create({
+        data:{
+          diagnosisId,
+          nutrientId:item.nutrientId,
+          score:item.total
+        }
+      })
+    }
   return NextResponse.json({
     scoreMap,
     ranking,

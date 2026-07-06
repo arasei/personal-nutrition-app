@@ -1,4 +1,4 @@
-// web/app/diagnosis/step/[order]/page.tsx
+// web/app/diagnosis/step/[step]/page.tsx
 //診断ステップページコンポーネント
 //URL→検証→DB→表示→次の導線
 
@@ -11,18 +11,19 @@ import { prisma } from "@/lib/prisma";
 import { saveAnswer } from "../StepAction";
 
 //URLパラメータの型定義
+//stepはURLパラメータの型定義
 //searchParamsでdiagnosisIdを受け取る設計に変更
 //diagnosisIdは任意、paramsは必須
 type PageProps = {
-  params: {order: string};
+  params: {step: string};
   searchParams: { diagnosisId?: string };
 };
 
 //診断ステップページコンポーネント
 export default async function DiagnosisStepPage({ params, searchParams } : PageProps) {
   //Next.jsの仕様に合わせてsearchParamsをawaitで展開
-  //URLパラメーターからorderとdiagnosisIdを取得
-  const { order } = await params; 
+  //URLパラメーターからstepとdiagnosisIdを取得
+  const { step } = await params; 
   const { diagnosisId } = await searchParams;
 
   //diagnosisIdが無いと、回答保存ができないので初めにチェックを行う
@@ -31,10 +32,10 @@ export default async function DiagnosisStepPage({ params, searchParams } : PageP
     notFound();
   };
 
-  //取得したorder(文字列)を数値に変換
-  //order(文字列)が数字として不正な場合はnotFoundを呼び出して404ページへ遷移
-  const orderNum = Number(order); 
-  if (!Number.isFinite(orderNum) || orderNum < 1) notFound();
+  //取得したstep(文字列)を数値に変換
+  //step(文字列)が数字として不正な場合はnotFoundを呼び出して404ページへ遷移
+  const stepNum = Number(step); 
+  if (!Number.isFinite(stepNum) || stepNum < 1) notFound();
 
   //diagnosisIdから診断レコードがDBに存在するか確認
   //存在しない場合はnotFoundを呼び出して404ページへ遷移
@@ -45,28 +46,30 @@ export default async function DiagnosisStepPage({ params, searchParams } : PageP
   if (!diagnosis) notFound();
   
   //全質問数をDBから取得
-  //全質問数が0件orURLパラメータのorderが全質問数を超えている場合はnotFoundを呼び出して404ページへ遷移
+  //現在何問目/全何問目とstepが範囲内かを確認し、表示するため
+  //全質問数が0件orURLパラメータのstepが全質問数を超えている場合はnotFoundを呼び出して404ページへ遷移
   const total = await prisma.diagnosisQuestion.count();
-  if (total === 0 || orderNum > total) notFound();
+  if (total === 0 || stepNum > total) notFound();
 
-  //Prisma Clientを使ってDBから現在の質問(orderNum)を1件取得
+  //Prisma Clientを使ってDBから現在の質問(stepNum)を1件取得
+  //step=3の場合、order=3の質問を
   //質問が存在しない場合はnotFoundを呼び出して404ページへ遷移
   const question = await prisma.diagnosisQuestion.findFirst({
-    where: { order: orderNum },
+    where: { order: stepNum },
   });
   if (!question) notFound();
 
   //次の質問へのリンクを作成
   //次のリンクにも診断ID(diagnosisId)をクエリパラメータで渡す設計に変更
   //最後の質問の場合は結果ページへのリンクにする
-  const isLast = orderNum === total;
-  const nextHref = isLast ? `/diagnosis/result?diagnosisId=${diagnosisId}` : `/diagnosis/step/${orderNum + 1}?diagnosisId=${diagnosisId}`;
+  const isLast = stepNum === total;
+  const nextHref = isLast ? `/diagnosis/result?diagnosisId=${diagnosisId}` : `/diagnosis/step/${stepNum + 1}?diagnosisId=${diagnosisId}`;
 
   //ページのUIを返す
   return (
     <main style={{ padding: "24px" }}>
-      <h1>診断 Step {orderNum}</h1>
-      <p>現在の質問番号: {orderNum}/{total}</p>
+      <h1>診断 Step {stepNum}</h1>
+      <p>現在の質問番号: {stepNum}/{total}</p>
       <p>質問:{question.questionText}</p>
 
       {/* 回答保存の為のフォーム追加 */}
@@ -77,7 +80,7 @@ export default async function DiagnosisStepPage({ params, searchParams } : PageP
       <form action={saveAnswer} style={{marginTop: 16}}>
         <input type="hidden" name="diagnosisId" value={ diagnosisId }/>{/* name:診断セッション(どの診断の回答か)を識別するID */}{/*value:URLのsearchParamsからの取得値*/}
         <input type="hidden" name="questionId" value={ question.id }/>{/* name:どの質問に対する回答か(DBの質問レコードのID)*/}{/*value:DBからの取得値*/}
-        <input type="hidden" name="order" value={ String(orderNum) }/>{/* name:今何問目か(次へ進むために+1する材料)*/}{/*value:URLのparamsからの取得値*/}
+        <input type="hidden" name="order" value={ String(stepNum) }/>{/* name:今何問目か(次へ進むために+1する材料)*/}{/*value:URLのparamsからの取得値*/}
 
         {/*回答入力欄*/}
         <input
@@ -93,10 +96,11 @@ export default async function DiagnosisStepPage({ params, searchParams } : PageP
       </form>
 
       {/* 戻るリンク */}
+      {/* stepが2以上の場合表示 */}
       {/*現状は、動く導線を作成したいのでLinkで表示後ほどボタン化*/}
-      {orderNum > 1 && (
+      {stepNum > 1 && (
         <div style={{ marginTop: 16 }}>
-          <Link href={`/diagnosis/step/${ orderNum - 1 }?diagnosisId=${ diagnosisId }`}>戻る</Link>
+          <Link href={`/diagnosis/step/${ stepNum - 1 }?diagnosisId=${ diagnosisId }`}>戻る</Link>
         </div>
       )}
     </main>
