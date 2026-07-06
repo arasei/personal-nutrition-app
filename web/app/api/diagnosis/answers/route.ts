@@ -1,12 +1,16 @@
-// 作成済み diagnosis に回答を保存するAPI
-// 診断開始API(web/app/api/diagnosis/start)で作成済みのdiagnosisのID(diagnosisId)をクライアントから受け取り、そのdiagnosisに対する回答を保存するためのAPI
+// 作成済み diagnosis に1問分の回答を保存するAPI
+// 診断開始API(web/app/api/diagnosis/start)で作成済みのdiagnosisのID(diagnosisId)をクライアントから受け取り、
+// ログイン中ユーザー本人の診断であることを確認したうえで回答を保存するAPI
 
 // 役割
-// クライアントから送られた token を使って、ログイン中ユーザーを確認する
-// body から diagnosisId と answers を受け取る
+// クライアントから送られた token を Authorization ヘッダーから受け取る。
+// tokenを元に Supabase でログイン中ユーザーを確認する
+// body から diagnosisId / questionId / value / order を受け取る
 // その diagnosisId がログイン中ユーザー本人のものか確認する
-// 本人の diagnosis に対して、回答一覧(DiagnosisAnswer)をまとめて保存する
-// 成功 / 失敗のレスポンスを返す
+// 本人の diagnosis に対して、1問分の回答(DiagnosisAnswer)を upsert でまとめて保存する
+// 最後の質問でなければ currentStep を次の番号に更新し、次の質問URL(nextHref)を渡す
+// 最後の質問なら、全回答を集計して DiagnosisNutrientScore を保存し、Diagnosis を完了状態に更新する
+// 成功 / 失敗のレスポンスを共通型 SaveDiagnosisAnswersResponse で返す
 // 開始APIで作成した診断(diagnosis)を再利用して、回答(diagnosisAnswer)をまとめて保存している
 // 本人確認をtoken検証で行い、さらにその診断(diagnosis)が本人のものであるかを確認し、
 // 本人の診断(diagnosis)にしか回答し、保存できないようにしている
@@ -14,29 +18,118 @@
 
 
 
-// answers/route.tsは新しくdiagnosisを作らない
+// このAPIがやること
 
-// 今は diagnosisId は body から受けたもの を使っています。
-
-// bodyで受けるのはdiagnosisIdとanswers
-
-// userIdはクライアントから受け取らない。
-// tokenを使い、サーバー側でSupabaseから取得するため
-// tokenはAuthorizationヘッダーで送る
-
-// 他人のdiagnosisIdには保存しない
-// そのため、diagnosisIdの所有者チェックが必要
+// 1問分の回答を保存する
+// token からログイン中ユーザーを確認する
+// diagnosisId が本人の診断か確認する
+// 最後の質問の場合、栄養素スコアを集計して保存する
+// 最後の質問の場合、Diagnosis を COMPLETED に更新する
+// 次に遷移するURLを nextHref として返す
 
 
-// 今の設計では $transaction が必須ではない
-// ・主な書き込み処理が DiagnosisAnswer の createMany(...) 1回だから
-// ・Diagnosis の新規作成は開始APIで行っており、このAPIでは行わないから
+
+
+// このAPIがやらないこと
+
+// 新しく Diagnosis を作成しない
+// クライアントから userId を受け取らない
+// API Route内で redirect() しない
+// 画面遷移は行わない
+// 回答フォームの表示は行わない
+
+
+
+
+
+
+// bodyで受け取る値
+
+// diagnosisId: どの診断に対する回答か
+// questionId: どの質問に対する回答か
+// value: 回答値
+// order: 現在の質問番号
+
+
+
+
+
+
+// userIdをbodyから受け取らない理由
+
+// userId はクライアントから送らせず、Authorization ヘッダーの token を使って
+// サーバー側で Supabase から取得する。
+// これにより、他人の userId を送って回答を保存する流れを防ぐ。
+
+
+
+
+
+
+// 認可処理
+
+// diagnosisId と Supabase から取得した user.id を使って Diagnosis を検索する。
+// 一致する Diagnosis が存在しない場合は、本人の診断ではないため 403 Forbidden を返す。
+// これにより、他人の diagnosisId に回答を保存できないようにする。
+
+
+
+
+
+// 回答保存の考え方
+
+// DiagnosisAnswer は「1つの診断 × 1つの質問 = 1回答」のため、
+// createMany ではなく upsert を使う。
+// 初回回答なら create、同じ質問に再回答した場合は update する。
+
+
+
+
+
+// 最後の質問ではない場合
+
+// 回答保存後、Diagnosis の currentStep を order + 1 に更新する。
+// レスポンスで次の質問ページのURLを nextHref として返す。
+// 例: /diagnosis/step/2?diagnosisId=xxx
+
+
+
+
+// 最後の質問の場合
+
+// 回答保存後、今回の診断に紐づく全回答を取得する。
+// 質問IDから栄養素IDをたどり、栄養素ごとの合計スコアを計算する。
+// 古い DiagnosisNutrientScore を削除し、新しいスコアを保存する。
+// Diagnosis を COMPLETED に更新し、completedAt を保存する。
+// レスポンスで結果ページのURLを nextHref として返す。
+
+
+
+
+
+// transaction を使う理由
+
+// 最後の質問では、以下の複数のDB更新をまとめて行うため。
+// ・古い DiagnosisNutrientScore の削除
+// ・新しい DiagnosisNutrientScore の作成
+// ・Diagnosis の完了更新
+// 途中で失敗した場合に中途半端な状態を残さないため、prisma.$transaction を使う。
+
+
+
 
 
 // レスポンスの考え方
-// ・成功時: { success: true }
-// ・失敗時: { success: false, message: "..." }
-// ・フロントとサーバーで共通型を使って、レスポンスの形をそろえる
+// 成功時: { success: true, nextHref: "..." }
+// 認証失敗時: { success: false, message: "Unauthorized" }
+// 認可失敗時: { success: false, message: "Forbidden" }
+// リクエスト不正時: { success: false, message: "Invalid request body" }
+// サーバーエラー時: { success: false, message: "Failed to save diagnosis answer" }
+// フロントとサーバーで共通型 SaveDiagnosisAnswersResponse を使い、レスポンスの形をそろえる。
+
+
+
+
 
 
 
@@ -44,42 +137,131 @@
 
 
 // 全体の流れ
-// フロントから token + diagnosisId + answers を送信
+// AnswerForm.tsx
+//   ↓ token + diagnosisId + questionId + value + orderを渡す
+// /api/diagnosis/answers
 //   ↓
-// answers/route.ts
+// Authorizationからtoken取得
 //   ↓
-// Authorizationヘッダーから token を取得
+// Supabaseにtokenを渡し、user確認(ログイン中ユーザーか確認)
 //   ↓
-// Supabaseにtokenを送ってログイン中ユーザーを確認
+// diagnosisId + user.id で本人確認
 //   ↓
-// body から diagnosisId と answers を取得
+// DiagnosisAnswer upsert で回答をまとめて保存
 //   ↓
-// 必須チェック
-//   ↓
-// diagnosisId が本人のものか確認
-//   ↓
-// DiagnosisAnswer を createMany でまとめて保存
-//   ↓
-// 成功レスポンスを返す
+// 最後の質問？
+//   ├─ No → currentStep更新 → 次のstep URLを返す
+//   └─ Yes → スコア集計 → Diagnosis完了 → result URLを返す
+
+
+
+
+
 
 
 
 import { prisma } from "@/lib/prisma";
-import { supabase } from "@/lib/supabase/client";
+import { createClientForServer } from "@/lib/supabase/server";
 import {
     SaveDiagnosisAnswersRequest,
     SaveDiagnosisAnswersResponse,
 } from "@/types/diagnosisApi";
 import { NextRequest, NextResponse } from "next/server";
 
+// 回答1件分の型
+type AnswerItem = {
+  questionId: string;
+  value: number;
+};
 
+// 質問と栄養素の対応関係を表す型
+type QuestionItem = {
+  id: string;
+  nutrientId: string;
+};
+
+// 栄養素の合計スコアを表す型
+type RankingItem = {
+  nutrientId: string;
+  total: number;
+};
+
+// 質問一覧から、質問IDと栄養素IDの対応表を作成
+function buildQuestionMap(questions: QuestionItem[]) {
+  // 質問IDと栄養素IDの対応表
+  const questionMap: Record<string, string> = {};
+
+  for (const q of questions) {
+    questionMap[q.id] = q.nutrientId;
+  }
+
+  return questionMap;
+}
+
+// 回答一覧と質問→栄養素の対応表を使って、栄養素ごとの合計点を作る関数
+function buildScoreMap(
+  answers: AnswerItem[],
+  questionMap: Record<string, string>
+) {
+  // 栄養素ごとの合計点を入れる箱
+  const scoreMap: Record<string, number> = {};
+
+  // 回答の questionId から、対応する nutrientId を取り出す
+  for (const a of answers) {
+    const nutrientId = questionMap[a.questionId];
+
+    // 対応する栄養素IDがなければその回答をスキップ
+    if (!nutrientId) continue;
+
+    // その栄養素の合計値がまだなければ、0で初期化する
+    if (!scoreMap[nutrientId]) {
+      scoreMap[nutrientId] = 0;
+    }
+
+    // その栄養素の合計点に、回答値を足す
+    scoreMap[nutrientId] += a.value;
+  }
+
+  return scoreMap;
+}
+
+// 栄養素ごとの合計点を、配列のランキング形式に変換する
+function buildRanking(scoreMap: Record<string, number>): RankingItem[] {
+  return Object.entries(scoreMap)
+  .map(([nutrientId, total]) => ({
+    nutrientId,
+    total,
+  }))
+  .sort((a, b) => b.total - a.total);
+}
+
+
+
+
+// POSTリクエストを受け取るAPI関数
 export async function POST(request: NextRequest) {
   try {
-    //クライアントが送ってきたAuthorizationヘッダーからtokenを取得
+    //クライアントが送ってきたリクエストヘッダーからAuthorization(token)を取得
     const token = request.headers.get("Authorization") ?? "";
 
-    //tokenをSupabaseに送ってログイン中ユーザーを確認(認証処理)
-    const { data: { user }, error, } = await supabase.auth.getUser(token);
+    // tokenがない場合は、未ログインとして扱い、
+    // 回答保存を許可しないために「401 Unauthorized」を返す
+    if (!token) {
+      const responseBody: SaveDiagnosisAnswersResponse = {
+        success: false,
+        message: "Unauthorized",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
+    }
+
+    // サーバー側Supabaseクライアントを作成
+    const supabase = createClientForServer();
+
+    //tokenをSupabaseに渡して、そのtokenのユーザーを確認(ログイン中かどうか)(認証処理)
+    const { data, error, } = await supabase.auth.getUser(token);
+    // Supabaseから返ってきたユーザー情報を取り出す
+    const user = data.user;
 
     if (error || !user) {
       const responseBody: SaveDiagnosisAnswersResponse = {
@@ -89,20 +271,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(responseBody, { status: 401 });
     }
 
-    //bodyからdiagnosisIdとanswersを受け取る
+    //リクエストbodyをJSONとして読み取り、型をつける
     const body: SaveDiagnosisAnswersRequest = await request.json();
-    const { diagnosisId, answers } = body;
+    // bodyから必要な値を取り出す
+    // userIdは受け取らない
+    const { diagnosisId, questionId, value, order } = body;
 
-    //必須チェック
+    //bodyの中身が正しいかチェック
     if (
       !diagnosisId ||
-      !Array.isArray(answers) ||
-      answers.length === 0 ||
-      answers.some(
-        (answer) =>
-          !answer.questionId ||
-          typeof answer.value !== "number"
-      )
+      !questionId ||
+      typeof value !== "number" ||
+      !Number.isInteger(value) ||
+      typeof order !== "number" ||
+      !Number.isInteger(order)
     ) {
       const responseBody: SaveDiagnosisAnswersResponse = {
         success: false,
@@ -111,13 +293,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(responseBody, { status: 400 });
     }
 
-    //diagnosisIdが本人のものか確認(認可処理)
-    const diagnosis = await prisma.diagnosis.findUnique({
-      where: { id: diagnosisId },
-      select: { id: true, userId: true },
+    // 本人の診断か確認(認可処理)
+    // diagnosisId と user.id の両方が一致するもの
+    // 診断の id で診断の存在だけ確認
+    const diagnosis = await prisma.diagnosis.findFirst({
+      where: { 
+        id: diagnosisId,
+        userId: user.id,
+      },
+      select: { id: true, },
     });
 
-    if (!diagnosis || diagnosis.userId !== user.id) {
+    if (!diagnosis) {
       const responseBody: SaveDiagnosisAnswersResponse = {
         success: false,
         message: "Forbidden",
@@ -126,26 +313,142 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(responseBody, { status: 403 });
     }
 
-    //回答を保存
-    await prisma.diagnosisAnswer.createMany({
-      data: answers.map((answer) => ({
+    // 質問総数チェック
+    // 今の order が最後の質問かどうか判断するため
+    const total = await prisma.diagnosisQuestion.count();
+
+    if (total === 0 || order < 1 || order > total) {
+      const responseBody: SaveDiagnosisAnswersResponse = {
+        success: false,
+        message: "Invalid step",
+      };
+
+      return NextResponse.json(responseBody, { status: 400 });
+    }
+
+    // 回答を保存(upsert)
+    // 初回回答 → create
+    // 再回答 → update
+    await prisma.diagnosisAnswer.upsert({
+      where: {
+        diagnosisId_questionId: {
+          diagnosisId,
+          questionId,
+        },
+      },
+      update: {
+        value,
+        answeredAt: new Date(),
+      },
+      create: {
         diagnosisId,
-        questionId: answer.questionId,
-        value: answer.value,
-      })),
+        questionId,
+        value,
+        answeredAt: new Date(),
+      },
     });
 
+    // 現在の質問が最後かどうか判定
+    const isLast = order >= total;
+
+
+
+    // 最後の質問の場合の処理
+    // スコア集計・完了処理実行
+
+
+
+    if (isLast) {
+
+      // 今回の診断に紐づく回答一覧を取得
+      const answers = await prisma.diagnosisAnswer.findMany({
+        where: { diagnosisId },
+        select: {
+          questionId: true,
+          value: true,
+        },
+      });
+
+      // 質問IDと栄養素IDの対応表を取得
+      const questions = await prisma.diagnosisQuestion.findMany({
+        select: {
+          id: true,
+          nutrientId: true,
+        },
+      });
+
+      // 質問ID → 栄養素ID の対応表を作成
+      const questionMap = buildQuestionMap(questions);
+      // 回答一覧を元に、栄養素ごとの合計点を作成
+      const scoreMap = buildScoreMap(answers, questionMap);
+      // スコアマップをランキング配列に変換
+      const ranking = buildRanking(scoreMap);
+
+      // 複数のDB更新を$transactionでまとめて実行
+      await prisma.$transaction(async (tx) => {
+        // 同じ診断IDの既存スコア削除
+        await tx.diagnosisNutrientScore.deleteMany({
+          where: { diagnosisId },
+        });
+
+        // 栄養素ごとのスコアをまとめて保存
+        await tx.diagnosisNutrientScore.createMany({
+          data: ranking.map((r) => ({
+            diagnosisId,
+            nutrientId: r.nutrientId,
+            score: r.total,
+          })),
+        });
+
+        // 診断を完了状態に更新
+        await tx.diagnosis.update({
+          where: { id: diagnosisId },
+          data: {
+            status: "COMPLETED",
+            completedAt: new Date(),
+            currentStep: total,
+          },
+        });
+      });
+
+      // 最後の質問の後の思考レスポンス
+      // nextHrefでフロントに次のURL(診断結果ページ)を返す設計
+      const responseBody: SaveDiagnosisAnswersResponse = {
+        success: true,
+        nextHref: `/diagnosis/${diagnosisId}/result`,
+      };
+
+      return NextResponse.json(responseBody, { status: 200 });
+    }
+
+
+
+
+    // 最後の質問ではない場合の処理
+
+
+    // 診断の現在ステップ(currentStep)を次の質問番号に更新
+    await prisma.diagnosis.update({
+      where: { id: diagnosisId },
+      data: {
+        currentStep: order + 1,
+      },
+    });
+
+    // 次の質問ページのURLをレスポンスに入れる
     const responseBody: SaveDiagnosisAnswersResponse = {
       success: true,
+      nextHref: `/diagnosis/step/${order + 1}?diagnosisId=${diagnosisId}`,
     };
 
     return NextResponse.json(responseBody, { status: 200 });
   } catch (error) {
-    console.error("failed to save diagnosis answers:", error);
+    // catch (error)で予期しないエラーの場合の処理
+    console.error("failed to save diagnosis answer:", error);
 
     const responseBody: SaveDiagnosisAnswersResponse = {
       success: false,
-      message: "Failed to save diagnosis answers",
+      message: "Failed to save diagnosis answer",
     };
 
     return NextResponse.json(responseBody, { status: 500 });

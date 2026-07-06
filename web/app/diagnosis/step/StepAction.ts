@@ -1,3 +1,13 @@
+// このStepAction.tsは旧Server Action方式の記録用
+// 現在この web/app/diagnosis/step/StepAction.ts は未使用
+// 現在の回答保存処理は /api/diagnosis/answers + AnswerForm.tsx に統一しています。
+// 固定のform actionではなく、tokenを使ったAPI方式で認証・認可を行う方針に変更しました。
+// どのファイルからも import しないでください。
+
+
+
+
+
 //各質問ごとに回答を保存し、最後の質問の時だけ全回答から栄養素スコアを計算してDiagnosisNutrientScoreに保存し、
 // 診断を完了状態に更新し、結果ページへ遷移するServer Actionページ
 
