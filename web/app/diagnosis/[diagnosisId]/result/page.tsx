@@ -30,58 +30,70 @@
 
 
 // 今回のポイント
-// async function Component() は Server Component 的な考え方に近い
-// Client Component は普通の関数 + state 更新で考える
-// await は async 関数の中でしか使えない
-// useEffect(async () => {}) は避ける
-// useEffect の中で async 関数を作って呼ぶのが定番
+// フロント側は token を Authorization header に入れてAPIを呼ぶ
+// API側は supabase.auth.getUser(token) で本人確認する
+// フロントとAPIで Authorization の形式を必ず揃える
+// データ取得と状態管理は SWR に寄せるとスッキリする
+// session取得は毎回 getSession せず useSupabaseSession にまとめる
 
 
 // なぜ普通の関数コンポーネント？
 // Client Component は「先に描画、あとで取得」だから
 
-// なぜ useEffect の中で async 関数を作る？
-// useEffect 自体は async にしづらいので、await を使う場所を中に分けるため
+// useEffect は未ログイン時にログインページへ遷移するために使う
+// データ取得自体は useSWR が担当する
 
 
 
 // 以下の時に使用するページ
-// 診断直後の結果表示
-// 履歴から結果を見直す
-// 前回との差分確認
+// 診断が完了した直後に結果を見る
+// 履歴一覧から過去の結果を見る
+// 前回との差分を確認する
+// 栄養バランスをチャートで見る
 
 
 
 // 役割
-// useParamsでURLからdiagnosisIdを取得
-// useEffectで結果取得APIを呼び出し、APIから結果データを取得
-// API通信の状態を管理
-// 読み込み中・エラー・成功の状態を切り替える
-// rankingとdiffRankingで結果をチャートとランキング一覧で表示
+// URLから diagnosisId を取る
+// tokenをAPIに渡す
+// APIから結果を受け取る
+// 画面に表示する
 
 
 
 // 流れ
+
 // result/page.tsx
-//    ↓
-// useParams で diagnosisId 取得
-//    ↓
-// useEffect で API(result/route.ts) 呼び出し
-//    ↓
-// loading / error / data を更新
-//    ↓
-// 成功したら
-//   ├─ SafeRadarChart に ranking を渡す
-//   └─ diffRanking を map で一覧表示
+//   ↓
+// page.tsx が URL から diagnosisId を取得
+//   ↓
+// useSupabaseSession で token を取得
+//   ↓
+// token と diagnosisId が揃ったら SWR が動く
+//   ↓
+// fetcher が /api/diagnosis/[diagnosisId]/result を呼ぶ
+//   ↓
+// route.ts 側で Authorization header に token を受け取る
+//   ↓
+// route.ts 側で supabase.auth.getUser(token) で token を検証
+//   ↓
+// user.id と diagnosisId で本人の診断だけ取得
+//   ↓
+// ranking / diffranking を作成
+//   ↓
+// JSON形式で本人の診断結果だけ返す
+//   ↓
+// page.tsx が画面にチャートとランキングを表示
 
 
 
 "use client";
 
-import { useEffect, useState } from "react";
+import useSWR from "swr";
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import SafeRadarChart from "@/components/SafeRadarChart";
-import { supabase } from "@/lib/supabase/client";
+import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
 // APIから受け取る診断結果データの型を読み込む
 import type {
   DiagnosisResultResponse,
@@ -108,100 +120,89 @@ export default function ResultPage() {
   // URLから診断IDを取り出す
   const diagnosisId = params.diagnosisId;
 
-  // APIから受け取る診断結果データを保存する場所
-  // type DiagnosisResultSuccessResponse = ... によりdata に入るのは成功データだけ
-  // ranking / diffRanking を安全に使える
-  const [data, setData] = useState<DiagnosisResultSuccessResponse | null>(null);
-  // 読み込み中かどうかを管理する場所
-  const [loading, setLoading] = useState(true);
-  // エラーメッセージを保存する場所
-  const [error, setError] = useState<string | null>(null);
+  // ログイン中の token と ログイン状態を確認中かどうかを取得する
+  // SWR にも isLoading があるため、名前がぶつからないように useSupabaseSession の isLoading は isSessionLoading と名前を変える
+  const { token, isLoading: isSessionLoading } = useSupabaseSession();
+
+  // SWR が API を呼ぶときに使う関数
+  // この関数の中で fetchし、API を呼び出し、結果を処理する
+  const fetcher = async (url: string): Promise<DiagnosisResultSuccessResponse> => {
+    // token が無い場合、未ログイン扱い
+    if (!token) {
+      throw new Error("ログインが必要です");
+    }
+
+    // token をそのまま Authorization header に入れて API を呼び出す
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+      cache: "no-store", // 結果は毎回最新のものを見たいのでキャッシュしない
+    });
+
+    // API から返ってきたレスポンスをJSONとして取得
+    const responseData: DiagnosisResultResponse = await response.json();
+
+    // HTTP処理がエラーの場合の処理
+    if (!response.ok) {
+      const errorData = responseData as ApiErrorResponse;
+      throw new Error(errorData.message ?? "結果取得に失敗しました");
+    }
+
+    // API処理がエラーの場合の処理
+    if (!responseData.success) {
+      throw new Error(responseData.message ?? "結果取得に失敗しました");
+    }
+
+    // 成功時のデータだけをSWRに返す
+    return responseData;
+  };
+
+  // session の読み込みが終わっている・token がある・diagnosisId がある
+  // この3つの条件が揃ったときだけAPIを呼び出す
+  const shouldFetch = !isSessionLoading && !!token && !!diagnosisId;
+
+  // token がまだ無い・diagnosisId がまだ無い・ログイン確認中 の時はAPIを呼び出さない
+  // 条件が揃っているときだけAPI を呼び出す
+  // SWR は 第1引数に null を渡すと API を呼び出さないので、shouldFetch が false のときは null を渡す
+  const {
+    data,
+    error,
+    isLoading,
+  } = useSWR(
+    shouldFetch ? `/api/diagnosis/${diagnosisId}/result` : null,
+    fetcher
+  );
 
 
   // APIを呼び出して結果を取得する関数
   // 画面表示時やdiagnosisIdが変わったときにAPI(web/app/api/diagnosis/[diagnosisId]/result/route.ts)を呼び出し描画し、データ取得する。
   useEffect(() => {
-    const fetchResult = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        setData(null);
 
-        // supabaseから現在のログインsessionを取得
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        // sessionからAPIに送る access_tokenを取り出す
-        // 「?.」があるので、sessionがない場合でもエラーにならない
-        const token = session?.access_token;
-
-        // tokenが無い場合、未ログイン扱い
-        if (!token) {
-          setError("ログインが必要です");
-          router.replace("/login");
-          return;
-        }
-
-        // 診断結果取得API呼び出し
-        // URLの [diagnosisId] を使って、その診断結果を取りに行く
-        // API側で「このリクエストを送ったユーザーは誰か？」を確認するため Authorization header にtokenを入れる
-        const response = await fetch(`/api/diagnosis/${diagnosisId}/result`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          cache: "no-store", // 結果は毎回最新のものを見たいのでキャッシュしない
-        });
-
-        // APIから返ってきたレスポンスをJSONとして取得
-        const responseData: DiagnosisResultResponse = await response.json();
-
-        // HTTP処理がエラーの場合の処理
-        if (!response.ok) {
-          const errorData = responseData as ApiErrorResponse;
-          setError(errorData.message ?? "結果取得に失敗しました");
-          return;
-        }
-
-        // API処理がエラーの場合の処理
-        if (!responseData.success) {
-          setError(responseData.message ?? "結果取得に失敗しました");
-          return;
-        }
-
-        // APIから取得した結果データ(responseData)をstateに保存
-        // 成功時だけ setData(responseData) を行う
-        // これにより、画面が再描画されて、SafeRadarChartやランキング一覧にデータが渡って表示される
-        setData(responseData);
-      } catch (error) {
-        console.error("結果取得エラー:", error);
-        setError("結果取得に失敗しました");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    // diagnosisIdがある時だけAPIを呼び出す
-    // URLからIDが取れない状態でAPIを呼ばないため
-    if (!diagnosisId) {
-      setError("診断IDが見つかりません");
-      setLoading(false);
-      return;
+    if (!isSessionLoading && !token) {
+      router.replace("/login");
     }
+  }, [isSessionLoading, token, router]);
 
-    fetchResult();
-  // diagnosisId または router が変わったときに useEffect を再実行する
-  }, [diagnosisId, router]);
-
-  // 読み込み中の表示
-  if (loading) {
+  // 読み込み中の時の表示
+  if (isSessionLoading || isLoading) {
     return <div>読み込み中...</div>;
+  }
+
+  // diagnosisIdがない・エラー・データがない場合の表示
+  if (!diagnosisId) {
+    return <div>診断IDが見つかりません</div>;
+  }
+
+  // tokenがない場合はログインページへ移動する
+  if (!token) {
+    return <div>ログインページへ移動中...</div>;
   }
 
   // エラー時の表示
   if (error) {
-    return <div>{error}</div>;
+    return <div>{error.message}</div>;
   }
 
   // データがない場合の表示
@@ -214,9 +215,8 @@ export default function ResultPage() {
       <h1>診断結果</h1>
 
       <section>
-        <h2>栄養バランス</h2>
-
-        {/* APIから受け取ったrankingをSafeRadarChartへ渡し、レーダーチャートを描画する。 */}
+        <h2>栄養素バランス</h2>
+        {/* API から受けとった ranking を SafeRadarChart へ渡し、レーダーチャートを描画する。 */}
         <SafeRadarChart ranking={data.ranking} />
       </section>
 
@@ -225,12 +225,12 @@ export default function ResultPage() {
         <h2>不足しやすい栄養素ランキング</h2>
 
         {/* 前回との差分付きランキング */}
-        {/* diffRankingの配列を1件ずつ取り出して表示 */}
+        {/* diffRanking の配列を1件ずつ取り出して表示 */}
         {data.diffRanking.map((item, index) => (
           <div key={item.nutrientId}>
-            {/* indexは0から始まるので 「+ 1」をする */}
+            {/* index は 0から始まるので 「+ 1」をする */}
             {index + 1}位 {item.nutrient} {item.total}点
-            {/* 前回との差分がある時だけ表示 */}
+            {/* 前回との差分がある場合だけ表示 */}
             {/* プラスの時は「+」、マイナスの時は「-」を表示 */}
             {item.diff !== null && (
               <span>

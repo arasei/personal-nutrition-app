@@ -8,15 +8,15 @@
 //履歴データをmapで画面に並べる
 //履歴一覧をクリック、IDごとの履歴詳細へ遷移
 
-// Client Component内でSupabase sessionからtokenを取得し、
-// Authorizationヘッダー付きで履歴APIを呼び出している
+// Client Component内で useSupabaseSession から token を取得し、
+// SWR を使って Authorizationヘッダー付きで履歴APIを呼び出している
 
 
 //流れ
 
 // /historyを開く
 //   ↓
-// Supabaseからsessionを取得
+// useSupabaseSession から token を取得
 //   ↓
 // access_tokenを取り出す
 //   ↓
@@ -53,16 +53,53 @@
 
 "use client";
 
-import { supabase } from "@/lib/supabase/client";
+import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+// SWR でAPIからデータを取る処理を管理
+import useSWR from "swr";
 import type {
   ApiErrorResponse,
   DiagnosisHistoryItem,
   GetDiagnosisHistoryResponse,
 } from "@/types/diagnosisApi";
 
+
+// 履歴APIを呼び出すfetcher関数
+async function fetchDiagnosisHistory(token: string): Promise<DiagnosisHistoryItem[]> {
+  const res = await fetch("/api/diagnosis/history", {
+    method: "GET",
+    // APIにログイン中ユーザーの token を渡す
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    // 前のデータを使い回さない
+    // 毎回サーバーから新しいデータを取りに行く
+    cache: "no-store",
+  });
+
+  // APIから返ってきたデータをJSONとして解析する
+  const responseData: GetDiagnosisHistoryResponse | ApiErrorResponse = await res.json();
+
+  // HTTP処理がエラーの場合の処理
+  if (!res.ok) {
+    const message = "message" in responseData && responseData.message ? responseData.message : "履歴取得に失敗しました";
+
+    throw new Error(message);
+  }
+
+  // API処理がエラーの場合の処理(データが返って来ない、取得できない時)
+  // success: true の時だけ histories を使えるようにする
+  if (!responseData.success) {
+    const message = "message" in responseData && responseData.message ? responseData.message : "履歴取得に失敗しました"
+
+    throw new Error(message);
+  }
+
+  // 画面で使いたい履歴配列だけ返す
+  return responseData.histories;
+}
 
 
 
@@ -71,90 +108,60 @@ import type {
 export default function HistoryPage() {
   const router = useRouter();
 
-  // 取得した履歴一覧を保存するためのstate(箱)
-  const [histories, setHistories] = useState<DiagnosisHistoryItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
+  // ログイン中ユーザーの token を取得
+  const {
+    token,
+    isLoading: isSessionLoading,
+  } = useSupabaseSession();
 
   
   useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const result = await supabase.auth.getSession();
-        // Supabaseからログイン中ユーザーのsessionを取得
-        const session = result.data.session;
-        // sessionの中から access_tokenを取り出す
-        const token = session?.access_token;
+    // tokenが無い場合、未ログインとして /login に遷移する
+    if (!isSessionLoading && !token) {
+      router.replace("/login");
+    }
+  }, [isSessionLoading, token, router]);
 
-        // tokenが無い場合、未ログインとして /login に遷移する
-        if (!token) {
-          setErrorMessage("ログインが必要です");
-          router.replace("/login");
-          return;
-        }
+  // SWR で履歴取得
+  // token がある → 履歴APIを呼ぶ
+  // token がない → APIを呼ばない
+  // SWRから渡されるキー配列の ["diagnosis-history", token] から2つ目の token だけを取り出し、使用する
+  const {
+    data: histories,
+    error,
+    isLoading: isHistoryLoading,
+  } = useSWR(
+    token ? ["diagnosis-history", token] : null,
+    ([, token]) => fetchDiagnosisHistory(token)
+  );
 
-        const res = await fetch("/api/diagnosis/history", {
-          method: "GET",
-          // APIにログインtokenを渡す
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          // 前のデータを使い回さない
-          // 毎回サーバーから新しいデータを取りに行く
-          cache: "no-store",
-        });
-
-        // APIから返ってきたデータをJSONとして解析する
-        const responseData: GetDiagnosisHistoryResponse = await res.json();
-
-        // HTTP処理がエラーの場合の処理
-        if (!res.ok) {
-          const errorData = responseData as ApiErrorResponse;
-          setErrorMessage(errorData.message ?? "履歴取得に失敗しました");
-          return;
-        }
-
-        // API処理がエラーの場合の処理(データが返って来ない、取得できない時)
-        // success: true の時だけ histories を使えるようにする
-        if (!responseData.success) {
-          setErrorMessage(responseData.message ?? "履歴取得に失敗しました");
-          return;
-        }
-
-        // APIから返ってきた履歴配列を stateに保存する
-        // 履歴データ(0件の場合でも)を setHistories(data.histories) で保存する仕様
-        // success:  true の場合、histories は必ず配列として存在する。
-        setHistories(responseData.histories);
-      } catch (error) {
-        console.error("failed to fetch history:",error);
-        setErrorMessage("履歴取得中にエラーが発生しました");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchHistory();
-  }, [router]);
-
-  // API取得中に表示する画面
-  if (isLoading) {
-    return <p>履歴を読み込み中です...</p>
+  if (isSessionLoading) {
+    return <p>ログイン情報を確認中です...</p>;
   }
 
-  // エラーがある場合の表示
-  if (errorMessage) {
-    return <p>{errorMessage}</p>
+  if (!token) {
+    return <p>ログインページへ移動しています...</p>;
   }
+
+  if (isHistoryLoading) {
+    return <p>履歴を読み込み中です...</p>;
+  }
+
+  if (error) {
+    return <p>{error.message}</p>;
+  }
+
+
 
   return (
     <div>
       <h1>診断履歴</h1>
 
-      {histories.length === 0 && <p>履歴がありません</p>}
+      {(!histories || histories.length === 0) && <p>履歴がありません</p>}
 
       {/* 履歴一覧を表示 */}
       {/* mapで1件ずつ履歴を表示 */}
-      {histories.map((history) => (
+      {histories?.map((history) => (
         // 履歴一覧 → 詳細リンクに遷移
         <Link href={`/history/${history.id}`} key={history.id}>
           <div style={{ border: "1px solid gray", margin: "16px", padding: "16px" }}>
