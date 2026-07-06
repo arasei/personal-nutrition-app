@@ -22,25 +22,28 @@
 
 
 // 流れ
+
 // result/page.tsx
 //   ↓
+// <SafeRadarChart ranking={data.ranking} />
 // data.ranking を渡す
 //   ↓
 // SafeRadarChart
 //   ↓
-// ブラウザでマウント済みか確認
-//   ↓
-// mounted = true
-//   ↓
-// RadarChart
+// dynamic import で RadarChart をブラウザ側だけ読み込む
 //   ↓
 // ranking.map(item => item.nutrient)
 // ranking.map(item => item.total)
 //   ↓
+// 読み込み中は「チャートを読み込み中...」
+//   ↓
+// 読み込み完了
+//   ↓
+// RadarChart 表示
+//   ↓
 // Chart.js用データに変換
 //   ↓
-// レーダーチャート表示
-
+// Chart.js でレーダーチャート描画
 
 
 
@@ -96,5 +99,5 @@ export default function RadarChart({ ranking }: Props) {
   };
 
   // グラフに変換したモノ(const data ={...})をRadarコンポーネントに渡す。
-  return <Radar data={data} />
+  return <Radar data={data} />;
 }

@@ -1,4 +1,5 @@
 // web/types/diagnosisApi.ts
+
 // 診断機能で使うAPIの以下のようなリクエスト/レスポンスの型をまとめるファイル
 // フロントからAPIへ送るbodyの型
 // APIからフロントへ返すJSONの型
@@ -21,6 +22,7 @@
 // APIでエラーが起きたときに返すレスポンスの型を定義
 // message: 画面に表示するエラーメッセージ
 export type ApiErrorResponse = {
+  success: false;
   message?: string;
 };
 
@@ -76,6 +78,49 @@ export type StartDiagnosisResponse = {
   diagnosisId?: string;
   message?: string;
 };
+
+
+
+
+
+// ------------------------------
+// 診断ステップ取得API
+// 
+// ------------------------------
+
+
+// 診断ステップ取得API から返ってくるJSONの型を定義
+
+// success: API の処理が成功したかどうか
+// message: エラー時などに返ってくるメッセージ。「?」があるため、返ってこない場合がある
+// diagnosisId?: 診断ID。「?」があるため、返ってこない場合がある
+// question?: 現在表示する質問データ。「?」があるため、失敗時存在しない場合がある。
+// id: 質問ID。AnswerForm に渡して、回答保存に使用。
+// questionText: 質問分。
+// order: 質問の順番。
+// total?: 全質問数。
+// isLast?: 現在の質問が最後かどうか。
+
+export type DiagnosisStepResponse = {
+  success: boolean;
+  message?: string;
+  diagnosisId?: string;
+  question?: {
+    id: string;
+    questionText: string;
+    order: number;
+  };
+  total?: number;
+  isLast?: boolean;
+};
+
+
+
+
+
+
+
+
 
 // ------------------------------
 // 回答保存API
@@ -258,6 +303,7 @@ export type DiagnosisHistoryItem = {
 // histories: 診断履歴の配列
 
 export type GetDiagnosisHistoryResponse = {
+  success: true;
   histories: DiagnosisHistoryItem[];
 };
 
@@ -308,6 +354,7 @@ export type DiagnosisHistoryDetailDifference = {
 // differences: 前回との差分一覧
 
 export type GetDiagnosisHistoryDetailResponse = {
+  success: true;
   id: string;
   createdAt: string;
   nutrientScores: DiagnosisHistoryDetailScore[];
