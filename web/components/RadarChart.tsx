@@ -1,41 +1,54 @@
-//rankingデータをChart.js用データに変換し、レーダーチャート表示するコンポーネント
+// web/components/RadarChart.tsx
 
-//診断結果で算出した栄養素ランキング(ranking)をChart.jsを使ってレーダーチャートとして表示する機能
+// rankingデータをChart.js用データ(labels/datasets)に変換し、レーダーチャートとして表示するコンポーネント
 
-//数値データ
+// 診断結果で算出した栄養素ランキング(ranking)をChart.jsを使ってレーダーチャートとして表示する機能
+
+// 数値データ
 // ↓
-//視覚化
+// 視覚化
 
-//今回追加した要素
-//Chart.js
-// グラフを描画するためのJavaScriptライブラリ
+// 今回追加した要素
+// Chart.js
+// グラフを描画するためのJavaScriptライブラリ本体
 
-//react-chartjs-2
+// react-chartjs-2
 // ReactからChart.jsを使うためのラッパー
 
-//RadarChart.tsx
+// RadarChart.tsx
 // rankingデータをレーダーチャートに変換するコンポーネント
 
 
-//今回の構造
-// DB (Prisma)
-//    ↓
-// rankingデータ
-//    ↓
-// ResultPage(web/app/diagnosis/[diagnosisId]/result/page.tsx) (Server Component)
-//    ↓ props
-// RadarChart.tsx (Client Component)
-//    ↓
-// Chart.js
-//    ↓
+
+
+// 流れ
+// result/page.tsx
+//   ↓
+// data.ranking を渡す
+//   ↓
+// SafeRadarChart
+//   ↓
+// ブラウザでマウント済みか確認
+//   ↓
+// mounted = true
+//   ↓
+// RadarChart
+//   ↓
+// ranking.map(item => item.nutrient)
+// ranking.map(item => item.total)
+//   ↓
+// Chart.js用データに変換
+//   ↓
 // レーダーチャート表示
+
+
 
 
 
 
 "use client";
 
-//Chart.jsの必要な機能だけ読み込む
+// Chart.jsの必要な機能だけ読み込む
 import {
   Chart as ChartJS,
   RadialLinearScale,
@@ -46,10 +59,12 @@ import {
   Legend,
 } from "chart.js";
 
-//React用のRadarコンポーネントを読み込む。
+// React用のRadarコンポーネントを読み込む。
 import { Radar } from "react-chartjs-2";
+// ranking の1件分の型を共通型(web/types/diagnosisApi)から読み込む
+import type { ResultRankingItem } from "@/types/diagnosisApi";
 
-//Chart.jsの使用する機能を登録
+// Chart.jsの使用する機能を登録
 ChartJS.register(
   RadialLinearScale,
   PointElement,
@@ -59,29 +74,27 @@ ChartJS.register(
   Legend
 );
 
-//受け取る時のrankingの型を定義
+// rankingを受け取るためのPropsの型を定義
+// web/components/RadarChart.tsx 専用の型
 type Props = {
-  ranking: {
-    nutrient: string;
-    total: number;
-  } [];
+  ranking: ResultRankingItem[];
 };
 
 
-//受け取ったデータ(ranking)をchart.js形式に変換(数値データ→グラフ)
+// 受け取ったデータ(ranking)をchart.js形式に変換(数値データ→グラフ)
 export default function RadarChart({ ranking }: Props) {
   const data = {
-    labels: ranking.map((r) => r.nutrient),
+    labels: ranking.map((item) => item.nutrient),
     datasets: [
       {
         label: "栄養スコア",
-        data: ranking.map((r) => r.total),
+        data: ranking.map((item) => item.total),
         backgroundColor: "rgba(54,162,235,0.2)",
         borderColor: "rgba(54,162,235,1)",
       },
     ],
   };
 
-  //グラフに変換したモノ(const data ={...})をRadarコンポーネントに渡す。
-  return <Radar data={data}/>
+  // グラフに変換したモノ(const data ={...})をRadarコンポーネントに渡す。
+  return <Radar data={data} />
 }

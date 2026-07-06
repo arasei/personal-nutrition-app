@@ -1,46 +1,136 @@
+// web/app/history/page.tsx
+
 // 履歴APIからデータを取得して、上位3栄養素付きの履歴一覧を画面に表示し、履歴詳細ページへ遷移できるページ
+// ログイン中ユーザーの Supabase token を使って、履歴API(web/app/api/diagnosis/history/route.ts)を呼び、
+// 本人の診断履歴だけを取得し、一覧表示するページ
 
 //APIから履歴データ(配列)が返る
 //履歴データをmapで画面に並べる
 //履歴一覧をクリック、IDごとの履歴詳細へ遷移
 
-//流れまとめ
-
-// 履歴ページ(/history)を作る
-//       ↓
-// Server Component内でfetchを使用し、自作API経由でデータ取得（将来的には直接Prisma呼び出しへ変更予定）
-//       ↓
-// APIを呼ぶ(fetch)する
-//       ↓
-// JSON形式で受け取る
-//       ↓
-// 上位3栄養素を表示する(mapで一覧表示)
-//       ↓
-// 履歴一覧の履歴をクリックして履歴詳細リンク(/history/abc123)へ遷移
+// Client Component内でSupabase sessionからtokenを取得し、
+// Authorizationヘッダー付きで履歴APIを呼び出している
 
 
+//流れ
 
-import React from "react"
-import Link from "next/link"
+// /historyを開く
+//   ↓
+// Supabaseからsessionを取得
+//   ↓
+// access_tokenを取り出す
+//   ↓
+// /api/diagnosis/historyへ送る
+//   ↓
+// API側でtoken確認
+//   ↓
+// 本人の履歴だけ取得
+//   ↓
+// data.historiesを画面に表示
+//   ↓
+// クリックで /history/[id] へ移動
 
-//Server ComponentでAPIを呼び出す
-async function getHistory() {
-  const res = await fetch("http://localhost:3000/api/diagnosis/history?userId=user_1",{
-    //キャッシュ無しで常に最新のデータを取得する
-    cache: "no-store"
-  })
 
-  if (!res.ok) {
-    throw new Error("履歴取得に失敗しました")
-  }
 
-  return res.json()
-}
+
+// APIで返すとき
+//   ↓
+// toISOString()
+
+// 画面に表示するとき
+//   ↓
+// toLocaleDateString()
+
+
+
+"use client";
+
+import { supabase } from "@/lib/supabase/client";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import type {
+  ApiErrorResponse,
+  DiagnosisHistoryItem,
+  GetDiagnosisHistoryResponse,
+} from "@/types/diagnosisApi";
+
+
+
 
 
 //画面表示ロジック
-export default async function HistoryPage() {
-  const histories = await getHistory()
+export default function HistoryPage() {
+  const router = useRouter();
+
+  // 取得した履歴一覧を保存するためのstate(箱)
+  const [histories, setHistories] = useState<DiagnosisHistoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const result = await supabase.auth.getSession();
+        // Supabaseからログイン中ユーザーのsessionを取得
+        const session = result.data.session;
+        // sessionの中から access_tokenを取り出す
+        const token = session?.access_token;
+
+        // tokenが無い場合、未ログインとして /login に遷移する
+        if (!token) {
+          alert("ログインが必要です");
+          router.replace("/login");
+          return;
+        }
+
+        const res = await fetch("/api/diagnosis/history", {
+          method: "GET",
+          // APIにログインtokenを渡す
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          // 前のデータを使い回さない
+          // 毎回サーバーから新しいデータを取りに行く
+          cache: "no-store",
+        });
+
+        // APIから返ってきたデータをJSONとして解析する
+        const responseData = await res.json();
+
+        // APIからエラーが返ってきた場合の処理
+        if (!res.ok) {
+          const errorData = responseData as ApiErrorResponse;
+          setErrorMessage(errorData.message ?? "履歴取得に失敗しました");
+          return;
+        }
+
+        // APIから返ってきたデータを型に当てはめる
+        const data = responseData as GetDiagnosisHistoryResponse;
+
+        // APIから返ってきた履歴配列を stateに保存する
+        setHistories(data.histories);
+      } catch (error) {
+        console.error("failed to fetch history:",error);
+        setErrorMessage("履歴取得中にエラーが発生しました");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [router]);
+
+  // API取得中に表示する画面
+  if (isLoading) {
+    return <p>履歴を読み込み中です...</p>
+  }
+
+  // エラーがある場合の表示
+  if (errorMessage) {
+    return <p>{errorMessage}</p>
+  }
 
   return (
     <div>
@@ -49,19 +139,22 @@ export default async function HistoryPage() {
       {histories.length === 0 && <p>履歴がありません</p>}
 
       {/* 履歴一覧を表示 */}
-      {/* mapで1件ずつ表示 */}
-      {histories.map((history: any) => (
+      {/* mapで1件ずつ履歴を表示 */}
+      {histories.map((history) => (
         // 履歴一覧 → 詳細リンクに遷移
         <Link href={`/history/${history.id}`} key={history.id}>
-          <div key={history.id} style={{ border: "1px solid gray", margin: "16px", padding: "16px"}}>
+          <div style={{ border: "1px solid gray", margin: "16px", padding: "16px" }}>
             {/* 日付表示 */}
-            <p>日付: {new Date(history.createdAt).toLocaleDateString()}</p>
+            {/* データとして送られてきた日付を日本環境に対応した表示にする */}
+            <p>
+              日付: {new Date(history.createdAt).toLocaleDateString("ja-JP")}
+            </p>
             {/* 上位3栄養素の表示 */}
-            <h3>上位3栄養素</h3>
+            <h3>不足しやすい栄養素 上位3つ</h3>
             <ul>
-              {history.topNutrients.map((nutrient: any, index: number) => (
-                <li key={index}>
-                  {nutrient.nutrientId} : {nutrient.score}
+              {history.topNutrients.map((nutrient) => (
+                <li key={nutrient.nutrientId}>
+                  {nutrient.nutrientName} : {nutrient.score}
                 </li>
               ))}
             </ul>
@@ -69,5 +162,5 @@ export default async function HistoryPage() {
         </Link>
       ))}
     </div>
-  )
+  );
 }

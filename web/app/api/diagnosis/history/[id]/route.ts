@@ -1,12 +1,17 @@
-// 履歴詳細ページは Server Component + Prisma直読みで完結する構成に変更し、
-// 履歴詳細データ取得ロジックをAPI Routeから app/history/[id]/page.tsx に移したので
-// app/api/diagnosis/history/[id]/route.ts は現在未使用。
+// web/app/api/diagnosis/history/[id]/route.ts
+
+// 指定した診断IDの履歴詳細を取得するAPI
+// 履歴詳細ページ(web/app/history/[id]/page.tsx)から送られてきたAuthorizationヘッダーのtokenからログイン中ユーザーを確認し、
+// その本人の診断である場合だけ、本人の診断詳細だけを取得し、
+// 栄養スコア一覧・上位3件・下位3件・前回診断との差分をJSONで返すAPI
+
+// 役割
+// /api/diagnosis/history/[id]/route.ts
+//   ↓
+// 認証・本人確認・DB取得・データ整形
 
 
-// 指定した診断IDの履歴詳細を取得し、栄養スコア一覧・上位3件・下位3件・前回診断との差分を作成し、
-// 初回診断時の表示や差分文言を決めて返すAPI
 
-// 履歴詳細ページに必要な表示用データセットをこのAPIで完成させている
 
 //全体の概要
 // 1. 今回の診断を取得
@@ -37,77 +42,145 @@
 
 
 //このAPIの流れ
-// URLから diagnosisId(診断ID) を取得
+// URLの [id] から diagnosisId(診断ID) を取得
 //    ↓
-// その diagnosisId の診断(今回の診断)を取得
+// Authorizationヘッダー から token を取得
 //    ↓
-// scores と nutrient も一緒に取得
+// token の形式が Bearer形式 か確認
 //    ↓
-// 見つからなければ 404 を返す
+// Supabase で token を検証
 //    ↓
-// 今回の診断の userId を取得
+// token からログイン中ユーザー user.id を取得
 //    ↓
-// 同じ userId の前回診断を取得
+// 今回の診断を diagnosisId + user.id で本人の診断に絞り取得
+//    ↓
+// 前回診断も user.id で本人に絞って取得
 //    ↓
 // 今回の scores を見やすい配列(栄養素+栄養素ID+点数)に整形
 //    ↓
-// 上位3件を作る
+// スコア上位3件を作る
 //    ↓
-// 下位3件を作る
+// スコア下位3件を作る
 //    ↓
-// 同じnutrientIdを元に前回との差分を作る
+// 同じnutrientIdを元に前回との差分(diffLabel)を作る
 //    ↓
 // 前回データがあるか判定
 // ├─ ある → diff を計算
 // └─ ない → 前回データなし
 //    ↓
-// diffLabel(表示用)を作る
+// createdAt を toISOString() で文字列にして返す
 //    ↓
 // JSONで返す(履歴詳細ページで使いやすい形に変換して)
 
 
-//NextResponseはAPIの返り値を作るため(JSONを返す時)
-//prismaはDB操作のため
+
+
+
+// NextResponseはAPIの返り値を作るため(JSONを返す時)
+// prismaはDB操作のため
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createClientForServer } from "@/lib/supabase/server";
+import type { GetDiagnosisHistoryDetailResponse } from "@/types/diagnosisApi";
 
-//GETリクエストが来た時に実行する関数
+// GETリクエストが来た時に実行する関数
 // /api/diagnosis/history/[id]にアクセスされたときに、そのidの履歴詳細を返すため
 // params.idがURLの[id]に入っている値。[id]をもとに履歴詳細を取得する
 export async function GET(
   request: Request,
-  { params }: { params: { id:string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    //URLから診断IDを取り出す
-    const diagnosisId = params.id;
+    // URLの[id]に入っている診断IDを取り出す
+    const { id: diagnosisId } = await params;
 
-    //今回の診断を取得
-    const currentDiagnosis = await prisma.diagnosis.findUnique({
-      where: { id: diagnosisId },
+    if (!diagnosisId) {
+      return NextResponse.json(
+        { message: "診断IDが必要です" },
+        { status: 400 }
+      );
+    }
+
+    // フロント(web/app/history/[id]/page.tsx)から送られてきたAuthorization ヘッダー を取得
+    // Authorization ヘッダー にaccess token が入っている。
+    const authHeader = request.headers.get("Authorization");
+
+    // Authorization が無い場合は、ログインユーザーを判断できないのでエラーを返す
+    if (!authHeader) {
+      return NextResponse.json(
+        { message: "認証情報がありません" },
+        { status: 401 }
+      );
+    }
+
+    // tokenの形式が正しいかを確認
+    // 期待する形
+    // 「Bearer xxxxx」
+    if (!authHeader.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { message: "認証形式が正しくありません" },
+        { status: 401 }
+      );
+    }
+    
+    // Bearer の部分を外して、ログインtoken本体だけにする
+    // .trim() で前後の空白を消す
+    const token = authHeader.replace("Bearer ", "").trim();
+
+    // token が無い場合もエラー
+    if (!token) {
+      return NextResponse.json(
+        { message: "ログインが必要です" },
+        { status: 401 }
+      );
+    }
+
+    // サーバー側でSupabaseを使う準備
+    const supabase = createClientForServer();
+
+    // Supabase に token を渡して、このtokenが有効か確認して、 user.id(ログイン中ユーザー本人のID) を取得
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(token);
+
+    // token が無効、またはユーザーが取得できない場合は、未ログイン扱いにする
+    if (error || !user) {
+      return NextResponse.json(
+        { message: "ログインが必要です" },
+        { status: 401 }
+      );
+    }
+
+    // DBから今回の診断(id: diagnosisId)を完了済みの本人の診断に絞り(userId: user.id)1件取得
+    const currentDiagnosis = await prisma.diagnosis.findFirst({
+      where: {
+        id: diagnosisId,
+        userId: user.id,
+        status: "COMPLETED",
+      },
       include: {
         scores: {
           include: {
             nutrient: true,
-          }
-        }
+          },
+        },
       },
     });
 
     if (!currentDiagnosis) {
       return NextResponse.json(
-        { error: "診断結果が見つかりません" },
+        { message: "診断結果が見つかりません" },
         { status: 404 }
       );
     }
 
-    //今回の診断を行なったユーザーID(userId)を取得
-    const userId = currentDiagnosis.userId;
 
-    //前回の診断を取得
+    // 前回の診断をDBから 「userId: user.id」 で完了済みの本人の診断に絞り取得
     const previousDiagnosis = await prisma.diagnosis.findFirst({
       where: {
-        userId: userId,
+        userId: user.id,
+        status: "COMPLETED",
         createdAt: {
           lt: currentDiagnosis.createdAt,
         },
@@ -124,7 +197,7 @@ export async function GET(
       },
     });
 
-    //栄養スコアを見やすい形に整える
+    // 今回の栄養スコアを使いやすい形(配列)に整える
     // .sort((a, b) => b.score - a.score);でscoreが高い順に並び替え
     const nutrientScores = currentDiagnosis.scores
       .map((score) => ({
@@ -134,37 +207,44 @@ export async function GET(
       }))
       .sort((a, b) => b.score - a.score);
     
-    //上位3件
+    // スコアが高い順の上位3件(満たせている栄養素)
     const topNutrients = nutrientScores.slice(0, 3);
 
-    //下位3件
+    // スコアが低い順の上位3件(不足傾向の栄養素)
+    // nutrientScores で score が高い順に並べ替えた状態(配列)も表示したいので残して元の配列[...nutrientScores]を使用
     const lowNutrients = [...nutrientScores]
-    .sort((a, b) => a.score - b.score)
-    .slice(0, 3);
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 3);
 
-    //前回との差分
-
-    //差分計算する対象を同じ栄養素IDとして一致するかどうかで判断
+    // 今回の各栄養素スコアについて前回との差分データ作成
+    // 差分計算する対象を同じ栄養素ID(nutrientId)として一致するかどうかで判断して探す
+    // current は、今回の栄養素スコア1件
     const differences = nutrientScores.map((current) => {
       const previous = previousDiagnosis?.scores.find(
         (item) => item.nutrientId === current.nutrientId
       );
 
-      //前回スコアがない時nullにする。
+      // 前回の診断結果に対して前回スコアが存在する栄養素なのかを true / false に変換(フロントに返し表示するデータとして使うため)
       const hasPrevious = !!previous;
+       // 前回スコアがあればその値を使い、ない時nullにする。
       const previousScore = previous?.score ?? null;
-      //前回スコアがある時、差分計算する。
-      const diff = hasPrevious ? current.score - previous.score : null;
+      // 前回スコア(previous) が存在する時は previous.score を使って今回スコア(current.score)との差分計算
+      // 前回スコア(previous) が存在しない時は diff は null にする
+      const diff = previous ? current.score - previous.score : null;
 
+      // 差分表示用の文字列
       // 最初の初期値
-      let diffLabel = "前回データなし"
+      let diffLabel = "前回データなし";
 
       // 差分の内容ごとの表示文の条件分岐
+      // score は高いほど満たせている扱いのため、 diff > 0 を改善として表示する
+      // 今回スコア - 前回スコア がプラスの場合
+      // = 点数が上がっている → 「+〇〇 改善」
       if (diff !== null) {
         if (diff > 0) {
           diffLabel = `+${diff} 改善`;
         } else if (diff < 0) {
-          diffLabel = `${diff} 定価`;
+          diffLabel = `${diff} 低下`;
         } else {
           diffLabel = "0 変化なし";
         }
@@ -182,20 +262,23 @@ export async function GET(
       };
     });
 
-    //JSONで返す
-    return NextResponse.json({
+    const responseBody: GetDiagnosisHistoryDetailResponse = {
       id: currentDiagnosis.id,
-      createdAt: currentDiagnosis.createdAt,
+      createdAt: currentDiagnosis.createdAt.toISOString(),
       nutrientScores,
       topNutrients,
       lowNutrients,
       differences,
-    });
+    };
+    
+    // JSONで返す
+    return NextResponse.json(responseBody, { status: 200 });
+
   } catch (error) {
     console.error("履歴詳細取得エラー", error);
 
     return NextResponse.json(
-      { error: "履歴詳細の取得に失敗しました" },
+      { message: "履歴詳細の取得に失敗しました" },
       { status: 500 }
     );
   }

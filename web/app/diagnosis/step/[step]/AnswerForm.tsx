@@ -35,9 +35,10 @@
 "use client";
 
 import { supabase } from "@/lib/supabase/client";
-import { SaveDiagnosisAnswersResponse } from "@/types/diagnosisApi";
+import type { SaveDiagnosisAnswersResponse } from "@/types/diagnosisApi";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 
 // AnswerForm が親コンポーネントから受け取る値の型を定義
 type AnswerFormProps = {
@@ -79,7 +80,7 @@ export default function AnswerForm({
         return;
       }
 
-      // SUpabaseから現在のログインsession を取得
+      // Supabaseから現在のログインsession を取得
       const result = await supabase.auth.getSession();
       const session = result.data.session;
 
@@ -101,7 +102,7 @@ export default function AnswerForm({
         // Supabaseのtokenを入れ、JSON形式にする
         headers: {
           "Content-Type": "application/json",
-          Authorization: token,
+          Authorization: `Bearer ${token}`,
         },
         // APIへ送るデータをJSON文字列に変換
         body: JSON.stringify({
@@ -163,5 +164,5 @@ export default function AnswerForm({
         {isLoading ? "保存中..." : isLast ? "結果" : "次へ"}
       </button>
     </form>
-  )
+  );
 }

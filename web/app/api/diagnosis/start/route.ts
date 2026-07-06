@@ -1,49 +1,69 @@
 // web/app/api/diagnosis/start/route.ts
 
 // 診断を開始するためのAPI
-// クライアントからのリクエストを受け取り、Supabaseを使用して認証されたユーザーを確認し、
-// そのユーザーに関連付けられた新しい診断レコードをPrismaを使用してデータベースに作成し、フロント(StartButton.tsx)に診断IDを返す。
+// クライアント(StartButton.tsx)からのリクエストを受け取り、Supabase の access_tokenを使用して認証されたユーザーを確認し、
+// その認証済みユーザーの user.id を使い、Prisma の User テーブルに同じ id の User が存在するようにしてから、
+// そのユーザーに紐づく新しい診断レコード(Diagnosis)をPrismaを使用してデータベースに作成し、フロント(StartButton.tsx)に診断ID(diagnosisId)をフロントに返す。
 
 
 // このAPIの役割
-// tokenを受け取る(クライアントからのリクエストを受け取る)
-// tokenが本物か確認する。(Supabaseを使用して認証されたユーザーを確認する)
-// 本物ならDiagnosisを1件作成する(Prismaを使用して、認証されたユーザーに関連付けられた新しい診断レコードをデータベースに作成する)
-// diagnosisIdを返す(作成された診断レコードのIDをクライアントに返す)
+// クライアントから Authorization ヘッダーで token を受け取る(クライアントからのリクエストを受け取る)
+// tokenが存在するか確認する。(Supabaseを使用して認証されたユーザーを確認する)
+// Supabase Auth に token を渡して、ログイン中ユーザーを確認する
+// token が不正、または未ログインの場合は 401 を返す
+// Supabase Auth から取得した user.id を使う
+// Prisma の User テーブルに同じ id の User がなければ作成する
+// tokenが存在し、Userが存在する状態でDiagnosisを1件作成する(Prismaを使用して、認証されたユーザーに関連付けられた新しい診断レコードをデータベースに作成する)
+// diagnosisIdを返す(作成された診断レコードのIDをにStartButton.tsx返す)
+
 
 // このAPIがやらないこと
 // 回答保存はしない
 // DiagnosisAnswerはまだ作らない
+// 診断スコアはまだ作らない
 // userIdをbodyから受け取らない(サーバー側でSupabaseから取得するため)
+
+
+// なぜ userId を body から受け取らないのか
+// クライアントから userId を送る形にすると、他人の userId を送れてしまう可能性があるため
+// サーバー側で Supabase の token を検証し、ログイン中本人の user.id を使う方が安全なため
+
+// なぜ prisma.user.upsert() を行うのか
+// Diagnosis.userId は Prisma の User.id を参照している
+// Supabase Auth にユーザーが存在していても、Prisma の User テーブルに同じ id の User がない場合がある
+// その状態で Diagnosis を作成すると、Diagnosis_userId_fkey の外部キー制約エラーになる
+// そのため、Diagnosis 作成前に User テーブルへ Supabase Auth の user.id を同期する
 
 
 
 // 流れ
 // /mypage
 //   ↓
+// 「診断を始める」ボタン
 //   ↓
 // StartButton.tsx
 //   ↓
-// token を Authorization で/api/diagnosis/startに送る
+// Supabase session から token を取得
+//   ↓
+// token を Authorization ヘッダー で/api/diagnosis/startに送る
 //   ↓
 // /api/diagnosis/start
 //   ↓
-//   ↓
-// クライアントからリクエスト(token)を受け取る
-//   ↓
-// Authorizationからtoken取得
+// Authorization ヘッダーから token を取得
 //   ↓
 // tokenがあるか確認
 //   ↓
-// createClientForServer()
+// createClientForServer() で Supabase サーバー用クライアントを作成
 //   ↓
-// tokenをSupabaseに送って、このtokenはログイン中ユーザーのモノかどうかを確認
+// supabase.auth.getUser(token) でtokenをSupabaseに送って、ログイン中ユーザーのモノかどうかを確認
 //   ↓
-// tokenが不正 / 未ログインならエラーを返す
+// tokenが不正 / 未ログインならエラー(401)を返す
 //   ↓
-// tokenが確認出来た場合、user.id を取得
+// tokenが正しいと確認出来た場合、user.id を取得
 //   ↓
-// その user.id でDiagnosisテーブルにDiagnosisを1件作成
+// prisma.user.upsert() でSupabase Auth の user.id と同じ id の User を Prisma の User テーブルに用意する(同期処理)
+//   ↓
+// prisma.diagnosis.create() で、その user.id でDiagnosisテーブルにDiagnosisを1件作成
 //   ↓
 // 作成した diagnosisId をフロント(StartButton.tsx)に返す
 //   ↓
@@ -90,6 +110,18 @@ export async function POST(request: NextRequest) {
       };
       return NextResponse.json(responseBody, { status: 401 });
     }
+
+    // Prisma の User テーブルに、Supabase Auth の user.id と同じ User が存在するようにする
+    // あれば使う(update)・なければ作る(create)
+    await prisma.user.upsert({
+      where: {
+        id: user.id,
+      },
+      update: {},
+      create: {
+        id: user.id,
+      },
+    });
 
     //DiagnosisテーブルにDiagnosisを1件作成
     // Supabaseから取得した user.id を使用

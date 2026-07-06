@@ -1,8 +1,10 @@
 // web/app/diagnosis/start/StartButton.tsx
 // 診断開始ボタンコンポーネント
 
+// 診断開始ボタンを押したときに、ログイン中ユーザーの Supabase session から access_token を取得し、
+// その token を /api/diagnosis/start に送る。
+// API側で token を検証し、Diagnosis レコードを作成した後、返ってきた diagnosisId を使って step1 に遷移する。
 
-// 診断開始ボタンを押したときにログイン中ユーザーの token を取得し、開始APIを呼んで diagnosisId を受け取り、step1 に遷移するクライアントコンポーネント
 
 // API方式で実装
 
@@ -10,35 +12,53 @@
 // tokenをSupabaseから取得して、APIに渡す
 // fetchでAPIを呼び、返ってきたdiagnosisIdを使ってrouter.pushでstep1に遷移する
 
+
+// このコンポーネントがやらないこと
+// userId をクライアントから送らない
+// Diagnosis を直接作成しない
+// Prisma を直接使わない
+// 回答保存はしない
+
+
 // userIdをクライアントから送らない
-// 本人確認はAPI側で行う
-// なぜなら、userIdはサーバー側でSupabaseから取得して保存するため
-// クライアントからuserIdを送ると、他のユーザーが他人のuserIdを送って診断を始める可能性があるため
+// クライアントから userId を送ると、他人の userId を送れてしまう可能性があるため
+// 本人確認は API 側で token を検証して行う
+// API側で Supabase Auth から取得した user.id を使って Diagnosis を作成する
 
 
-// やっていること
-// ボタンを押す
-// ログイン中か確認する
-// ログイン中なら開始APIを呼ぶ
-// サーバーが診断レコードを作る
-// そのIDを受け取ってstep1へ進む
+// このコンポーネントの役割
+// 「診断を始める」ボタンを表示する
+// ボタン押下時に Supabase から現在の session を取得する
+// session から access_token を取り出す
+// token がない場合は未ログインとして /login に遷移する
+// token がある場合は /api/diagnosis/start を呼び出す
+// APIから diagnosisId を受け取る
+// /diagnosis/step/1?diagnosisId=... に遷移する
 
-// 流れ
+
+
+// 処理の流れ
+
 // StartButton.tsx
-// ↓ ボタン押下
-// session取得
-// ↓
-// token取得
-// ↓
-// /api/diagnosis/start を fetch
-// ↓
-// route.ts 側で token検証
-// ↓
-// Diagnosis作成
-// ↓
-// diagnosisId を返す
-// ↓
-// StartButton.tsx が router.push
+// ボタン押下
+//   ↓
+// isLoading を true にする
+//   ↓
+// supabase.auth.getSession() で session を取得
+//   ↓
+// session から access_token を取得
+//   ↓
+// token がなければ「ログインが必要です」と表示して /login へ遷移
+//   ↓
+// token があれば /api/diagnosis/start に POST
+//   ↓
+// API側で token 検証・User同期・Diagnosis作成
+//   ↓
+// APIから diagnosisId を受け取る
+//   ↓
+// diagnosisId があれば /diagnosis/step/1?diagnosisId=... に遷移
+//   ↓
+// 最後に isLoading を false に戻す
 
 
 
@@ -78,7 +98,7 @@ export default function StartButton() {
       //tokenが無い=未ログイン
       if (!token) {
         alert("ログインが必要です");
-        router.push("/sign_in");
+        router.push("/login");
         return;
       }
 

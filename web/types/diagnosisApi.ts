@@ -1,7 +1,31 @@
 // web/types/diagnosisApi.ts
-// 診断機能で使うAPIのリクエスト/レスポンスの型をまとめるファイル
+// 診断機能で使うAPIの以下のようなリクエスト/レスポンスの型をまとめるファイル
+// フロントからAPIへ送るbodyの型
+// APIからフロントへ返すJSONの型
+// 複数ファイルで共有するレスポンス型
+// 複数ファイルで共有するデータ1件分の型
+// APIエラーレスポンスの型
+
 // 「何を送るか」 「何が返るか」を決めている
-// フロントとサーバーでデータの形を揃える為
+
+// フロントとサーバーでデータの型を共有する為
+
+// APIの通信で送るデータ・返すデータの型を定義する
+
+
+
+
+// ------------------------------
+// 共通エラーレスポンス
+// ------------------------------
+// APIでエラーが起きたときに返すレスポンスの型を定義
+// message: 画面に表示するエラーメッセージ
+export type ApiErrorResponse = {
+  message?: string;
+};
+
+
+
 
 // ------------------------------
 // 診断開始API
@@ -142,10 +166,12 @@ export type SaveDiagnosisAnswersResponse = {
 
 // 診断結果のランキング1件分の型を定義
 
-// nutrient → 栄養素名
-// total → 栄養素の合計スコア
+// nutrientId: 栄養素ID。Reactのkeyや前回比較に使う
+// nutrient → 画面に表示する栄養素名
+// total → 保存済みの栄養素の合計スコア
 
 export type ResultRankingItem = {
+  nutrientId: string;
   nutrient: string;
   total: number;
 };
@@ -154,10 +180,10 @@ export type ResultRankingItem = {
 
 // 前回との差分付きランキングの1件分の型を定義
 
-// diff: number | null;
-// 前回診断との差分
+// diff: 今回 - 前回 の差分(前回診断との差分)
 // 初回診断では前回データ(diff)が無いため null になる可能性があるため、nullも可能にする
 export type ResultDiffRankingItem = {
+  nutrientId: string;
   nutrient: string;
   total: number;
   diff: number | null; 
@@ -192,4 +218,100 @@ export type ResultDiffRankingItem = {
 export type DiagnosisResultResponse = {
   ranking: ResultRankingItem[];
   diffRanking: ResultDiffRankingItem[];
+};
+
+
+
+
+// ------------------------------
+// 診断履歴一覧取得API
+// GET /api/diagnosis/history
+// ------------------------------
+
+// 履歴一覧で表示する上位栄養素1件分の型
+// nutrientId: 栄養素ID
+// nutrientName: 画面に表示する栄養素名
+// score: 診断で保存された栄養素スコア
+
+export type DiagnosisHistoryTopNutrient = {
+  nutrientId: string;
+  nutrientName: string;
+  score: number;
+};
+
+// 履歴一覧で表示する診断履歴1件分の型
+// id: 診断ID。/history/[id] へのリンクに使う
+// createdAt: 診断作成日。APIのJSONレスポンスでは文字列として扱う
+// topNutrients: 上位3栄養素の配列
+
+// Prisma側では createdAt はDate 型です。
+// しかし、APIで NextResponse.json() に入れてブラウザへ返すと、
+// JSONとして送られるため、日付は文字列として扱う必要があるため、string型にしている
+
+export type DiagnosisHistoryItem = {
+  id: string;
+  createdAt: string;
+  topNutrients: DiagnosisHistoryTopNutrient[];
+};
+
+// 診断履歴一覧APIから返ってくるレスポンス全体の型
+// histories: 診断履歴の配列
+
+export type GetDiagnosisHistoryResponse = {
+  histories: DiagnosisHistoryItem[];
+};
+
+
+// ------------------------------
+// 診断履歴詳細取得API
+// GET /api/diagnosis/history/[id]
+// ------------------------------
+
+
+// 履歴詳細で表示する栄養素スコア1件分の型
+// nutrient: 画面に表示する栄養素名
+// nutrientId: 栄養素ID。前回との差分比較やkeyに使う
+// score: 診断で保存された栄養素スコア
+
+export type DiagnosisHistoryDetailScore = {
+  nutrient: string;
+  nutrientId: string;
+  score: number;
+};
+
+
+// 履歴詳細で表示する前回との差分1件分の型
+// current: 今回スコア
+// previous: 前回のスコア。前回データがない場合は null
+// diff: 今回 - 前回 の差分。前回データが無い場合は null
+// hasPrevious: 前回データがあるかどうか
+// diffLabel: 画面表示用の文言
+
+// previous と diff に null を許可しているのは、初回診断では前回データが無いから
+
+export type DiagnosisHistoryDetailDifference = {
+  nutrient: string;
+  nutrientId: string;
+  current: number;
+  previous: number | null;
+  diff: number | null;
+  hasPrevious: boolean;
+  diffLabel: string; 
+};
+
+
+// 診断履歴詳細APIから返ってくるレスポンス全体の型
+// createdAt は APIレスポンスでは文字列として扱う
+// nutrientScores: 全栄養素スコア一覧
+// topNutrients: スコアが高い上位栄養素
+// lowNutrients: スコアが低い上位栄養素
+// differences: 前回との差分一覧
+
+export type GetDiagnosisHistoryDetailResponse = {
+  id: string;
+  createdAt: string;
+  nutrientScores: DiagnosisHistoryDetailScore[];
+  topNutrients: DiagnosisHistoryDetailScore[];
+  lowNutrients: DiagnosisHistoryDetailScore[];
+  differences: DiagnosisHistoryDetailDifference[];
 };
