@@ -1,6 +1,7 @@
 // web/app/api/diagnosis/[diagnosisId]/result/route.ts
 
 
+
 // 画面に見せるための結果データを作るAPI
 // ログイン中の本人の完了済み診断情報だけをDBから取得し、保存済みscores から栄養素ランキングと前回との差分を作ってJSONで返すAPI
 
@@ -114,33 +115,48 @@ export async function GET(request: Request, { params }: Props) {
     // URLの[diagnosisId]を取得
     const { diagnosisId } = await params;
 
+    if (!diagnosisId) {
+      const responseBody: DiagnosisResultResponse = {
+        success: false,
+        message: "診断IDが必要です",
+      };
+
+      return NextResponse.json(responseBody, { status: 400 });
+    }
+
     // request から Authorization header を取得(Bearer xxxxx)
     const authHeader = request.headers.get("Authorization");
 
     // Authorization header が無い場合は未ログイン扱い
     if (!authHeader) {
-      return NextResponse.json(
-        { message: "未ログインです" },
-        { status: 401 }
-      );
+      const responseBody: DiagnosisResultResponse = {
+        success: false,
+        message: "未ログインです",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
     }
 
     // Authorization header が Bearer形式でなければエラー
     if (!authHeader.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { message: "認証形式が正しくありません" },
-        { status: 401 }
-      );
+      const responseBody: DiagnosisResultResponse = {
+        success: false,
+        message: "認証形式が正しくありません",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
     }
     // "Bearer "を取り除いて、.trim() で前後の空白も削除してtokenだけを取得
     const token = authHeader.replace("Bearer ", "").trim();
 
     // tokenが空なら未ログイン扱い
     if (!token) {
-      return NextResponse.json(
-        { message: "未ログインです" },
-        { status: 401 }
-      );
+      const responseBody: DiagnosisResultResponse = {
+        success: false,
+        message: "未ログインです",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
     }
 
     // サーバー側で API Route用のSupabaseクライアント作成
@@ -154,14 +170,18 @@ export async function GET(request: Request, { params }: Props) {
     // ユーザー取得失敗 or 未ログインの場合はこのAPIを停止
     // 未ログインのままこのAPIを使わせないため
     if (userError || !user) {
-      return NextResponse.json(
-        { message: "未ログインです" },
-        { status: 401 }
-      );
+      const responseBody: DiagnosisResultResponse = {
+        success: false,
+        message: "未ログインです"
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
     }
 
-    //今回の診断データを取得
+    // 今回の診断データを取得
     // 「ログイン中ユーザー本人の完了済み診断」に限定してDBから取得
+    // URL の diagnosisId が存在するが、でもログイン中ユーザー本人の診断ではないという場合、取得できない状態
+
 
     // where: {...}で今回の診断IDで、このユーザー本人のものだけを指定
     // id がURL の diagnosisId と一致する
@@ -194,20 +214,24 @@ export async function GET(request: Request, { params }: Props) {
 
     // 今回の診断データが取得できなかった場合(存在しない診断IDと他人の診断IDと診断が未完了の場合)、エラーにする
     if (!currentDiagnosis) {
-      return NextResponse.json(
-        { message: "診断結果が見つかりません" },
-        { status: 404 }
-      );
+      const responseBody: DiagnosisResultResponse = {
+        success: false,
+        message: "診断結果が見つかりません",
+      };
+
+      return NextResponse.json(responseBody, { status: 404 });
     }
 
     // 保存済みスコアが無い場合
     // 本来は診断完了時にscoresにスコアが保存される想定
     // このエラーの場合、保存処理の不具合の可能性がある
     if (currentDiagnosis.scores.length === 0) {
-      return NextResponse.json(
-        { message: "診断スコアが見つかりません" },
-        { status: 404 }
-      );
+      const responseBody: DiagnosisResultResponse = {
+        success: false,
+        message: "診断スコアが見つかりません",
+      };
+
+      return NextResponse.json(responseBody, { status: 404 });
     }
 
     // 今回のランキングを作成
@@ -270,6 +294,7 @@ export async function GET(request: Request, { params }: Props) {
 
     // このAPIが返すJSONの型を指定
     const responseBody: DiagnosisResultResponse = {
+      success: true,
       ranking,
       diffRanking,
     };
@@ -278,10 +303,12 @@ export async function GET(request: Request, { params }: Props) {
   } catch (error) {
     console.error("結果取得APIエラー:", error);
 
-    return NextResponse.json(
-      { message: "結果取得に失敗しました" },
-      { status: 500 }
-    );
+    const responseBody: DiagnosisResultResponse = {
+      success: false,
+      message: "結果取得に失敗しました",
+    };
+
+    return NextResponse.json(responseBody, { status: 500 });
   }
 }
 

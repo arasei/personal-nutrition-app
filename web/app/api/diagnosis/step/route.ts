@@ -55,24 +55,36 @@ import type { DiagnosisStepResponse } from "@/types/diagnosisApi";
 
 // 診断ステップ画面で表示する「現在の質問」を取得するAPI
 // GET /api/diagnosis/step?diagnosisId=xxx&step=1
-export async function GET( request:NextRequest ): Promise<NextResponse<DiagnosisStepResponse>> {
+export async function GET(
+  request: NextRequest
+): Promise<NextResponse<DiagnosisStepResponse>> {
   try {
     // フロントから送られてきた Authorization header を取得
     const authorization = request.headers.get("Authorization");
 
-    // Bearer token があるか確認
+    // Authorization header がない、または Bearer 形式ではない場合の処理
     if (!authorization?.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { 
-          success: false,
-          message: "ログインが必要です",
-        },
-        { status: 401 }
-      );
+      const responseBody: DiagnosisStepResponse = {
+        success: false,
+        message: "ログインが必要です",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
     }
 
     // Bearer token から Bearer を取り除き、token 本体を取得
-    const token = authorization.replace("Bearer ", "");
+    const token = authorization.replace("Bearer ", "").trim();
+
+    // token が空の場合
+    // Authorization: Bearer のような tokenが存在しない中途半端なリクエストを弾く
+    if (!token) {
+      const responseBody: DiagnosisStepResponse = {
+        success: false,
+        message: "ログインが必要です",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
+    }
 
     // サーバー側の Supabase client を作成
     const supabase = createClientForServer();
@@ -85,13 +97,12 @@ export async function GET( request:NextRequest ): Promise<NextResponse<Diagnosis
 
     // Supabase側でエラー or userが取得できない場合
     if (error || !user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "ログイン情報を確認できませんでした",
-        },
-        { status: 401 }
-      );
+      const responseBody: DiagnosisStepResponse = {
+        success: false,
+        message: "ログイン情報を確認できませんでした",
+      };
+
+      return NextResponse.json(responseBody, { status: 401 });
     }
 
     // URL から diagnosisId と step を取得(クエリパラメータ取得)
@@ -100,24 +111,22 @@ export async function GET( request:NextRequest ): Promise<NextResponse<Diagnosis
 
     // diagnosisId がない場合
     if (!diagnosisId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "診断IDがありません",
-        },
-        { status: 400 }
-      );
+      const responseBody: DiagnosisStepResponse = {
+        success: false,
+        message: "診断IDがありません",
+      };
+
+      return NextResponse.json(responseBody, { status: 400 });
     }
 
     // step が URL についてない場合
     if (!step) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "ステップ番号がありません",
-        },
-        { status: 400 }
-      );
+      const responseBody: DiagnosisStepResponse = {
+        success: false,
+        message: "ステップ番号がありません",
+      };
+
+      return NextResponse.json(responseBody, { status: 400 });
     }
 
     // step を数値に変換
@@ -130,13 +139,12 @@ export async function GET( request:NextRequest ): Promise<NextResponse<Diagnosis
       !Number.isInteger(stepNum) ||
       stepNum < 1
     ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "不正なステップ番号です",
-        },
-        { status: 400 }
-      );
+      const responseBody: DiagnosisStepResponse = {
+        success: false,
+        message: "不正なステップ番号です",
+      };
+
+      return NextResponse.json(responseBody, { status: 400 });
     }
 
     // diagnosisId と user.id でログイン中ユーザー本人の診断か確認
@@ -148,18 +156,41 @@ export async function GET( request:NextRequest ): Promise<NextResponse<Diagnosis
       },
       select: {
         id: true,
+        status: true,
+        currentStep: true,
       },
     });
 
     // 診断がない or 本人の診断ではない場合
     if (!diagnosis) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "診断データが見つかりません",
-        },
-        { status: 404 }
-      );
+      const responseBody: DiagnosisStepResponse = {
+        success: false,
+        message: "診断データが見つかりません",
+      };
+
+      return NextResponse.json(responseBody, { status: 404 });
+    }
+
+    // 完了済み診断なら step を表示しない
+    // 完了済み診断の質問ページを開く動きを防ぎ、完了済み診断の回答の変更を防ぐため
+    if (diagnosis.status === "COMPLETED") {
+      const responseBody: DiagnosisStepResponse = {
+        success: false,
+        message: "この診断はすでに完了しています",
+      };
+
+      return NextResponse.json(responseBody, { status: 400 });
+    }
+
+    // currentStep と stepNum が違う場合は表示しない
+    // URL を直接触り、先の質問を表示することを防ぐため
+    if (diagnosis.currentStep !== stepNum) {
+      const responseBody: DiagnosisStepResponse = {
+        success: false,
+        message: "現在のステップと表示ステップが一致しません",
+      };
+
+      return NextResponse.json(responseBody, { status: 400 });
     }
 
     // 全質問数 total を取得
@@ -167,24 +198,22 @@ export async function GET( request:NextRequest ): Promise<NextResponse<Diagnosis
 
     // 質問が1件も登録されていない場合
     if (total === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "診断質問が登録されていません",
-        },
-        { status: 404 }
-      );
+      const responseBody: DiagnosisStepResponse = {
+        success: false,
+        message: "診断質問が登録されていません",
+      };
+
+      return NextResponse.json(responseBody, { status: 404 });
     }
 
     // step が 全質問数(total) を超えてないか確認
     if(stepNum > total) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "存在しないステップ番号です",
-        },
-        { status: 404 }
-      );
+      const responseBody: DiagnosisStepResponse = {
+        success: false,
+        message: "存在しないステップ番号です",
+      };
+
+      return NextResponse.json(responseBody, { status: 404 });
     }
 
     // order = stepNum に対応する質問を取得
@@ -201,34 +230,34 @@ export async function GET( request:NextRequest ): Promise<NextResponse<Diagnosis
 
     // step に対応する質問が見つからなかった場合
     if (!question) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "質問が見つかりません",
-        },
-        { status: 404 }
-      );
+      const responseBody: DiagnosisStepResponse = {
+        success: false,
+        message: "質問が見つかりません",
+      };
+
+      return NextResponse.json(responseBody, { status: 404 });
     }
 
     // 成功レスポンス
     // question / total / isLast をフロントに返す(質問データ)
     // isLast: stepNum === total, 最後の質問かどうか
-    return NextResponse.json({
-        success: true,
-        diagnosisId: diagnosis.id,
-        question,
-        total,
-        isLast: stepNum === total,
-    });
+    const responseBody: DiagnosisStepResponse = {
+      success: true,
+      diagnosisId: diagnosis.id,
+      question,
+      total,
+      isLast: stepNum === total,
+    };
+
+    return NextResponse.json(responseBody, { status: 200 });
   } catch (error) {
     console.error("failed to fetch diagnosis step:", error);
 
-    return NextResponse.json(
-      {
-        success: false,
-        message: "診断ステップの取得に失敗しました",
-      },
-      { status: 500 }
-    );
+    const responseBody: DiagnosisStepResponse = {
+      success: false,
+      message: "診断ステップの取得に失敗しました",
+    };
+
+    return NextResponse.json(responseBody, { status: 500 });
   }
 }

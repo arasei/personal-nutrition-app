@@ -83,7 +83,10 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import AnswerForm from "./AnswerForm";
-import type { DiagnosisStepResponse } from "@/types/diagnosisApi";
+import type {
+  DiagnosisStepResponse,
+  ApiErrorResponse,
+} from "@/types/diagnosisApi";
 
 
 
@@ -148,8 +151,11 @@ export default function DiagnosisStepPage() {
         const token = result.data.session?.access_token;
 
         // token がない場合、未ログイン扱い
+        // 未ログインで守りたいページなので replace で行う
+        // ブラウザの戻るボタンでまた診断ステップページへ戻りにくくするため
         if (!token) {
-          router.push("/login");
+          setErrorMessage("ログインが必要です");
+          router.replace("/login");
           return;
         }
 
@@ -171,13 +177,21 @@ export default function DiagnosisStepPage() {
         // API からのレスポンスを JSON形式で DiagnosisStepResponse の型で受け取る
         const json: DiagnosisStepResponse = await res.json();
 
-        // APIエラー・HTTPエラーの場合の処理
-        if (!res.ok || !json.success) {
+        // HTTP処理がエラーの場合の処理
+        if (!res.ok) {
+          const errorData = json as ApiErrorResponse;
+          setErrorMessage(errorData.message ?? "質問の取得に失敗しました");
+          return;
+        }
+
+        // API処理がエラーの場合の処理
+        if (!json.success) {
           setErrorMessage(json.message ?? "質問の取得に失敗しました");
           return;
         }
         
         // API から 返ってきたデータ を 保存する
+        // json.success が true の時だけ setData(json) を行う
         setData(json);
       } catch (error) {
         // 開発者向けエラー
@@ -202,9 +216,9 @@ export default function DiagnosisStepPage() {
     );
   }
 
-  // errorMessage がある or data.question がない or data.total がない or diagnosisId がないの状況の場合、
+  // errorMessage がある or data がない or data.success がない or diagnosisId がないの状況の場合、
   // 質問を表示しない。エラー表示にする。
-  if (errorMessage || !data?.question || data.total === undefined || !diagnosisId) {
+  if (errorMessage || !data || !data.success || !diagnosisId) {
     return (
       <main style={{ padding: "24px" }}>
         <p>{errorMessage || "質問を表示できませんでした"}</p>
@@ -243,16 +257,6 @@ export default function DiagnosisStepPage() {
         order={stepNum} 
         isLast={data.isLast ?? false} 
       />
-
-      {/* 戻るリンク */}
-      {/* stepが2以上の場合表示 */}
-      {stepNum > 1 && (
-        <div style={{ marginTop: 16 }}>
-          <Link href={`/diagnosis/step/${stepNum - 1}?diagnosisId=${encodeURIComponent(diagnosisId)}`}>
-            戻る
-          </Link>
-        </div>
-      )}
     </main>
   );
 }

@@ -89,6 +89,14 @@ import type {
 } from "@/types/diagnosisApi";
 
 
+// DiagnosisResultResponse には成功時のデータと失敗時のデータの両方が入る可能性がある
+// DiagnosisResultResponse の中から success: true の型(成功時のデータ)だけを取り出す
+type DiagnosisResultSuccessResponse = Extract<
+  DiagnosisResultResponse,
+  { success: true }
+>;
+
+
 
 // このページはブラウザ側で動くので、最初に await で止まる形ではなく、
 // いったん画面を返してから useEffect でデータを取りに行く流れ
@@ -101,7 +109,9 @@ export default function ResultPage() {
   const diagnosisId = params.diagnosisId;
 
   // APIから受け取る診断結果データを保存する場所
-  const [data, setData] = useState<DiagnosisResultResponse | null>(null);
+  // type DiagnosisResultSuccessResponse = ... によりdata に入るのは成功データだけ
+  // ranking / diffRanking を安全に使える
+  const [data, setData] = useState<DiagnosisResultSuccessResponse | null>(null);
   // 読み込み中かどうかを管理する場所
   const [loading, setLoading] = useState(true);
   // エラーメッセージを保存する場所
@@ -128,6 +138,7 @@ export default function ResultPage() {
 
         // tokenが無い場合、未ログイン扱い
         if (!token) {
+          setError("ログインが必要です");
           router.replace("/login");
           return;
         }
@@ -144,20 +155,25 @@ export default function ResultPage() {
         });
 
         // APIから返ってきたレスポンスをJSONとして取得
-        const responseData = await response.json();
+        const responseData: DiagnosisResultResponse = await response.json();
 
-        // API側でエラーが返ってきた場合の処理
+        // HTTP処理がエラーの場合の処理
         if (!response.ok) {
           const errorData = responseData as ApiErrorResponse;
           setError(errorData.message ?? "結果取得に失敗しました");
           return;
         }
 
-        // 成功時はAPIから診断結果データが返ってくるので、そのデータをDiagnosisResultResponse型として扱う
-        const result = responseData as DiagnosisResultResponse;
-        // APIから取得した結果データ(result)をstateに保存
+        // API処理がエラーの場合の処理
+        if (!responseData.success) {
+          setError(responseData.message ?? "結果取得に失敗しました");
+          return;
+        }
+
+        // APIから取得した結果データ(responseData)をstateに保存
+        // 成功時だけ setData(responseData) を行う
         // これにより、画面が再描画されて、SafeRadarChartやランキング一覧にデータが渡って表示される
-        setData(result);
+        setData(responseData);
       } catch (error) {
         console.error("結果取得エラー:", error);
         setError("結果取得に失敗しました");
@@ -168,9 +184,13 @@ export default function ResultPage() {
 
     // diagnosisIdがある時だけAPIを呼び出す
     // URLからIDが取れない状態でAPIを呼ばないため
-    if (diagnosisId) {
-      fetchResult();
+    if (!diagnosisId) {
+      setError("診断IDが見つかりません");
+      setLoading(false);
+      return;
     }
+
+    fetchResult();
   // diagnosisId または router が変わったときに useEffect を再実行する
   }, [diagnosisId, router]);
 

@@ -1,5 +1,6 @@
 // web/app/api/diagnosis/answers/route.ts
 
+
 // 作成済み diagnosis に1問分の回答を保存するAPI
 // 診断開始API(web/app/api/diagnosis/start)で作成済みのdiagnosisのID(diagnosisId)をクライアントから受け取り、
 // ログイン中ユーザー本人の診断であることを確認したうえで回答を保存するAPI
@@ -331,12 +332,14 @@ export async function POST(request: NextRequest) {
       !questionId ||
       typeof value !== "number" ||
       !Number.isInteger(value) ||
+      value < 1 ||
+      value > 3 ||
       typeof order !== "number" ||
       !Number.isInteger(order)
     ) {
       const responseBody: SaveDiagnosisAnswersResponse = {
         success: false,
-        message: "Invalid request body",
+        message: "回答値は1~3の整数で入力してください",
       };
       return NextResponse.json(responseBody, { status: 400 });
     }
@@ -352,6 +355,7 @@ export async function POST(request: NextRequest) {
       select: { 
         id: true,
         status: true,
+        currentStep: true,
       },
     });
 
@@ -369,6 +373,17 @@ export async function POST(request: NextRequest) {
       const responseBody: SaveDiagnosisAnswersResponse = {
         success: false,
         message: "Diagnosis already completed",
+      };
+
+      return NextResponse.json(responseBody, { status: 400 });
+    }
+
+    // 「今、この診断は Step 何番を回答する状態か？」・「送られてきた order はそれと一致しているか？」をチェック
+    // URL を直接触り、本来の順番ではない質問に回答されることを防ぐため
+    if (diagnosis.currentStep !== order) {
+      const responseBody: SaveDiagnosisAnswersResponse = {
+        success: false,
+        message: "現在のステップと回答ステップが一致しません",
       };
 
       return NextResponse.json(responseBody, { status: 400 });
@@ -436,9 +451,6 @@ export async function POST(request: NextRequest) {
 
     // 最後の質問の場合の処理
     // スコア集計・完了処理実行
-
-
-
     if (isLast) {
 
       // 今回の診断に紐づく回答一覧を全て取得
@@ -449,6 +461,18 @@ export async function POST(request: NextRequest) {
           value: true,
         },
       });
+
+      // 全質問数に対して同じ回答数があるかチェック
+      // 全質問数に対して回答数が多すぎる、少なすぎる状態を防ぐため
+      // 未回答の質問がある状態で診断を完了させない
+      if (answers.length !== total) {
+        const responseBody: SaveDiagnosisAnswersResponse = {
+          success: false,
+          message: "全ての質問に回答してください",
+        };
+
+        return NextResponse.json(responseBody, { status: 400 });
+      }
 
       // 質問IDと栄養素IDの対応表を取得
       const questions = await prisma.diagnosisQuestion.findMany({

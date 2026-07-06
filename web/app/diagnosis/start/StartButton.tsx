@@ -1,4 +1,6 @@
 // web/app/diagnosis/start/StartButton.tsx
+
+
 // 診断開始ボタンコンポーネント
 
 // 診断開始ボタンを押したときに、ログイン中ユーザーの Supabase session から access_token を取得し、
@@ -37,28 +39,37 @@
 
 
 
-// 処理の流れ
+
+// 流れ
 
 // StartButton.tsx
-// ボタン押下
+//   ↓
+// 診断を始めるボタンを押す
+//   ↓
+// errorMessage を空にする
 //   ↓
 // isLoading を true にする
 //   ↓
 // supabase.auth.getSession() で session を取得
 //   ↓
-// session から access_token を取得
+// token がない
 //   ↓
-// token がなければ「ログインが必要です」と表示して /login へ遷移
+// errorMessage に「ログインが必要です」を入れる
 //   ↓
-// token があれば /api/diagnosis/start に POST
+// /login に移動
+
+
+// 流れ(ログイン済みの場合)
+
+// token がある
 //   ↓
-// API側で token 検証・User同期・Diagnosis作成
+// /api/diagnosis/start に POST で送る
 //   ↓
-// APIから diagnosisId を受け取る
+// APIがDiagnosisを作成
 //   ↓
-// diagnosisId があれば /diagnosis/step/1?diagnosisId=... に遷移
+// diagnosisId が返る
 //   ↓
-// 最後に isLoading を false に戻す
+// /diagnosis/step/1?diagnosisId=... に移動
 
 
 
@@ -71,7 +82,10 @@
 "use client";
 
 import { supabase } from "@/lib/supabase/client";
-import { StartDiagnosisResponse } from "@/types/diagnosisApi";
+import type {
+  StartDiagnosisResponse,
+  ApiErrorResponse,
+} from "@/types/diagnosisApi";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -80,10 +94,14 @@ export default function StartButton() {
   const router = useRouter();
   //開始処理中かどうかを管理するためのstate
   const [isLoading, setIsLoading] = useState(false);
+  // エラーメッセージを画面に表示するためのstate
+  const [errorMessage, setErrorMessage] = useState("");
 
   //開始ボタンを押した時の処理
   const handleStartDiagnosis = async () => {
     try {
+      // 前回のエラー表示を消す
+      setErrorMessage("");
       // 処理開始時にローディング状態に切り替える
       setIsLoading(true);
 
@@ -97,7 +115,7 @@ export default function StartButton() {
 
       //tokenが無い=未ログイン
       if (!token) {
-        alert("ログインが必要です");
+        setErrorMessage("ログインが必要です");
         router.push("/login");
         return;
       }
@@ -106,22 +124,30 @@ export default function StartButton() {
       const res = await fetch("/api/diagnosis/start", {
         method: "POST",
         headers: {
-          Authorization: token,
+          Authorization: `Bearer ${token}`,
         },
       });
 
       //APIからのレスポンスをStartDiagnosisResponse型(共通の型)で受け取る
       const data: StartDiagnosisResponse = await res.json();
 
-      //API呼び出し失敗時
-      if (!res.ok || !data.success) {
-        alert(data.message ?? "診断開始に失敗しました");
+      // HTTP処理がエラーの場合の処理
+      if (!res.ok) {
+        const errorData = data as ApiErrorResponse;
+        setErrorMessage(errorData.message ?? "診断開始に失敗しました");
+        return;
+      }
+
+      // API処理がエラーの場合の処理
+      if (!data.success) {
+        setErrorMessage(data.message ?? "診断開始に失敗しました");
         return;
       }
 
       //API呼び出しは成功したが、診断ID(diagnosisId)が返ってこない時
+      // data.success === true の時点で、型上は diagnosisId は必須のため削除しても可能
       if (!data.diagnosisId) {
-        alert("diagnosisIdの取得に失敗しました");
+        setErrorMessage("diagnosisIdの取得に失敗しました");
         return;
       }
 
@@ -129,26 +155,35 @@ export default function StartButton() {
       router.push(`/diagnosis/step/1?diagnosisId=${data.diagnosisId}`);
     } catch (error) {
       console.error("Failed to start diagnosis:", error);
-      alert("診断開始に失敗しました");
+      setErrorMessage("診断開始に失敗しました");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleStartDiagnosis}
-      disabled={isLoading}
-      style={{
-        padding: "12px 16px",
-        borderRadius: 8,
-        border: "1px solid #ccc",
-        cursor: isLoading ? "not-allowed" : "pointer",
-        opacity: isLoading ? 0.7 : 1,
-      }}
-    >
-      {isLoading ? "開始中..." : "診断を始める"}
-    </button>
+    <div>
+      <button
+        type="button"
+        onClick={handleStartDiagnosis}
+        disabled={isLoading}
+        style={{
+          padding: "12px 16px",
+          borderRadius: 8,
+          border: "1px solid #ccc",
+          cursor: isLoading ? "not-allowed" : "pointer",
+          opacity: isLoading ? 0.7 : 1,
+        }}
+      >
+        {isLoading ? "開始中..." : "診断を始める"}
+      </button>
+
+      {/* errorMessage があるときだけ表示する */}
+      {errorMessage && (
+        <p style={{ color: "red", marginTop: 8 }}>
+          {errorMessage}
+        </p>
+      )}
+    </div>
   );
 } 
