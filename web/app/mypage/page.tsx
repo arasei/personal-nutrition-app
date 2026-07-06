@@ -1,9 +1,17 @@
 // web/app/mypage/page.tsx
 
-// ログイン後の遷移先となるマイページ
-// ログイン中ユーザーだけが表示できるように、Supabase session を確認する
-// 未ログインの場合は /login に遷移する
-// /mypage から診断開始と履歴一覧へ遷移できる
+// 全体の概要
+// - ログイン後の遷移先となるマイページ
+// - 「診断を始める」・「履歴を見る」 のボタン と リンク から 診断開始ページ(`web/app/diagnosis/start/page.tsx`) or 履歴一覧ページ(`web/app/history/page.tsx`) へ遷移可能 なページ
+
+
+
+// ポイント
+// - ログイン中ユーザーだけが表示できるように、Supabase session を確認する
+// - 未ログインの場合は /login に遷移する
+// - /mypage から診断開始と履歴一覧へ遷移できる
+
+
 
 // このページの役割
 // - ログイン状態を確認する
@@ -13,13 +21,9 @@
 // - 履歴一覧へのリンクを表示する 
 
 
-// 現在はログイン状態をブラウザ側で確認するため Client Component 仕様
-// Supabase session を確認し、未ログインの場合は /login に遷移する
-// StartButton.tsx も Client Component として診断開始処理を担当する
 
 
-
-// 流れ
+// このファイル内の流れ
 // /login
 //   ↓
 // ログイン成功
@@ -46,7 +50,6 @@
 
 
 
-// web/app/mypage/page.tsx
 
 "use client";
 
@@ -61,7 +64,7 @@ export default function Mypage() {
   const router = useRouter();
 
   // ログイン状態を確認中かどうかを管理
-  // 最初はまだ確認前なので true とする
+  // - 最初はまだ確認前なので true とする
   const [isCheckingLogin, setIsCheckingLogin] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -74,7 +77,7 @@ export default function Mypage() {
         // 取得結果から現在のログイン session を取得
         const session = result.data.session;
         // session の中から access_token を取り出す
-        // 「?.」があるので、session token が無い場合でもエラーにならない
+        // - 「?.」があるので、session token が無い場合でもエラーにならない
         const token = session?.access_token;
 
         // token が無い場合、未ログインと判断し、ログインページへ遷移する
@@ -98,26 +101,41 @@ export default function Mypage() {
 
   // ログイン確認中はマイページ本体を表示しない
   if (isCheckingLogin) {
-    return <p>ログイン状態を確認中です...</p>;
+    return (
+      <main className="mx-auto w-full max-w-md px-4 py-8">
+        <p>ログイン状態を確認中です...</p>
+      </main>
+    );
   }
 
   if (errorMessage) {
-    return <p>{errorMessage}</p>;
+    return (
+      <main className="mx-auto w-full max-w-md px-4 py-8">
+        <p>{errorMessage}</p>
+      </main>
+    );
   }
 
+  // マイページ の 内容を表示する箱の幅 を ログイン・新規登録画面と同じ幅に制限する
+  // - max-w-md: 最大幅 を 約448px に制限している
   return (
-    <main>
-      <h1>マイページ</h1>
+    <main className="mx-auto w-full max-w-md px-4 py-8">
+      <h1 className="text-2xl font-bold">
+        マイページ
+      </h1>
 
-      <p>メニュー</p>
+      <p className="mt-2 text-sm">
+        メニュー
+      </p>
 
-      <div>
+      <div className="mt-6 space-y-3">
         {/* 診断開始ボタン */}
         <StartButton />
-      </div>
 
-      <div>
-        <Link href="/history">履歴を見る</Link>
+        {/* 履歴一覧ページ(`web/app/history/page.tsx`) へ 遷移するためのリンク<Link>...</Link> */}
+        <Link href="/history" className="block text-sm underline">
+          履歴を見る
+        </Link>
       </div>
     </main>
   );

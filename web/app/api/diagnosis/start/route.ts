@@ -49,6 +49,7 @@
 //   ↓
 // `web/app/diagnosis/start/StartButton.tsx`
 //   ↓
+// 認証
 // useSupabaseSession.ts で token を取得して、ログイン確認
 //   ↓
 // token を `diagnosis/start/StartButton.tsx` に渡す
@@ -72,10 +73,13 @@
 // 認証成功
 // tokenが正しいと確認出来た場合、user.id を取得
 //   ↓
-// prisma.user.upsert() でSupabase Auth の user.id と同じ id の User を Prisma の User テーブルに用意する(同期処理)
-// あれば使う(update)・なければ作る(create)
+// prisma.diagnosis.create() を 実行し、DiagnosisテーブルにDiagnosisを1件作成
 //   ↓
-// prisma.diagnosis.create() で、その user.id でDiagnosisテーブルにDiagnosisを1件作成
+// user.connectOrCreate で Prisma側の User を確認する
+//   ↓
+// 取得した user.id と同じ User が存在すれば紐づけて接続する
+//   ↓
+// 取得した user.id と同じ User が 存在しなければ user.id を元に User を作成して Diagnosis に紐づける
 //   ↓
 // 作成した diagnosisId をフロント(`web/app/diagnosis/start/StartButton.tsx`)に返す
 
@@ -114,7 +118,7 @@
 // ↓
 // API側で Diagnosis 作成
 // ↓
-// API側から diagnosisId を  `web/app/diagnosis/start/StartButton.ts` に返す
+// API側から diagnosisId を  `web/app/diagnosis/start/StartButton.tsx` に返す
 // ↓
 // `web/app/diagnosis/start/StartButton.ts`
 // ↓
@@ -150,28 +154,29 @@ export async function POST(request: NextRequest) {
     const user = authResult.user;
     // -------------------------------------------------------------------------------------------------
 
-    // Prisma の User テーブルに、Supabase Auth の user.id と同じ User が存在するようにする
-    // - あれば使う(update)・なければ作る(create)
-    // - Supabase Auth にはユーザーがいても、Prisma 側の User テーブルに存在しない場合を防ぐため
-    await prisma.user.upsert({
-      where: {
-        id: user.id,
-      },
-      update: {},
-      create: {
-        id: user.id,
-      },
-    });
-
     // DiagnosisテーブルにDiagnosisを1件作成
     // - Diagnosis 作成時にログイン中ユーザーへ紐付ける
     // - Supabaseから取得した user.id を使用して、この診断をログイン中ユーザー本人の診断として作成
+    // - Diagnosis を作成する時に、User がいれば接続し、なければ User も作成する
+
+    // `user: { connectOrCreate: {...} }`
+    // - ユーザーとの紐付けを担当している
+    // - Prisma の User テーブルに、Supabase Auth の user.id と同じ User が存在するようにする
+    // - すでに、User テーブルに今回と同じ user.id の User が存在すれば、接続し、その User を使用する
+    // - まだ、User テーブル に 今回の user.id の User が存在しない場合は、User を作成する
+    // - Supabase Auth にはユーザーがいても、Prisma 側の User テーブルに存在しない場合を防ぐため
     const diagnosis = await prisma.diagnosis.create({
       data: {
-        userId: user.id,
         currentStep: 1,
         status: "IN_PROGRESS",
         startedAt: new Date(),
+
+        user: {
+          connectOrCreate: {
+            where: { id: user.id },
+            create: { id: user.id },
+          },
+        },
       },
       select: {
         id: true,

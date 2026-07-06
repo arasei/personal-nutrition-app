@@ -2,6 +2,7 @@
 //共通設定
 //============
 
+
 //Prisma Client（DB操作用のJSコード）を自動生成する設定
 generator client {
   provider = "prisma-client-js"

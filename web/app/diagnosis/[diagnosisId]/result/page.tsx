@@ -47,7 +47,7 @@
 // /api/diagnosis/abc123/result
 
 // - そのため、
-// const response = await fetch(url, {
+// const response = await fetch(url, {...}
 // は、実質こう書いているのと同じです。
 // const response = await fetch(
 //   `/api/diagnosis/${diagnosisId}/result`,
@@ -156,6 +156,9 @@
 // `web/app/diagnosis/[diagnosisId]/result/page.tsx`
 //   ↓
 // フロント側が画面にチャートとランキングを表示
+//   ↓
+// 「今回の履歴詳細を見る」・「マイページ」 の<Link>...</Link> から
+// `web/app/history/[diagnosisId]/page.tsx`・`web/app/mypage/page.tsx` へ遷移可能
 
 
 
@@ -212,6 +215,7 @@
 
 "use client";
 
+import LinkButton from "@/components/ui/LinkButton";
 import useSWR from "swr";
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -245,12 +249,12 @@ export default function ResultPage() {
   const diagnosisId = params.diagnosisId;
 
   // ログイン中の token と ログイン状態を確認中かどうかを取得する(ログイン確認)
-  // session 取得処理をページごとに書かず、共通フックにまとめて実行
-  // SWR にも isLoading があるため、名前がぶつからないように useSupabaseSession の isLoading は isSessionLoading と名前を変える
+  // - session 取得処理をページごとに書かず、共通フックにまとめて実行
+  // - SWR にも isLoading があるため、名前がぶつからないように useSupabaseSession の isLoading は isSessionLoading と名前を変える
   const { token, isLoading: isSessionLoading } = useSupabaseSession();
 
   // SWR を使い API を呼びだす
-  // この関数の中で SWR で指定したURL(url) を fetch(url)を行い、取得し、API を呼び出し、結果を処理する
+  // - この関数の中で SWR で指定したURL(url) を fetch(url)を行い、取得し、API を呼び出し、結果を処理する
   const fetcher = async (url: string): Promise<DiagnosisResultSuccessResponse> => {
     // token が無い場合、未ログイン扱い
     if (!token) {
@@ -340,7 +344,7 @@ export default function ResultPage() {
   }
 
   return (
-    <div>
+    <main className="mx-auto w-full max-w-4xl px-4 py-8">
       <h1>診断結果</h1>
 
       <section>
@@ -371,6 +375,36 @@ export default function ResultPage() {
           </div>
         ))}
       </section>
-    </div>
+
+      <nav
+        aria-label="診断結果の移動"
+        className="mt-8 flex flex-wrap gap-3"
+      >
+        {/*
+          LinkButton でページ遷移を可能にする
+          - あらかじめ行き先が決まっている通常ページ移動のため LinkButton を使用する
+        */}
+        {/*
+          - 今回の履歴詳細を見る
+          → primary
+          → 黒背景・白文字
+
+          - マイページへ
+          → secondary
+          → 白背景・枠線
+        */}
+        {/* 履歴詳細ページへ の <LinkButton></LinkButton> を用意し、今回の診断ID(diagnosisId) を元に`web/app/history/[diagnosisId]/page.tsx` へ遷移可能にする */}
+        {/* primary: 主ボタン */}
+        <LinkButton href={`/history/${diagnosisId}`}>
+          今回の履歴詳細を見る
+        </LinkButton>
+
+        {/* マイページへ の <LinkButton></LinkButton> を用意し、`web/app/mypage/page.tsx` へ遷移可能にする */}
+        {/* secondary: 副ボタン */}
+        <LinkButton href="/mypage" variant="secondary">
+          マイページへ
+        </LinkButton>
+      </nav>
+    </main>
   );
 }

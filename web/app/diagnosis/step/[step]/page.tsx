@@ -256,11 +256,15 @@ export default function DiagnosisStepPage() {
 
   // errorMessage がある or data がない or data.success がない or diagnosisId がないの状況の場合、
   // 質問を表示しない。エラー表示にする。
+  // - 診断質問ページ の 内容を表示する幅 を制限する、
+  // max-w-xl: 最大幅 を約576px に制限している
   if (errorMessage || !data || !data.success || !diagnosisId) {
     return (
-      <main style={{ padding: "24px" }}>
+      <main className="mx-auto w-full max-w-xl space-y-4 px-4 py-8">
         <p>{errorMessage || "質問を表示できませんでした"}</p>
-        <Link href="/mypage">マイページへ戻る</Link>
+        <Link href="/mypage" className="text-sm underline">
+          マイページへ戻る
+        </Link>
       </main>
     );
   }
@@ -270,17 +274,21 @@ export default function DiagnosisStepPage() {
   const stepNum = data.question.order;
 
   return (
-    <main style={{ padding: "24px" }}>
+    <main className="mx-auto w-full max-w-xl px-4 py-8">
       {/* ページタイトル */}
-      <h1>診断 Step {stepNum}</h1>
+      <h1 className="text-2xl font-bold">
+        診断 Step {stepNum}
+      </h1>
 
       {/* 現在の質問番号と全質問数 */}
-      <p>
+      <p className="mt-3 text-sm">
         現在の質問番号: {stepNum}/{data.total}
       </p>
 
       {/* 質問文 */}
-      <p>質問: {data.question.questionText}</p>
+      <p className="mt-2 text-lg font-medium">
+        質問: {data.question.questionText}
+      </p>
 
       {/* 回答保存の為のフォーム追加 */}
       {/* 回答保存は AnswerForm.tsx 側で行う */}

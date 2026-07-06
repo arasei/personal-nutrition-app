@@ -18,6 +18,23 @@
 
 
 // ポイント
+// - StartButton.tsx
+// → 診断を開始する「機能」を持つ
+// → API呼び出し・ログイン確認・画面遷移
+
+// - Button.tsx
+// → ボタンの「見た目」を持つ
+// → ボタンの色・余白・角丸・disabled 時の見た目
+
+
+// - type="button"
+// → 通常のクリック用ボタン
+
+// - type="submit"
+// → フォーム送信用ボタン
+
+// - StartButton(診断開始ボタン) は フォーム送信ではないため、 type="button" とする
+
 // - handleStartDiagnosis関数内で、useSupabaseSession から受け取った token をAPI(`web/app/api/diagnosis/start/route.ts`)に渡す
 // - fetchでAPIを呼び、API から返ってきたdiagnosisIdを使ってrouter.pushでstep1に遷移する
 
@@ -132,6 +149,7 @@ import type {
 } from "@/types/diagnosisApi";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Button from "@/components/ui/Button";
 
 
 export default function StartButton() {
@@ -216,25 +234,20 @@ export default function StartButton() {
   const isButtonDisabled = isSessionLoading || isStarting;
 
   return (
-    <div>
-      <button
+    <div className="space-y-2">
+
+      <Button
         type="button"
         onClick={handleStartDiagnosis}
         disabled={isButtonDisabled}
-        style={{
-          padding: "12px 16px",
-          borderRadius: 8,
-          border: "1px solid #ccc",
-          cursor: isButtonDisabled ? "not-allowed" : "pointer",
-          opacity: isButtonDisabled ? 0.7 : 1,
-        }}
+        className="w-full"
       >
-        {isButtonDisabled ? "開始中..." : "診断を始める"}
-      </button>
+        {isSessionLoading ? "ログイン確認中..." : isStarting ? "開始中..." : "診断を始める"}
+      </Button>
 
       {/* errorMessage があるときだけ表示する */}
       {errorMessage && (
-        <p style={{ color: "red", marginTop: 8 }}>
+        <p className="text-sm text-red-600">
           {errorMessage}
         </p>
       )}

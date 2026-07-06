@@ -1,23 +1,41 @@
 // web/app/signup/page.tsx
 
-// 新規登録ページ
-// Supabase Auth に新しいユーザーを登録するページ
+// 全体の概要
+// - 新規登録ページ
+// - Supabase Auth に新しいユーザーを登録するページ
+// Supabase の管理画面でユーザーを手動作成するのではなく、/signup ページを作り、
+// そこからユーザー登録するため
 
-// Supabase の管理画面でユーザーを手動作成するのではなく、
-// 自分のアプリの中に /signup ページを作り、
-// そこからユーザー登録するためのページ
 
-// ユーザーが
-// メールアドレス・パスワードを入力してボタンを押すと
-// supabase.auth.signUp({
-//   email,
-//   password,
-// });
-// を実行
-// これにより、SupabaseのAuth Usersにユーザーが作成される
+
+
+
+// 役割
+// - 新規登録フォームを表示
+// - メールアドレスを入力する
+// - パスワードを入力する
+// - supabase.auth.signUp() を呼ぶ
+// - 成功したらログインページへ遷移する
+
+
+
+
+// ポイント
+
+// signup/page.tsx
+// → メールアドレス・パスワードの管理
+// → Supabase Auth へ新規登録を依頼
+// → 成功・失敗メッセージを表示
+
+// Button.tsx
+// → ボタンの見た目を統一
+
+
+
 
 
 // 新規登録の流れ
+
 // Next.js の signup/page.tsx
 //   ↓
 // Supabase client
@@ -26,20 +44,24 @@
 //   ↓
 // auth.users にユーザー作成
 
+// - ユーザーが、メールアドレス・パスワードを入力してボタンを押すと
+// supabase.auth.signUp({
+//   email,
+//   password,
+// });
+// を実行
+// これにより、SupabaseのAuth Usersにユーザーが作成される
 
 
 
 
-// 役割
-// 新規登録フォームを表示
-// メールアドレスを入力する
-// パスワードを入力する
-// supabase.auth.signUp() を呼ぶ
-// 成功したらログインページへ遷移する
 
 
 
-// 流れ
+
+
+
+// このファイル内の流れ
 
 // ユーザー
 // ↓
@@ -54,6 +76,10 @@
 // Supabase Auth にユーザー作成し、登録
 // ↓
 // 登録成功
+// ↓
+// 成功メッセージを表示
+// ↓
+// ユーザーが「ログインページへ移動する」を押す
 // ↓
 // /login に移動
 // ↓
@@ -71,7 +97,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
-
+import Button from "@/components/ui/Button";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -84,7 +110,7 @@ export default function SignupPage() {
   // 登録失敗した時のエラーメッセージを保存する場所
   const [errorMessage, setErrorMessage] = useState("");
   // 登録成功した時のメッセージを保存する場所
-  const [successMessage, setSuccessMessage] = useState("")
+  const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   // フォームが送信されたときに実行される関数
@@ -93,12 +119,12 @@ export default function SignupPage() {
     e.preventDefault();
 
     setErrorMessage("");
-    setSuccessMessage("")
+    setSuccessMessage("");
     setIsLoading(true);
 
     try {
       // supabase.auth.signUp() が新規登録処理を行う
-      // Supabase Authに対して「このメールアドレスとパスワードで新規登録してください」と依頼
+      // - Supabase Authに対して「このメールアドレスとパスワードで新規登録してください」と依頼
       const result = await supabase.auth.signUp({
         email: email,
         password: password,
@@ -190,13 +216,13 @@ export default function SignupPage() {
           <p className="text-sm text-green-600">{successMessage}</p>
         )}
 
-        <button
+        <Button
           type="submit"
           disabled={isLoading}
-          className="w-full rounded bg-black px-4 py-2 text-white disabled:opacity-50"
+          className="w-full"
         >
           {isLoading ? "登録中..." : "新規登録する"}
-        </button>
+        </Button>
       </form>
 
       <button
