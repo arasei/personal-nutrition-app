@@ -69,6 +69,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { Input } from "@/components/ui/Input";
+import { Label } from "@/components/ui/Label";
+
 
 export default function SignupPage() {
   const router = useRouter();
@@ -126,32 +129,55 @@ export default function SignupPage() {
         新規登録
       </h1>
 
+      {/* 
+      htmlFor と id を メールアドレスに追加することで
+      label と input を "email" という名前で紐づけることができる
+
+      「メールアドレス」という文字をクリック
+      ↓
+      メールアドレス入力欄にカーソルが入る
+       */}
       <form onSubmit={handleSignup} className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium">
+          <Label htmlFor="email">
             メールアドレス
-          </label>
-          <input
+          </Label>
+          <Input
+            id="email"
+            name="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full rounded border px-3 py-2"
+            autoComplete="email"
             placeholder="example@example.com"
           />
         </div>
 
+
+        {/*
+        autoComplete : 
+        signup
+        → new-password
+        → 新しく作るパスワード
+
+        login
+        → current-password
+        → 既に登録済みのパスワード
+        */}
         <div>
-          <label className="mb-1 block text-sm font-medium">
+          <Label htmlFor="password">
             パスワード
-          </label>
-          <input
+          </Label>
+          <Input
+            id="password"
+            name="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={6}
-            className="w-full rounded border px-3 py-2"
+            autoComplete="new-password"
             placeholder="6文字以上で入力"
           />
         </div>

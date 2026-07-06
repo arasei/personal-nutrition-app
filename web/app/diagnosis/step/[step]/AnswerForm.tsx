@@ -137,6 +137,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 // フォームの値、エラー、送信中状態をまとめて管理するため
 import { useForm } from "react-hook-form";
+import { Input } from "@/components/ui/Input";
 
 // AnswerForm が親コンポーネントから受け取る値(props)の型を定義
 // - diagnosisId: どの診断に回答を保存するかを示すID
@@ -286,12 +287,13 @@ export default function AnswerForm({
   return (
     // react-hook-form のhandleSubmit を通して、 onSubmit を実行する
     <form onSubmit={handleSubmit(onSubmit)} noValidate style={{ marginTop: 16}}>
-      <input
+      <Input
+        id="answer"
         type="number"
         placeholder="1~3で入力"
         min={1}
         max={3}
-        style={{ padding: 8, width: 320 }}
+        className="w-80"
         // input の値を answer という名前の入力欄で react-hook-form に管理させる
         // - 送信時に values.answer として受け取る
         // - {...register("answer", {...})} : register から返ってきた input 用の設定を、input にまとめて渡している

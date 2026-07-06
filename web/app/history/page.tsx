@@ -294,6 +294,7 @@ import type {
   DiagnosisHistoryItem,
   GetDiagnosisHistoryResponse,
 } from "@/types/diagnosisApi";
+import { PageLoading } from "@/components/ui/PageLoading";
 
 
 // 履歴APIを呼び出すfetcher関数
@@ -388,7 +389,7 @@ export default function HistoryPage() {
   );
 
   if (isSessionLoading) {
-    return <p>ログイン情報を確認中です...</p>;
+    return <PageLoading message="ログイン情報を確認中です..." />;
   }
 
   if (!token) {
@@ -396,7 +397,7 @@ export default function HistoryPage() {
   }
 
   if (isHistoryLoading) {
-    return <p>履歴一覧を読み込み中です...</p>;
+    return <PageLoading message="履歴一覧を読み込み中です..." />;
   }
 
   if (error) {

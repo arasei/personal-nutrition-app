@@ -222,6 +222,7 @@ import type {
   DiagnosisResultResponse,
   ApiErrorResponse,
 } from "@/types/diagnosisApi";
+import { PageLoading } from "@/components/ui/PageLoading";
 
 
 // DiagnosisResultResponse には成功時のデータと失敗時のデータの両方が入る可能性がある
@@ -315,7 +316,7 @@ export default function ResultPage() {
 
   // 読み込み中の時の表示
   if (isSessionLoading || isLoading) {
-    return <div>読み込み中...</div>;
+    return <PageLoading />;
   }
 
   // diagnosisIdがない・エラー・データがない場合の表示
