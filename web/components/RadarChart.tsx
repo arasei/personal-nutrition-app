@@ -20,7 +20,11 @@
 // - Filler: 内側の塗りつぶし
 // - Tooltip: マウスを乗せた時の詳細
 // - Legend: 栄養スコア の グラフの 色 や 線 の説明欄
-// - plugins: チャートの追加機能の設定場所
+
+// このファイルで使用する Chart.js の設定
+// - scales: レーダーチャート専用の放射状の軸の表示ルール設定場所
+// - plugins: チャートの凡例やツールチップなどの追加表示の設定場所
+
 
 
 // 今回追加した要素
@@ -115,11 +119,25 @@ type Props = {
 
 // aspectRatio: 横幅と高さの比率を 1 : 1 (正方形) にする
 
+// scales: レーダーチャート専用の放射状の軸を設定
+// - min: 0 → 最小値を0にする(グラフの中心)
+// - max: 100 → 最大値を100にする(グラフの外側)
+// - ticks.stepSize: 20 → 目盛りの間隔を20ごとにして、表示
+
 // plugins(チャートの追加機能の追加場所) で legend(グラフの色や線の説明欄) の position をチャートの上部("top")に指定
 const options: ChartOptions<"radar"> = {
   responsive: true,
   maintainAspectRatio: true,
   aspectRatio: 1,
+  scales: {
+    r: {
+      min: 0,
+      max: 100,
+      ticks: {
+        stepSize: 20,
+      },
+    },
+  },
   plugins: {
     legend: {
       position: "top",

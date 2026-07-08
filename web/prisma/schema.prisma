@@ -1,3 +1,5 @@
+// web/prisma/schema.prisma
+
 //============
 //共通設定
 //============
@@ -405,7 +407,9 @@ model NutrientMessage {
 //id String @id @default(cuid())：スコア保存レコードの主キー。
 //diagnosisId String：どの診断の結果か。
 //nutrientId String：どの栄養素のスコアか。
-//score Int：合計スコア（回答ログから集計して保存する）。
+//score Int
+// - 栄養素ごとの 0~100 の栄養充足傾向スコア（回答ログから集計して保存する）。
+// - 高いほど不足リスクが低く、低いほど不足しやすい傾向を表す。
 //diagnosis Diagnosis @relation(...)：診断イベントへ紐づく。
 //nutrient Nutrient @relation(...)：栄養素マスタへ紐づく。
 //@@unique([diagnosisId, nutrientId])：診断×栄養素=1行 を保証（上書き/再計算が安全）。
