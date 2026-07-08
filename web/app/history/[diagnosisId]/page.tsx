@@ -355,23 +355,25 @@ export default function HistoryDetailPage() {
     );
   }
   
-  // APIから来るデータをチャート用のデータ形に変換
-  // - nutrientはそのまま、score を total に変換して、SafeRadarChartに渡す。
+  // APIから来るデータ(nutrientScores)をチャート用のデータ形(ranking 形式)に変換
+  // - nutrientId はそのまま SafeRadarChar に渡す。
+  // - nutrient はそのまま SafeRadarChar に渡す。
+  // - item.score を ranking.score として、SafeRadarChart に渡す。
 
   // 変換の流れ
 
   // APIの nutrientScores
-  // score
+  // nutrientScores.score
   // ↓
-  // チャート用 ranking
-  // total
+  // チャート用 ranking のために、item.score を ranking[].score に変換
+  // ranking.score
   // ↓
-  // SafeRadarChart
+  // SafeRadarChartに ranking を渡す
 
   const ranking = historyDetail.nutrientScores.map((item) => ({
     nutrientId: item.nutrientId,
     nutrient: item.nutrient,
-    total: item.score,
+    score: item.score,
   }));
 
 
@@ -404,9 +406,9 @@ export default function HistoryDetailPage() {
           <p>栄養素スコアがありません。</p>
         ) : (
           <ul>
-            {historyDetail.nutrientScores.map((score) => (
-              <li key={score.nutrientId}>
-                {score.nutrient} : {score.score}
+            {historyDetail.nutrientScores.map((nutrientScore) => (
+              <li key={nutrientScore.nutrientId}>
+                {nutrientScore.nutrient} : {nutrientScore.score}
               </li>
             ))}
           </ul>

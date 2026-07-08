@@ -245,12 +245,12 @@ export type SaveDiagnosisAnswersResponse =
 
 // - nutrientId: 栄養素ID。Reactのkeyや前回比較に使う
 // - nutrient → 画面に表示する栄養素名
-// - total → 保存済みの栄養素の合計スコア
+// - score → 保存済みの0~100の栄養素充足スコア(高いほど不足傾向が低く、低いほど不足傾向が高い)
 
 export type ResultRankingItem = {
   nutrientId: string;
   nutrient: string;
-  total: number;
+  score: number;
 };
 
 
@@ -263,7 +263,7 @@ export type ResultRankingItem = {
 export type ResultDiffRankingItem = {
   nutrientId: string;
   nutrient: string;
-  total: number;
+  score: number;
   diff: number | null; 
 };
 

@@ -1,6 +1,7 @@
 // web/app/api/diagnosis/[diagnosisId]/result/route.ts
 
 
+
 // 全体の概要
 // - 画面に見せるための結果データを作るAPI
 // - ログイン中ユーザー本人の完了済み診断情報だけをDBから取得し、保存済みscores から栄養素ランキングと前回との差分を作ってJSONで返すAPI
@@ -210,7 +211,7 @@ export async function GET(request: Request, { params }: Props) {
       .map((item) => ({
         nutrientId: item.nutrientId,
         nutrient: item.nutrient.name,
-        total: item.score,
+        score: item.score,
       }));
 
     // 今回の 診断scores より前の 診断scores を1件取得(今回の診断と同じユーザーID(currentDiagnosis.userId)を持つ診断に限定する)
@@ -255,12 +256,12 @@ export async function GET(request: Request, { params }: Props) {
       const previousScore = previousScoreMap[item.nutrientId];
       // 前回スコア(score) がある場合、計算し差分を出す。
       // - 初回診断の場合、今回スコア(score)のみ表示し、差分は表示しない(null)
-      const diff = previousScore !== undefined ? item.total - previousScore : null;
+      const diff = previousScore !== undefined ? item.score - previousScore : null;
       // 今回診断の栄養素ごとのランキングデータ(前回診断スコアとの差分付き)として `web/app/diagnosis/[diagnosisId]/result/page.tsx` に返す
       return {
         nutrientId: item.nutrientId,
         nutrient: item.nutrient,
-        total: item.total,
+        score: item.score,
         diff,
       };
     });

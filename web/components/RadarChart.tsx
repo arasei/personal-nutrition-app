@@ -1,5 +1,6 @@
 // web/components/RadarChart.tsx
 
+
 // 全体の概要
 // - rankingデータをChart.js用データ(labels/datasets)に変換し、レーダーチャートとして表示するコンポーネント
 // - 診断結果で算出した栄養素ランキング(ranking)をChart.jsを使ってレーダーチャートとして表示する機能
@@ -52,7 +53,7 @@
 // dynamic import で RadarChart をブラウザ側だけ読み込む
 //   ↓
 // ranking.map(item => item.nutrient)
-// ranking.map(item => item.total)
+// ranking.map(item => item.score)
 //   ↓
 // 読み込み中は「チャートを読み込み中...」
 //   ↓
@@ -153,7 +154,7 @@ export default function RadarChart({ ranking }: Props) {
     datasets: [
       {
         label: "栄養スコア",
-        data: ranking.map((item) => item.total),
+        data: ranking.map((item) => item.score),
         backgroundColor: "rgba(54,162,235,0.2)",
         borderColor: "rgba(54,162,235,1)",
       },

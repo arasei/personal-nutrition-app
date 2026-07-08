@@ -362,7 +362,7 @@ export default function ResultPage() {
         {data.diffRanking.map((item, index) => (
           <div key={item.nutrientId}>
             {/* index は 0から始まるので 「+ 1」をする */}
-            {index + 1}位 {item.nutrient} {item.total}点
+            {index + 1}位 {item.nutrient} {item.score}点
             {/* 前回との差分がある場合だけ表示 */}
             {/* プラスの時は「+」、マイナスの時は「-」を表示 */}
             {item.diff !== null && (
