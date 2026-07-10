@@ -11,11 +11,11 @@
 
 // ポイント
 
-// - lowNutrients = 不足度が高い順の上位3栄養素
+// - lowNutrients = 不足傾向が高い順の上位3栄養素
 
 // - scores: 各診断の栄養素スコア
 // scores: {
-//           orderBy: { score: "asc" }, // score が低い順 = 不足度が高い
+//           orderBy: { score: "asc" }, // score が低い順 = 不足傾向が高い
 //           include: { nutrient: true },
 //         },
 
@@ -208,9 +208,9 @@
 //   ↓
 // Prismaで user.id で本人の完了済み診断だけ取得(Prisma で userId: user.id の履歴だけ検索)
 //   ↓
-// scores を score 昇順(score の低い順 = 不足度が高い順)で取得
+// scores を score 昇順(score の低い順 = 不足傾向が高い順)で取得
 //   ↓
-// 不足度が高い順で並べたランキングの上位3栄養素(lowNutrients)だけ整形して作成
+// 不足傾向が高い順で並べたランキングの上位3栄養素(lowNutrients)だけ整形して作成
 //   ↓
 // 履歴一覧表示に必要な値(histories) を `web/app/history/page.tsx` に返す
 //   ↓

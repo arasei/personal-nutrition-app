@@ -143,9 +143,9 @@
 //   ↓
 // Prismaで user.id で本人の完了済み診断だけ取得(Prisma で userId: user.id の履歴だけ検索)
 //   ↓
-// scores を score 昇順(score の低い順 = 不足度が高い順)で取得
+// scores を score 昇順(score の低い順 = 不足傾向が高い順)で取得
 //   ↓
-// 不足度が高い順で並べたランキングの上位3栄養素(lowNutrients)だけ整形して作成
+// 不足傾向が高い順で並べたランキングの上位3栄養素(lowNutrients)だけ整形して作成
 //   ↓
 // 履歴一覧表示に必要な値(histories) を `web/app/history/page.tsx` に返す
 //   ↓
@@ -327,7 +327,7 @@ export async function GET(
 
     // 栄養素スコアデータを画面表示用に整形
     // - 今回の栄養スコアを使いやすい形(配列)に整えて、栄養スコア一覧を作成
-    // - .sort((a, b) => b.score - a.score);でscoreが高い順に並び替え
+    // - .sort((a, b) => b.score - a.score);で score が高い順に並び替えている
     const nutrientScores = currentDiagnosis.scores
       .map((score) => ({
         nutrient: score.nutrient.name,
@@ -337,10 +337,12 @@ export async function GET(
       .sort((a, b) => b.score - a.score);
 
     // スコアが高い順の上位3件(満たせている栄養素トップ3)
+    // - `const nutrientScores = ... ` で score が高い順に並べた状態の配列を元に slice(0, 3) で 先頭3件を指定している(満たせている傾向が高い順の栄養素トップ3)
     const topNutrients = nutrientScores.slice(0, 3);
 
-    // スコアが低い順の上位3件(不足傾向の栄養素トップ3)
-    // - nutrientScores で score が高い順に並べ替えた状態(配列)も表示したいので残して元の配列 [...nutrientScores] をコピーして使用
+    // スコアが低い順の上位3件(不足傾向が高い順の栄養素トップ3)
+    // - `.sort((a, b) => a.score - b.score)` で score が低い順に並べ替えた状態の配列を元に slice(0, 3) で 先頭3件を指定している(不足傾向が高い順の栄養素トップ3)
+    // - `const nutrientScores = ...` で score が高い順に並べ替えた状態(配列)も表示したいので残して元の配列 [...nutrientScores] としてコピーして使用している
     const lowNutrients = [...nutrientScores]
       .sort((a, b) => a.score - b.score)
       .slice(0, 3);

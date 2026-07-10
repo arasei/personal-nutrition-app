@@ -4,15 +4,15 @@
 
 // 全体の概要
 // - ログイン中ユーザーのtokenを確認し、本人の完了済み診断履歴だけを新しい順に取得し、
-// 履歴一覧のそれぞれの診断カードに、各診断のスコア(scores)を不足度が高い順(score昇順 "asc" score が低い)に並べ、不足度が高い上位3栄養素と日付を返すAPI
+// 履歴一覧のそれぞれの診断カードに、各診断のスコア(scores)を不足傾向が高い順(score昇順 "asc" score が低い)に並べ、不足度が高い上位3栄養素と日付を返すAPI
 
 
 
 // ポイント
-// - lowNutrients = 不足度が高い順の上位3栄養素
+// - lowNutrients = 不足傾向が高い順の上位3栄養素
 // - scores: 各診断の栄養素スコア
 // scores: {
-//           orderBy: { score: "asc" }, // score が低い順 = 不足度が高い
+//           orderBy: { score: "asc" }, // score が低い順 = 不足傾向が高い
 //           include: { nutrient: true },
 //         },
 
@@ -49,9 +49,9 @@
 // ↓
 // 各診断の scores を score の昇順("asc")(score が低い順)に並べて取得する
 // ↓
-// score が低い = 不足度が高い
+// score が低い = 不足傾向が高い
 // ↓
-// score が低いほど不足しやすい扱いのため、不足度が高い順として先頭3件(lowNutrients)を返す
+// score が低いほど不足しやすい扱いのため、不足傾向が高い順として先頭3件(lowNutrients)を返す
 // ↓
 // 履歴一覧表示する為に整形したデータの配列を histories として、作成し、
 // 型を付けて `web/app/history/page.tsx` に返す
@@ -200,10 +200,10 @@ export async function GET(request: Request) {
     // ----------------------------------認可チェック-------------------------------------------
     // ログイン中ユーザー本人の診断履歴だけを完了済みに絞り、DBから取得
     // - 取得するデータ、取得する順番を指定して取得する
-    // - scores: score を低い順に並べた栄養素(不足度が高い順)
-    // - score: "asc" → 昇順、scoreの低い順に並べる。scoreが低いほど不足度が高い扱いのため、昇順で並べることで不足度が高い順になる
+    // - scores: score を低い順に並べた栄養素(不足傾向が高い順)
+    // - score: "asc" → 昇順、scoreの低い順に並べる。scoreが低いほど不足傾向が高い扱いのため、昇順で並べることで不足傾向が高い順になる
     // - slice(0, 3) → 上位3件だけを取得するために、配列の先頭から3件だけを抜き取る
-    // - score が 低い順 "asc"(不足している順番・0に近い)
+    // - score が 低い順 "asc"(不足傾向が高い順番・0に近い)
     // - score が 高い順 "desc"(満たしている順番・0から遠い)
     const diagnoses = await prisma.diagnosis.findMany({
       where: {
@@ -212,7 +212,7 @@ export async function GET(request: Request) {
       },
       orderBy: { createdAt: "desc" },
       include: {
-        // score を低い順に並べた栄養素(不足度が高い順)
+        // score を低い順に並べた栄養素(不足傾向が高い順)
         scores: {
           orderBy: { score: "asc" },
           include: { nutrient: true },
