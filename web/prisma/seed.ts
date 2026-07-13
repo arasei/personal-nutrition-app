@@ -1,3 +1,5 @@
+// web/prisma/seed.ts
+
 import { PrismaClient } from "@prisma/client";
 
 //seedは、このDBはこういう状態であるべきという完成図の役割
