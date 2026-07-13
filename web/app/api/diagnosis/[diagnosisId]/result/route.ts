@@ -250,19 +250,52 @@ export async function GET(request: Request, { params }: Props) {
 
     // 今回スコアと前回スコアの差分を作成
     // - 今回診断のscores(各栄養素ごとのスコアランキング)に対して 前回診断のscores との差分を計算し追加
-    // - 画面に「前回+2」、「前回-1」のように表示するため
+    // - 診断結果ページで以下のように表示するために、diffRanking を作成。
+    //「前回 +〇〇 改善」
+    //「前回 -〇〇 低下」
+    //「前回 0 変化なし」
+    //「前回データなし」
     const diffRanking = ranking.map((item) => {
-      // 栄養素ごとの前回スコア(score)を取得
+      // - 栄養素ごとに、今回スコア(item.score) と 同じ栄養素ID(nutrientId)を持つ、
+      // 前回スコア(previous.score) を 栄養素IDをもとに前回診断から取得する
       const previousScore = previousScoreMap[item.nutrientId];
-      // 前回スコア(score) がある場合、計算し差分を出す。
-      // - 初回診断の場合、今回スコア(score)のみ表示し、差分は表示しない(null)
+      // 前回スコア(score) がある場合だけ、計算し差分を出す。
+      // - 初回診断の場合、「今回スコア(score) と 前回データなし」 と表示し、差分は表示しない(nullを返す)
+      // - 差分を計算する時の条件に `previousScore !== undefined` を追加することで、
+      // 前回スコアが 0 の場合でも差分計算を行う対象として扱えるので、
+      // 前回0点の栄養素を「前回データなし」ではなく「前回 0 変化なし」と表示できるようにする。
       const diff = previousScore !== undefined ? item.score - previousScore : null;
+
+      // 差分表示用の文字列
+      // - 初回診断など、比較できる前回データがない場合の初期値
+      let diffLabel = "前回データなし";
+
+      // 前回との差分(diff)が存在する場合、その差分の状態に応じて切り替える条件分岐表示
+      // 差分(diff) の状態ごとに表示を切り替える
+      // - null : 前回データなし
+      // - 0より大きい : 改善
+      // - 0より小さい : 低下
+      // - 0 : 変化なし
+
+      // 前回の score が存在しており、今回の score との差分計算を行なった結果(diff)、が 0の場合は「0 変化なし」と表示する。
+      if (diff !== null) {
+        if (diff > 0) {
+          diffLabel = `+${diff} 改善`;
+        } else if (diff < 0) {
+          diffLabel = `${diff} 低下`;
+        } else {
+          diffLabel = "0 変化なし";
+        }
+      }
+
+
       // 今回診断の栄養素ごとのランキングデータ(前回診断スコアとの差分付き)として `web/app/diagnosis/[diagnosisId]/result/page.tsx` に返す
       return {
         nutrientId: item.nutrientId,
         nutrient: item.nutrient,
         score: item.score,
         diff,
+        diffLabel,
       };
     });
 

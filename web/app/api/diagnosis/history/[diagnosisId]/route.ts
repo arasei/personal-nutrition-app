@@ -360,7 +360,9 @@ export async function GET(
       // 前回スコアがあればその値を使い、ない時は、nullにする。
       const previousScore = previous?.score ?? null;
       // - 前回スコア(previous) が存在する時は previous.score を使って今回スコア(current.score)との差分計算
-      // - 前回スコア(previous) が存在しない時は diff は null にする
+      // - 今回の診断内でスコア(current.score)が存在する栄養素(nutrientId)に対して、
+      // 初回診断の場合は、前回の診断には比較するための同じ栄養素(nutrientId)のスコアが存在しないため、
+      // diff を null にすることで、前回スコア(previous)が存在しない場合は差分計算を行わないようにする。
       const diff = previous ? current.score - previous.score : null;
 
       // 差分表示用の文字列
@@ -368,8 +370,20 @@ export async function GET(
       let diffLabel = "前回データなし";
 
       // 差分の内容ごとの表示文の条件分岐
-      // - score は高いほど満たせている扱いのため、 diff > 0 を改善として表示する
-      // - 今回スコア - 前回スコア がプラスの場合 = 点数が上がっている → 「+〇〇 改善」
+      // diff !== null の場合の表示文の条件分岐
+      // - 今回スコア - 前回スコア = 差分(diff)
+      // 例.
+      // - diff > 0 の場合 = 点数が上がっている → 「+〇〇 改善」と表示する
+      // score は高いほど満たせている扱いのため、 diff > 0 を改善として表示する
+      // - diff < 0 の場合  = 点数が下がっている → 「-〇〇 低下」と表示する
+      // score が低いほど不足しやすい傾向という扱いのため、 diff < 0 を低下として表示する
+      // - diff === 0 の場合 = 前回と今回のスコアが同じ値 → 「0 変化なし」と表示する
+      // score が同じ場合は変化なしとして表示する
+      // diff = 0 は、null 扱いではないので、「0 変化なし」と表示できる。
+      // - diff === null の場合 = 前回データが存在しない or 初回診断 → 「前回データなし」と表示する
+      // score が存在しない(前回データが存在しない・初回診断) の場合、前回データなし と表示する
+
+
       if (diff !== null) {
         if (diff > 0) {
           diffLabel = `+${diff} 改善`;

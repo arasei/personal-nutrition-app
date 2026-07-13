@@ -363,15 +363,24 @@ export default function ResultPage() {
           <div key={item.nutrientId}>
             {/* index は 0から始まるので 「+ 1」をする */}
             {index + 1}位 {item.nutrient} {item.score}点
-            {/* 前回との差分がある場合だけ表示 */}
-            {/* プラスの時は「+」、マイナスの時は「-」を表示 */}
-            {item.diff !== null && (
-              <span>
-                {" "}
-                (前回 {item.diff > 0 ? "+" : ""}
-                {item.diff})
-              </span>
-            )}
+            
+
+            {/*
+              API側(web/app/api/diagnosis/[diagnosisId]/result/route.ts) で
+              計算した今回スコア と 前回スコアとの 差分(diff) に対応する差分表示文(diffLabel) を受け取り、
+              表示する。
+            */}
+            {/*
+              表示例.
+              (+50 改善)
+              (-50 低下)
+              (0 変化なし)
+              (前回データなし)
+            */}
+            <span>
+              {" "}
+              ({item.diffLabel})
+            </span>
           </div>
         ))}
       </section>

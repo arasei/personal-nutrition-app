@@ -25,11 +25,9 @@
 // - 成功時:
 // success: true
 // 必要なデータを必ず返す
-
 // - 失敗時:
 // success: false
 // 画面に表示する message を返す
-
 // - そのため、フロント側では data.success を確認して、
 // success: true の時だけ成功時のデータを使う。
 // success: false の時は message を表示する
@@ -56,10 +54,9 @@
 // ------------------------------
 
 // APIでエラーが起きたときに返すレスポンスの型を定義
+
 // - message?: 画面に表示するメッセージ
-
 // - API が失敗した時は success: false を返す
-
 // - 画面に出すメッセージは message に入る
 
 export type ApiErrorResponse = {
@@ -76,14 +73,11 @@ export type ApiErrorResponse = {
 // ------------------------------
 
 //診断開始APIに送るリクエストbodyの型を定義
+
 // - POST /api/diagnosis/startに何を送るのか明確にするため
-
 // - 現状は開始APIはbodyを使っていない
-
 // - Authorization header の tokenだけでログインユーザーを確認するため
-
 // - 診断開始APIのリクエストボディ型を 「キーを持たないオブジェクト」(空オブジェクト型)として定義
-
 // - {}はOK
 // 例.{ userId: "abc"}は禁止
 
@@ -95,21 +89,18 @@ export type StartDiagnosisRequest = Record<string, never>;
 
 // - success: true の時は diagnosisId が必ず返る
 // - success: false の時は ApiErrorResponse として message が返る可能性がある
-
 // - なぜ必要
 // フロント側で
 // data.success
 // data.diagnosisId
 // data.message
 // を安全に使うためです。
-
 // - 成功時 → diagnosisId が入る
 // 例.
 // {
 //   success: true,
 //   diagnosisId: "xxx",
 // }
-
 // - 失敗時 → message が入る
 // 例.
 // {
@@ -176,7 +167,6 @@ export type DiagnosisStepResponse =
 
 // - なぜ必要
 // フロントとサーバーで扱うデータの型を共通化するため
-
 // - answers: [] ではなく、単体にする。
 // 今の画面は、1ページに1問ずつ表示、回答する形式。
 // なので、APIもまずは単体回答にする
@@ -200,13 +190,9 @@ export type SaveDiagnosisAnswersRequest = {
 //回答保存APIから返すレスポンスbodyの型
 
 // - 回答成功時は必ず次の遷移先が必要
-
 // - 成功時は nextHref が必須
-
 // - Step1回答後 → Step2へ
 // - Step10回答後 → 結果ページへ
-
-
 // - なぜ必要
 // 成功/失敗のレスポンスの型をフロントとサーバーで共通化するため
 
@@ -214,7 +200,6 @@ export type SaveDiagnosisAnswersRequest = {
 // nextHref: string;
 // - 何している？
 // 保存後に遷移するURLを表している
-
 // - なぜ必要？
 // API方式では、Server Actionのように redirect()しない
 // APIが
@@ -257,14 +242,23 @@ export type ResultRankingItem = {
 
 // 前回との差分付きランキングの1件分の型を定義
 
-// - diff: 今回 - 前回 の差分(前回診断との差分)
-// - 初回診断では前回データ(diff)が無いため null になる可能性があるため、nullも可能にする
+// - nutrientId: 栄養素ID
+// - nutrient: 栄養素名
+// - score: 今回の 0~100点 の栄養素充足傾向スコア
+// - diff: 今回score - 前回score を計算し、出した差分の値(前回score と 今回score の差分)。前回データがなければ null。
+// 初回診断では前回データ(diff)が無いため null になる可能性があるため、null も可能にする
+// - diffLabel: 以下のいずれかを表示するための文字列
+// 「+50 改善」
+// 「-50 低下」
+// 「0 変化なし」
+// 「前回データなし」
 
 export type ResultDiffRankingItem = {
   nutrientId: string;
   nutrient: string;
   score: number;
-  diff: number | null; 
+  diff: number | null;
+  diffLabel: string;
 };
 
 
@@ -272,23 +266,19 @@ export type ResultDiffRankingItem = {
 // 診断結果APIから返ってくる全体のレスポンスの型を定義
 
 // - 成功したら必ず success: true と ranking と diffRanking がある
-
 // - 失敗時は success: false と message が入る
 
 
 // ranking: ResultRankingItem[];
 // - 何をしている？
 // 通常ランキングの配列
-
 // - なぜ必要？
 // 結果ページで、栄養素ごとのスコアランキングを表示するため
-
 
 
 // diffRanking: ResultDiffRankingItem[];
 // - 何をしている？
 // 前回との差分付きランキングの配列
-
 // - なぜ必要？
 // 履歴比較や改善・悪化の表示のため
 
@@ -326,7 +316,6 @@ export type DiagnosisHistoryLowNutrient = {
 // - id: 診断ID。/history/[id] へのリンクに使う
 // - createdAt: 診断作成日。APIのJSONレスポンスでは文字列として扱う
 // - lowNutrients: 不足順の上位3栄養素の配列(score を低い順に並べた栄養素(不足度が高い順))
-
 // - Prisma側では createdAt はDate 型です。
 // しかし、APIで NextResponse.json() に入れてブラウザへ返すと、
 // JSONとして送られるため、日付は文字列として扱う必要があるため、string型にしている
@@ -343,11 +332,8 @@ export type DiagnosisHistoryItem = {
 // 診断履歴一覧APIから返ってくるレスポンス全体の型
 
 // - histories: 診断履歴の配列
-
 // - 履歴一覧取得に成功したら histories が必ず配列で返る
-
 // - 履歴が0件でも [] として返る
-
 // - 成功時 → histories が必ずある
 // - 失敗時 → message が使える
 

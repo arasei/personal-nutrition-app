@@ -1,5 +1,6 @@
 // web/app/history/[diagnosisId]/page.tsx
 
+
 // 全体の概要
 // - 履歴詳細を表示するページ
 // - ログイン中ユーザーの token と URL の [diagnosisId] を使い、履歴詳細API を呼び出し、
