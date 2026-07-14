@@ -224,6 +224,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { GetDiagnosisHistoryDetailResponse } from "@/types/diagnosisApi";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
+// 差分計算用の共通関数
+import { buildScoreDifference } from "@/lib/diagnosis/buildScoreDifference";
 
 // GETリクエストが来た時に実行する関数
 // - `/api/diagnosis/history/[diagnosisId]` にアクセスされたときに、
@@ -351,55 +353,31 @@ export async function GET(
     // - 差分計算する対象を今回診断と同じ栄養素ID(nutrientId)として一致するかどうかで判断して探す
     // - current: 今回の各栄養素スコア1件
     const differences = nutrientScores.map((current) => {
+      // 前回診断から同じ栄養素ID のスコアを探す
       const previous = previousDiagnosis?.scores.find(
         (item) => item.nutrientId === current.nutrientId
       );
 
-      // 前回の診断結果に対して前回スコアが存在する栄養素なのかを true / false に変換(フロントに返し表示するデータとして使うため)
-      const hasPrevious = !!previous;
-      // 前回スコアがあればその値を使い、ない時は、nullにする。
-      const previousScore = previous?.score ?? null;
-      // - 前回スコア(previous) が存在する時は previous.score を使って今回スコア(current.score)との差分計算
-      // - 今回の診断内でスコア(current.score)が存在する栄養素(nutrientId)に対して、
-      // 初回診断の場合は、前回の診断には比較するための同じ栄養素(nutrientId)のスコアが存在しないため、
-      // diff を null にすることで、前回スコア(previous)が存在しない場合は差分計算を行わないようにする。
-      const diff = previous ? current.score - previous.score : null;
+      // 前回スコアを取得
+      // - 前回データが無ければ `undefined` を受け取る
+      const previousScore = previous?.score;
 
-      // 差分表示用の文字列
-      // - 最初の初期値: "前回データなし"
-      let diffLabel = "前回データなし";
-
-      // 差分の内容ごとの表示文の条件分岐
-      // diff !== null の場合の表示文の条件分岐
-      // - 今回スコア - 前回スコア = 差分(diff)
-      // 例.
-      // - diff > 0 の場合 = 点数が上がっている → 「+〇〇 改善」と表示する
-      // score は高いほど満たせている扱いのため、 diff > 0 を改善として表示する
-      // - diff < 0 の場合  = 点数が下がっている → 「-〇〇 低下」と表示する
-      // score が低いほど不足しやすい傾向という扱いのため、 diff < 0 を低下として表示する
-      // - diff === 0 の場合 = 前回と今回のスコアが同じ値 → 「0 変化なし」と表示する
-      // score が同じ場合は変化なしとして表示する
-      // diff = 0 は、null 扱いではないので、「0 変化なし」と表示できる。
-      // - diff === null の場合 = 前回データが存在しない or 初回診断 → 「前回データなし」と表示する
-      // score が存在しない(前回データが存在しない・初回診断) の場合、前回データなし と表示する
-
-
-      if (diff !== null) {
-        if (diff > 0) {
-          diffLabel = `+${diff} 改善`;
-        } else if (diff < 0) {
-          diffLabel = `${diff} 低下`;
-        } else {
-          diffLabel = "0 変化なし";
-        }
-      }
+      // 今回スコア - 前回スコア を行い、差分を `web/lib/diagnosis/buildScoreDifference.ts`(差分計算の共通関数) で計算
+      // - `web/lib/diagnosis/buildScoreDifference.ts`(差分計算の共通関数) に必要な値(diff,hasPrevious,diffLabel,)を渡し、計算し、
+      // 返ってきた差分情報をフロントに渡す
+      const {
+        diff,
+        hasPrevious,
+        diffLabel,
+      } = buildScoreDifference(current.score, previousScore);
 
       // フロント側(`web/app/history/[diagnosisId]/page.tsx`)に返す用に差分表示用データを作成
+      // - APIレスポンス上では、previous は 「number | null」 と指定して渡す
       return {
         nutrient: current.nutrient,
         nutrientId: current.nutrientId,
         current: current.score,
-        previous: previousScore,
+        previous: previousScore ?? null,
         diff,
         hasPrevious,
         diffLabel,

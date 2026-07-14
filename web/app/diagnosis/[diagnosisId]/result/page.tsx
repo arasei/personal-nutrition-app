@@ -1,5 +1,6 @@
 // web/app/diagnosis/[diagnosisId]/result/page.tsx
 
+
 // 全体の概要
 // - URL の diagnosisId と Supabase の token を使って、
 // 結果取得API(`web/app/api/diagnosis/[diagnosisId]/result/route.ts`) を呼び出し、

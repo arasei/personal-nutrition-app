@@ -258,6 +258,7 @@ export type ResultDiffRankingItem = {
   nutrient: string;
   score: number;
   diff: number | null;
+  hasPrevious: boolean;
   diffLabel: string;
 };
 
