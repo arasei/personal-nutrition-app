@@ -220,7 +220,215 @@ type NutrientRecommendationSeed = {
 };
 
 // 食品・行動提案マスター(食品・行動提案ごとに栄養素を紐づけ)
-const nutrientRecommendations: NutrientRecommendationSeed[] = [];
+
+// score が 49点以下の栄養素のみ提案する
+// 最大3栄養素表示
+// 医療診断のような断定はしない
+// 「食生活を見直すヒント」を表示する
+
+// 栄養素1件に対して 食品提案2つ(FOOD)・行動提案1つ(ACTION) の設計
+
+// 現在の件数
+// - 栄養素8件
+// - 質問10件
+// - 提案24件
+
+// nutrientId
+// - どの栄養素に対する提案なのかを指定する
+// - 各8栄養素
+// - Nutrient.id と一致する値であることが必須
+// type
+// - 食品提案 or 行動提案 なのかを指定する
+// - FOOD / ACTION (食品提案 と 行動提案) の2つ存在する
+// - 生成済みの enum を使用することで入力ミスを防ぐ
+// title
+// - 結果画面で一目で意味がわかる短い見出し
+// - 何をすると良いかを伝える
+// description
+// - title だけでは説明できない補足情報
+// - どのように取り入れると良いかを伝える
+// - 医療的に断定しない文章
+// sortOrder
+// - 同じ栄養素・同じ種類の提案をする場合の表示する順番を指定
+// - FOOD は 1・2 ACTION は 1
+const nutrientRecommendations: NutrientRecommendationSeed[] = [
+  // タンパク質
+  {
+    nutrientId: "protein",
+    type: RecommendationType.FOOD,
+    title: "肉・魚・卵を取り入れる",
+    description: "肉・魚・卵などは、たんぱく質を含む食品の一つです。食生活を振り返る際の選択肢として、無理のない範囲で取り入れてみましょう。",
+    sortOrder: 1,
+  },
+  {
+    nutrientId: "protein",
+    type: RecommendationType.FOOD,
+    title: "大豆製品を活用する",
+    description: "豆腐・納豆・豆乳などの大豆製品も、たんぱく質を含む食品の一つです。食生活を振り返る際の選択肢として、無理のない範囲で取り入れてみましょう。",
+    sortOrder: 2,
+  },
+  {
+    nutrientId: "protein",
+    type: RecommendationType.ACTION,
+    title: "毎食たんぱく質を意識する",
+    description: "主食だけで済ませず、毎食たんぱく質を含む食品を取り入れられるか振り返ってみましょう。無理のない範囲で続けられる方法を探してみましょう。",
+    sortOrder: 1,
+  },
+  // 食物繊維
+  {
+    nutrientId: "fiber",
+    type: RecommendationType.FOOD,
+    title: "野菜を一品追加する",
+    description: "野菜は食物繊維を含む食品の一つです。食生活を振り返る際の選択肢として、無理のない範囲で取り入れてみましょう。",
+    sortOrder: 1,
+  },
+  {
+    nutrientId: "fiber",
+    type: RecommendationType.FOOD,
+    title: "きのこ・海藻を取り入れる",
+    description: "きのこ類や海藻類は食物繊維を含む食品の一つです。食生活を振り返る際の選択肢として、無理のない範囲で取り入れてみましょう。",
+    sortOrder: 2,
+  },
+  {
+    nutrientId: "fiber",
+    type: RecommendationType.ACTION,
+    title: "野菜から食べ始める",
+    description: "食事では野菜から食べ始められるか振り返ってみましょう。無理のない範囲で続けられる方法を探してみましょう。",
+    sortOrder: 1,
+  },
+  // ビタミンB
+  {
+    nutrientId: "vitaminB",
+    type: RecommendationType.FOOD,
+    title: "豚肉を取り入れる",
+    description: "豚肉はビタミンB群を含む食品の一つです。食生活を振り返る際の選択肢として、無理のない範囲で取り入れてみましょう。",
+    sortOrder: 1,
+  },
+  {
+    nutrientId: "vitaminB",
+    type: RecommendationType.FOOD,
+    title: "納豆や卵を取り入れる",
+    description: "納豆や卵はビタミンB群を含む食品の一つです。食生活を振り返る際の選択肢として、無理のない範囲で取り入れてみましょう。",
+    sortOrder: 2,
+  },
+  {
+    nutrientId: "vitaminB",
+    type: RecommendationType.ACTION,
+    title: "主食だけの食事を減らす",
+    description: "主食だけで済ませる日がないか振り返ってみましょう。無理のない範囲でおかずを組み合わせる方法を探してみましょう。",
+    sortOrder: 1,
+  },
+  // omega3(オメガ3脂肪酸)
+  {
+    nutrientId: "omega3",
+    type: RecommendationType.FOOD,
+    title: "青魚を取り入れる",
+    description: "青魚はオメガ3脂肪酸を含む食品の一つです。食生活を振り返る際の選択肢として、無理のない範囲で取り入れてみましょう。",
+    sortOrder: 1,
+  },
+  {
+    nutrientId: "omega3",
+    type: RecommendationType.FOOD,
+    title: "くるみを取り入れる",
+    description: "くるみなどのナッツ類も、オメガ3脂肪酸を含む食品の一つです。食生活を振り返る際の選択肢として、無理のない範囲で取り入れてみましょう。",
+    sortOrder: 2,
+  },
+  {
+    nutrientId: "omega3",
+    type: RecommendationType.ACTION,
+    title: "魚料理を選ぶ日を作る",
+    description: "魚料理を選ぶ日を作れるか振り返ってみましょう。無理のない範囲で続けられる方法を探してみましょう。",
+    sortOrder: 1,
+  },
+  // vitaminC(ビタミンC)
+  {
+    nutrientId: "vitaminC",
+    type: RecommendationType.FOOD,
+    title: "果物を取り入れる",
+    description: "みかん・キウイ・いちごなどは、ビタミンCを含む食品の一つです。食生活を振り返る際の選択肢として、無理のない範囲で取り入れてみましょう。",
+    sortOrder: 1,
+  },
+  {
+    nutrientId: "vitaminC",
+    type: RecommendationType.FOOD,
+    title: "野菜を取り入れる",
+    description: "ブロッコリーやパプリカは、ビタミンCを含む食品の一つです。食生活を振り返る際の選択肢として、無理のない範囲で取り入れてみましょう。",
+    sortOrder: 2,
+  },
+  {
+    nutrientId: "vitaminC",
+    type: RecommendationType.ACTION,
+    title: "毎日果物や野菜を取り入れる",
+    description: "毎日の食事で果物や野菜を取り入れられるか振り返ってみましょう。無理のない範囲で続けられる方法を探してみましょう。",
+    sortOrder: 1,
+  },
+  // water(水分)
+  {
+    nutrientId: "water",
+    type: RecommendationType.FOOD,
+    title: "汁物を取り入れる",
+    description: "味噌汁やスープなどは、水分を摂る方法の一つです。食生活を振り返る際の選択肢として、無理のない範囲で取り入れてみましょう。",
+    sortOrder: 1,
+  },
+  {
+    nutrientId: "water",
+    type: RecommendationType.FOOD,
+    title: "水分を含む果物を取り入れる",
+    description: "スイカやオレンジなどは、水分を多く含む食品の一つです。食生活を振り返る際の選択肢として、無理のない範囲で取り入れてみましょう。",
+    sortOrder: 2,
+  },
+  {
+    nutrientId: "water",
+    type: RecommendationType.ACTION,
+    title: "こまめな水分補給を意識する",
+    description: "こまめな水分補給ができているか振り返ってみましょう。無理のない範囲で続けられる方法を探してみましょう。",
+    sortOrder: 1,
+  },
+  // vitaminD(ビタミンD)
+  {
+    nutrientId: "vitaminD",
+    type: RecommendationType.FOOD,
+    title: "鮭やサバを取り入れる",
+    description: "鮭やサバは、ビタミンDを含む食品の一つです。食生活を振り返る際の選択肢として、無理のない範囲で取り入れてみましょう。",
+    sortOrder: 1,
+  },
+  {
+    nutrientId: "vitaminD",
+    type: RecommendationType.FOOD,
+    title: "きのこ類を取り入れる",
+    description: "きのこ類は、ビタミンDを含む食品の一つです。食生活を振り返る際の選択肢として、無理のない範囲で取り入れてみましょう。",
+    sortOrder: 2,
+  },
+  {
+    nutrientId: "vitaminD",
+    type: RecommendationType.ACTION,
+    title: "日光を浴びる時間を作る",
+    description: "日光を浴びる時間を作れるか生活習慣を振り返ってみましょう。無理のない範囲で続けられる方法を探してみましょう。",
+    sortOrder: 1,
+  },
+  // iron(鉄)
+  {
+    nutrientId: "iron",
+    type: RecommendationType.FOOD,
+    title: "赤身肉やレバーを取り入れる",
+    description: "赤身肉やレバーは、鉄を含む食品の一つです。食生活を振り返る際の選択肢として、無理のない範囲で取り入れてみましょう。",
+    sortOrder: 1,
+  },
+  {
+    nutrientId: "iron",
+    type: RecommendationType.FOOD,
+    title: "ほうれん草や大豆製品を取り入れる",
+    description: "ほうれん草や大豆製品は、鉄を含む食品の一つです。食生活を振り返る際の選択肢として、無理のない範囲で取り入れてみましょう。",
+    sortOrder: 2,
+  },
+  {
+    nutrientId: "iron",
+    type: RecommendationType.ACTION,
+    title: "鉄を含む食品を意識して選ぶ",
+    description: "鉄を含む食品を選ぶ機会があるか振り返ってみましょう。無理のない範囲で続けられる方法を探してみましょう。",
+    sortOrder: 1,
+  },
+];
 
 
 
@@ -291,8 +499,14 @@ async function main() {
     // - 提案マスタ
     // - 提案データを1件ずつDB操作へ変換する
     // - 同じ提案が存在すれば更新し(update)、なければ新規作成(create)する
+    // 同じ nutrientId・type・title のデータがある？
+    // ├─ ある(update)
+    // │   → description と sortOrder を更新
+    // │
+    // └─ ない(create)
+    //      → 新しく作成
     // - nutrientId_type_title: {...} :
-    // Schema で定義した複合ユニークキーを使う
+    // Schema で定義した複合ユニークキー(nutrientId・type・title)を使う
     ...nutrientRecommendations.map((recommendation) =>
       prisma.nutrientRecommendation.upsert({
         where: {
