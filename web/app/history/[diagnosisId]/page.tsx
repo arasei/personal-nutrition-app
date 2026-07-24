@@ -166,8 +166,8 @@
 //   ↓
 // 同じnutrientIdを元に前回との差分を作る(differences)
 //   ↓
-// 前回データがあるか判定
-// ├─ ある → diff を計算
+// buildScoreDifference.ts で前回データの有無を判定し、計算
+// ├─ ある → diff / diffLabel を計算し、作成
 // └─ ない → 前回データなし
 //   ↓
 // createdAt を toISOString() で文字列にする
@@ -358,7 +358,7 @@ export default function HistoryDetailPage() {
   
   // APIから来るデータ(nutrientScores)をチャート用のデータ形(ranking 形式)に変換
   // - nutrientId はそのまま SafeRadarChart に渡す。
-  // - nutrient はそのまま SafeRadarChar に渡す。
+  // - nutrient はそのまま SafeRadarChart に渡す。
   // - item.score を ranking.score として、SafeRadarChart に渡す。
 
   // - 変換の流れ
@@ -416,7 +416,7 @@ export default function HistoryDetailPage() {
         )}
       </section>
 
-      {/* 満たせている上位3件 */}
+      {/* 満たせている栄養素 上位3件 */}
       <section className="mt-6">
         <h2>満たせている栄養素 上位3件</h2>
         {historyDetail.topNutrients.length === 0 ? (
@@ -432,7 +432,7 @@ export default function HistoryDetailPage() {
         )}
       </section>
 
-      {/* 不足傾向の下位3件 */}
+      {/* 不足傾向の栄養素 下位3件 */}
       <section className="mt-6">
         <h2>不足傾向の栄養素 下位3件</h2>
 
@@ -449,7 +449,10 @@ export default function HistoryDetailPage() {
         )}
       </section>
 
-      {/* 各栄養素の前回との差分 */}
+      {/*
+        各栄養素の前回との差分表示
+        - API側、正確には buildScoreDifference.ts 側で作った diffLabel を受け取り、表示している
+      */}
       <section className="mt-6">
         <h2>前回との差分</h2>
 

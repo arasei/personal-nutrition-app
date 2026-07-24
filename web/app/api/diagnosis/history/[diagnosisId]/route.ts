@@ -359,12 +359,13 @@ export async function GET(
       );
 
       // 前回スコアを取得
-      // - 前回データが無ければ `undefined` を受け取る
+      // - 前回スコアがあれば、`previousScore` に前回スコアが入る
+      // - 前回スコアが無ければ `undefined` を受け取る
       const previousScore = previous?.score;
 
-      // 今回スコア - 前回スコア を行い、差分を `web/lib/diagnosis/buildScoreDifference.ts`(差分計算の共通関数) で計算
-      // - `web/lib/diagnosis/buildScoreDifference.ts`(差分計算の共通関数) に必要な値(diff,hasPrevious,diffLabel,)を渡し、計算し、
-      // 返ってきた差分情報をフロントに渡す
+      // 差分計算のために、`web/lib/diagnosis/buildScoreDifference.ts`(差分計算の共通関数) に必要な値を渡し、計算結果を受け取る
+      // - `web/lib/diagnosis/buildScoreDifference.ts`(差分計算の共通関数) に差分計算(今回スコア - 前回スコア = 差分) に必要な値(diff,hasPrevious,diffLabel,)を渡し、計算し、
+      // 返ってきた差分情報を元に diff・hasPrevious・diffLabel を作成し、フロントに渡し、表示する。
       const {
         diff,
         hasPrevious,
@@ -372,7 +373,8 @@ export async function GET(
       } = buildScoreDifference(current.score, previousScore);
 
       // フロント側(`web/app/history/[diagnosisId]/page.tsx`)に返す用に差分表示用データを作成
-      // - APIレスポンス上では、previous は 「number | null」 と指定して渡す
+      // - APIレスポンス上では、previous は 「number | null」 と指定していることで、
+      // 前回データがな場合、"undefined" ではなく "null" として返すことで対応している。。
       return {
         nutrient: current.nutrient,
         nutrientId: current.nutrientId,

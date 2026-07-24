@@ -261,9 +261,9 @@ export async function GET(request: Request, { params }: Props) {
     // 今回スコアと前回スコアの差分を作成
     // - 今回診断のscores(各栄養素ごとのスコアランキング)に対して 前回診断のscores との差分を計算し追加
     // - 診断結果ページで以下のように表示するために、diffRanking を作成。
-    //「前回 +〇〇 改善」
-    //「前回 -〇〇 低下」
-    //「前回 0 変化なし」
+    //「+〇〇 改善」
+    //「-〇〇 低下」
+    //「0 変化なし」
     //「前回データなし」
     const diffRanking = ranking.map((item) => {
       // 同じ栄養素ID の前回スコアを取得
@@ -271,7 +271,7 @@ export async function GET(request: Request, { params }: Props) {
       // 前回スコア(previous.score) を 栄養素IDをもとに前回診断から取得する
       const previousScore = previousScoreMap[item.nutrientId];
 
-      // 今回スコア - 前回スコア を行い、差分を `web/lib/diagnosis/buildScoreDifference.ts`(差分計算の共通関数) に渡し、計算
+      // 今回スコア(item.score) と 前回スコア(previousScore) を `web/lib/diagnosis/buildScoreDifference.ts`(差分計算専用の共通関数) に渡し、今回スコア - 前回スコア の差分計算を行った結果を受け取る
       // - `web/lib/diagnosis/buildScoreDifference.ts`(差分計算の共通関数) に必要な値(diff,hasPrevious,diffLabel,)を渡し、計算し、
       // 返ってきた差分情報をフロントに渡す
       const {

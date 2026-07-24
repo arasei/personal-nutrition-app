@@ -78,8 +78,8 @@ export function buildScoreDifference(
   // - 初回診断の場合、「今回スコア(score) と 前回データなし」 と表示し、差分は表示しない(nullを返す)
   // - 前回スコアが null または undefined の場合は、`if (previousScore === null || previousScore === undefined) {...}` で return している。
   // そのため、ここまで来た時点で previousScore は number として扱える状態である。
-  // 前回スコアが 0 の場合(previousScore = 0) でも差分計算を行う対象として扱えるので、
-  // 前回0点の栄養素を「前回データなし」ではなく「前回 0 変化なし」と表示できるようにする。
+  // 前回スコアが 0点の場合(previousScore = 0) でも差分計算を行う対象として扱えるので、
+  // 前回スコア と 今回スコア が 0点の栄養素に対して「前回データなし」と誤判定せず、「前回 0 変化なし」と差分を正しく計算し、表示できるようにする。
   const diff = currentScore - previousScore;
 
 
