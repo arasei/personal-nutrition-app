@@ -136,7 +136,7 @@ export type StartDiagnosisResponse =
 // - total: 全質問数。
 // - isLast: 現在の質問が最後かどうか。
 
-// question・total・isLast が必ずあることが必須
+// - question・total・isLast が必ずあることが必須
 
 export type DiagnosisStepResponse =
   | {
@@ -246,7 +246,9 @@ export type ResultRankingItem = {
 // - nutrient: 栄養素名
 // - score: 今回の 0~100点 の栄養素充足傾向スコア
 // - diff: 今回score - 前回score を計算し、出した差分の値(前回score と 今回score の差分)。前回データがなければ null。
-// 初回診断では前回データ(diff)が無いため null になる可能性があるため、null も可能にする
+
+// - 初回診断では前回データ(diff)が無いため null になる可能性があるため、null も可能にする
+
 // - diffLabel: 以下のいずれかを表示するための文字列
 // 「+50 改善」
 // 「-50 低下」
@@ -261,6 +263,83 @@ export type ResultDiffRankingItem = {
   hasPrevious: boolean;
   diffLabel: string;
 };
+
+
+// 提案の種類を表す型を定義
+
+// - FOOD: 食品提案
+// - ACTION: 行動提案
+
+// - DB には、FOOD や ACTION が保存されているので、
+// "type: RecommendationType" とすることで TypeScript が チェックして FOOD と ACTION 以外は 禁止とすることができる。
+// - 将来的に RECIPE などを追加する場合、この型へ追加することで対応可能
+
+export type RecommendationType =
+  | "FOOD"
+  | "ACTION";
+
+
+
+
+  // 提案1件分の型を定義
+
+  // - id: 提案ID
+  // - type: :FOOD または ACTION
+  // - title: 提案タイトル
+  // - description: 提案内容
+  // - sortOrder: 表示順
+
+
+  // - 以下のような、提案1件 を表している型
+  // 例.
+  // id・type
+  // 食品
+  // ↓
+  // title
+  // レバーを取り入れましょう
+  // ↓
+  // description
+  // 鉄分を効率よく補えます
+
+  export type ResultRecommendationItem = {
+    id: string;
+    type: RecommendationType;
+    title: string;
+    description: string;
+    sortOrder: number;
+  };
+
+
+
+
+  // 栄養素ごとの提案の型を定義
+
+  // - nutrientId: 栄養素ID
+  // - nutrient: 栄養素名
+  // - score: 今回のスコア
+  // - item: この栄養素に対する提案一覧
+
+
+  // - 以下のような 栄養素ごとの提案 を表している型
+  // nutrientId・nutrient・score
+  // 鉄
+  // ↓
+  // items: ResultRecommendationItem[]
+  // 食品: レバー
+  // ↓
+  // items: ResultRecommendationItem[]
+  // 食品: 赤身肉
+  // ↓
+  // items: ResultRecommendationItem[]
+  // 行動: ビタミンCを一緒に撮る
+
+  export type ResultRecommendation = {
+    nutrientId: string;
+    nutrient: string;
+    score: number;
+    items: ResultRecommendationItem[];
+  };
+
 
 
 
@@ -284,11 +363,19 @@ export type ResultDiffRankingItem = {
 // 履歴比較や改善・悪化の表示のため
 
 
+// recommendations: ResultRecommendation[];
+// - 何をしている？
+// 提案対象となった栄養素ごとの提案一覧の配列
+// - なぜ必要？
+// 結果画面で不足傾向の栄養素に対して、食品行動などの提案を表示するため
+
+
 export type DiagnosisResultResponse =
   | {
       success: true;
       ranking: ResultRankingItem[];
       diffRanking: ResultDiffRankingItem[];
+      recommendations: ResultRecommendation[];
     }
   | ApiErrorResponse;
 
@@ -317,6 +404,8 @@ export type DiagnosisHistoryLowNutrient = {
 // - id: 診断ID。/history/[id] へのリンクに使う
 // - createdAt: 診断作成日。APIのJSONレスポンスでは文字列として扱う
 // - lowNutrients: 不足順の上位3栄養素の配列(score を低い順に並べた栄養素(不足度が高い順))
+
+
 // - Prisma側では createdAt はDate 型です。
 // しかし、APIで NextResponse.json() に入れてブラウザへ返すと、
 // JSONとして送られるため、日付は文字列として扱う必要があるため、string型にしている
@@ -333,6 +422,8 @@ export type DiagnosisHistoryItem = {
 // 診断履歴一覧APIから返ってくるレスポンス全体の型
 
 // - histories: 診断履歴の配列
+
+
 // - 履歴一覧取得に成功したら histories が必ず配列で返る
 // - 履歴が0件でも [] として返る
 // - 成功時 → histories が必ずある
@@ -367,11 +458,13 @@ export type DiagnosisHistoryDetailScore = {
 
 
 // 履歴詳細で表示する前回との差分1件分の型
+
 // - current: 今回スコア
 // - previous: 前回のスコア。前回データがない場合は null
 // - diff: 今回 - 前回 の差分。前回データが無い場合は null
 // - hasPrevious: 前回データがあるかどうか
 // - diffLabel: 画面表示用の文言
+
 
 // - previous と diff に null を許可しているのは、初回診断では前回データが無いから
 
@@ -393,6 +486,7 @@ export type DiagnosisHistoryDetailDifference = {
 // - topNutrients: スコアが高い上位栄養素3件
 // - lowNutrients: スコアが低い上位栄養素3件
 // - differences: 前回との差分一覧
+
 
 // - 成功時は詳細データが必ずある
 // - 失敗時は message が使える

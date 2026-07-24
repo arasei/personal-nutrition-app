@@ -109,6 +109,14 @@ import type { DiagnosisResultResponse } from "@/types/diagnosisApi";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 // 差分計算用の共通関数
 import { buildScoreDifference } from "@/lib/diagnosis/buildScoreDifference";
+// RECOMMENDATION_SCORE_THRESHOLD
+// - score < 50 の栄養素だけを対象にするため
+// MAX_RECOMMENDATION_NUTRIENTS
+// - 最大3栄養素までにするため
+import {
+  MAX_RECOMMENDATION_NUTRIENTS,
+  RECOMMENDATION_SCORE_THRESHOLD,
+} from "@/lib/diagnosis/recommendationConfig";
 
 
 // このAPIが受け取るparamsの型を定義
@@ -284,10 +292,85 @@ export async function GET(request: Request, { params }: Props) {
       };
     });
 
+    // score が低い順(不足しやすい傾向が高い順)に並べ替え作成した ranking を元に提案対象を取り出す
+    // - 提案する対象を決める
+    const recommendationTargets = [...ranking]
+      // 50点未満(49~0)
+      .filter((item) => item.score < RECOMMENDATION_SCORE_THRESHOLD,)
+      // score が低い順
+      .sort((a, b) => a.score - b.score)
+      // 先頭から最大3件を指定
+      .slice(0, MAX_RECOMMENDATION_NUTRIENTS);
+
+    // 提案の対象栄養素のIDだけを取り出す
+    // recommendationTargetIds
+    // - 提案を DB から 取得するためのID(recommendationTargetIds) を作る
+    // - recommendationTargets から nutrientId だけを取り出した配列。
+    // - Prisma の in検索で使用するため
+    const recommendationTargetIds = recommendationTargets.map(
+      (item) => item.nutrientId,
+    );
+
+    // DB から提案の対象になる栄養素ID を元に提案マスターから提案を取得する
+    // - findMany で複数の提案データを取得可能(1栄養素につき3件登録しているため、最大 3栄養素×3提案 = 9件)
+
+    // recommendationTargetIds.length > 0
+    // - 対象の栄養素が1件以上あるか確認している
+    // - 対象が無い場合、DB 検索を行わず、[] を返す
+    // - 不要な DB問い合わせ を避けるため
+    const recommendationItems = recommendationTargetIds.length > 0 ? await prisma.nutrientRecommendation.findMany({
+      // recommendationTargetIds(提案の対象栄養素のID) の栄養素ID を指定して提案を取得する
+      where: {
+        nutrientId: {
+          in: recommendationTargetIds,
+        },
+      },
+      orderBy:[
+        {
+          nutrientId: "asc",
+        },
+        {
+          type: "asc",
+        },
+        {
+          sortOrder: "asc",
+        },
+      ],
+    }) : [];
+
+    // 結果画面で使いやすいように栄養素ごとに提案をまとめる
+    // 提案の対象栄養素(50点未満・scoreが低い順・最大先頭3件)を、1件ずつAPIレスポンス用データに変換する
+    // - 診断結果に基づく情報(nutrientId:...・nutrient:...・score:...)を、そのまま提案データにも持たせる
+    // 画面側で、
+    // 鉄 
+    // 今回のスコア: 0点 
+    // などを表示しやすくするため
+
+    // .filter(...)
+    // - 全提案の中から、現在処理中の栄養素に属するものだけを残す
+
+    // .map(...)
+    // - DB のレコードから、画面へ必要な項目だけを取り出す
+    const recommendations = recommendationTargets.map((target) => ({
+      nutrientId: target.nutrientId,
+      nutrient: target.nutrient,
+      score: target.score,
+      items: recommendationItems
+        .filter((recommendation) => recommendation.nutrientId === target.nutrientId,)
+        .map((recommendation) => ({
+          id: recommendation.id,
+          type: recommendation.type,
+          title: recommendation.title,
+          description: recommendation.description,
+          sortOrder: recommendation.sortOrder,
+        })),
+    }));
+
     const responseBody: DiagnosisResultResponse = {
       success: true,
       ranking,
       diffRanking,
+      recommendations,
     };
 
     return NextResponse.json(responseBody, { status: 200 });
