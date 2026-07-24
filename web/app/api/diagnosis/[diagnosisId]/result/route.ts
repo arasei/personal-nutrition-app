@@ -1,6 +1,7 @@
 // web/app/api/diagnosis/[diagnosisId]/result/route.ts
 
 
+
 // 全体の概要
 // - 画面に見せるための結果データを作るAPI
 // - ログイン中ユーザー本人の完了済み診断情報だけをDBから取得し、保存済みscores から栄養素ランキングと前回との差分を作ってJSONで返すAPI
@@ -106,6 +107,16 @@ import { prisma } from "@/lib/prisma";
 // このAPIが返すJSONの型を指定するため
 import type { DiagnosisResultResponse } from "@/types/diagnosisApi";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
+// 差分計算用の共通関数
+import { buildScoreDifference } from "@/lib/diagnosis/buildScoreDifference";
+// RECOMMENDATION_SCORE_THRESHOLD
+// - score < 50 の栄養素だけを対象にするため
+// MAX_RECOMMENDATION_NUTRIENTS
+// - 最大3栄養素までにするため
+import {
+  MAX_RECOMMENDATION_NUTRIENTS,
+  RECOMMENDATION_SCORE_THRESHOLD,
+} from "@/lib/diagnosis/recommendationConfig";
 
 
 // このAPIが受け取るparamsの型を定義
@@ -204,13 +215,13 @@ export async function GET(request: Request, { params }: Props) {
 
     // 今回の診断の 栄養素scoreランキング を作成
     // - 点数の低い順に不足順ランキングとして並べて表示するため
-    // - 「score が低い = 不足している」と判断するため、score 昇順でソートする
+    // - 「score が低い = 不足しやすい傾向が高い」と判断するため、score 昇順でソートする
     const ranking = [...currentDiagnosis.scores]
       .sort((a, b) => a.score - b.score)
       .map((item) => ({
         nutrientId: item.nutrientId,
         nutrient: item.nutrient.name,
-        total: item.score,
+        score: item.score,
       }));
 
     // 今回の 診断scores より前の 診断scores を1件取得(今回の診断と同じユーザーID(currentDiagnosis.userId)を持つ診断に限定する)
@@ -249,26 +260,117 @@ export async function GET(request: Request, { params }: Props) {
 
     // 今回スコアと前回スコアの差分を作成
     // - 今回診断のscores(各栄養素ごとのスコアランキング)に対して 前回診断のscores との差分を計算し追加
-    // - 画面に「前回+2」、「前回-1」のように表示するため
+    // - 診断結果ページで以下のように表示するために、diffRanking を作成。
+    //「+〇〇 改善」
+    //「-〇〇 低下」
+    //「0 変化なし」
+    //「前回データなし」
     const diffRanking = ranking.map((item) => {
-      // 栄養素ごとの前回スコア(score)を取得
+      // 同じ栄養素ID の前回スコアを取得
+      // - 栄養素ごとに、今回スコア(item.score) と 同じ栄養素ID(nutrientId)を持つ、
+      // 前回スコア(previous.score) を 栄養素IDをもとに前回診断から取得する
       const previousScore = previousScoreMap[item.nutrientId];
-      // 前回スコア(score) がある場合、計算し差分を出す。
-      // - 初回診断の場合、今回スコア(score)のみ表示し、差分は表示しない(null)
-      const diff = previousScore !== undefined ? item.total - previousScore : null;
+
+      // 今回スコア(item.score) と 前回スコア(previousScore) を `web/lib/diagnosis/buildScoreDifference.ts`(差分計算専用の共通関数) に渡し、今回スコア - 前回スコア の差分計算を行った結果を受け取る
+      // - `web/lib/diagnosis/buildScoreDifference.ts`(差分計算の共通関数) に必要な値(diff,hasPrevious,diffLabel,)を渡し、計算し、
+      // 返ってきた差分情報をフロントに渡す
+      const {
+        diff,
+        hasPrevious,
+        diffLabel,
+      } = buildScoreDifference(item.score, previousScore);
+
+
       // 今回診断の栄養素ごとのランキングデータ(前回診断スコアとの差分付き)として `web/app/diagnosis/[diagnosisId]/result/page.tsx` に返す
       return {
         nutrientId: item.nutrientId,
         nutrient: item.nutrient,
-        total: item.total,
+        score: item.score,
         diff,
+        hasPrevious,
+        diffLabel,
       };
     });
+
+    // score が低い順(不足しやすい傾向が高い順)に並べ替え作成した ranking を元に提案対象を取り出す
+    // - 提案する対象を決める
+    const recommendationTargets = [...ranking]
+      // 50点未満(49~0)
+      .filter((item) => item.score < RECOMMENDATION_SCORE_THRESHOLD,)
+      // score が低い順
+      .sort((a, b) => a.score - b.score)
+      // 先頭から最大3件を指定
+      .slice(0, MAX_RECOMMENDATION_NUTRIENTS);
+
+    // 提案の対象栄養素のIDだけを取り出す
+    // recommendationTargetIds
+    // - 提案を DB から 取得するためのID(recommendationTargetIds) を作る
+    // - recommendationTargets から nutrientId だけを取り出した配列。
+    // - Prisma の in検索で使用するため
+    const recommendationTargetIds = recommendationTargets.map(
+      (item) => item.nutrientId,
+    );
+
+    // DB から提案の対象になる栄養素ID を元に提案マスターから提案を取得する
+    // - findMany で複数の提案データを取得可能(1栄養素につき3件登録しているため、最大 3栄養素×3提案 = 9件)
+
+    // recommendationTargetIds.length > 0
+    // - 対象の栄養素が1件以上あるか確認している
+    // - 対象が無い場合、DB 検索を行わず、[] を返す
+    // - 不要な DB問い合わせ を避けるため
+    const recommendationItems = recommendationTargetIds.length > 0 ? await prisma.nutrientRecommendation.findMany({
+      // recommendationTargetIds(提案の対象栄養素のID) の栄養素ID を指定して提案を取得する
+      where: {
+        nutrientId: {
+          in: recommendationTargetIds,
+        },
+      },
+      orderBy:[
+        {
+          nutrientId: "asc",
+        },
+        {
+          type: "asc",
+        },
+        {
+          sortOrder: "asc",
+        },
+      ],
+    }) : [];
+
+    // 結果画面で使いやすいように栄養素ごとに提案をまとめる
+    // 提案の対象栄養素(50点未満・scoreが低い順・最大先頭3件)を、1件ずつAPIレスポンス用データに変換する
+    // - 診断結果に基づく情報(nutrientId:...・nutrient:...・score:...)を、そのまま提案データにも持たせる
+    // 画面側で、
+    // 鉄 
+    // 今回のスコア: 0点 
+    // などを表示しやすくするため
+
+    // .filter(...)
+    // - 全提案の中から、現在処理中の栄養素に属するものだけを残す
+
+    // .map(...)
+    // - DB のレコードから、画面へ必要な項目だけを取り出す
+    const recommendations = recommendationTargets.map((target) => ({
+      nutrientId: target.nutrientId,
+      nutrient: target.nutrient,
+      score: target.score,
+      items: recommendationItems
+        .filter((recommendation) => recommendation.nutrientId === target.nutrientId,)
+        .map((recommendation) => ({
+          id: recommendation.id,
+          type: recommendation.type,
+          title: recommendation.title,
+          description: recommendation.description,
+          sortOrder: recommendation.sortOrder,
+        })),
+    }));
 
     const responseBody: DiagnosisResultResponse = {
       success: true,
       ranking,
       diffRanking,
+      recommendations,
     };
 
     return NextResponse.json(responseBody, { status: 200 });

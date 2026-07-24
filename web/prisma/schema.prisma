@@ -1,9 +1,17 @@
-//============
-//共通設定
-//============
+// web/prisma/schema.prisma
 
+// 全体の概要
+// - DB にどのテーブル・カラム・関連を作るか決める
 
-//Prisma Client（DB操作用のJSコード）を自動生成する設定
+// ポイント
+// - schema.prisma 変更後は migration と Client再生成 が必要
+// - Prismaのリレーションフィールド名はcamelCaseが適している
+
+// ============
+// 共通設定
+// ============
+
+// Prisma Client（DB操作用のJSコード）を自動生成する設定
 generator client {
   provider = "prisma-client-js"
 }
@@ -18,21 +26,23 @@ datasource db {
 //Enum(固定の状態・種類)
 //=========================
 
-//enum CauseType
+// enum CauseType
 
-//使用用途 : 原因タイプをUI/DB/APIで統一して扱える(集計・フィルタが簡単)
-//役割 : 栄養不足の原因分類（摂取不足 / 食事リズム / ストレス / バランス）
+// 使用用途
+// - 原因タイプをUI/DB/APIで統一して扱える(集計・フィルタが簡単)
+// 役割
+// - 栄養不足の原因分類（摂取不足 / 食事リズム / ストレス / バランス）
 
-//enum CauseType { ... } : 不足理由のカテゴリを文字列の揺れなしで固定化する仕組み
-//不足の理由カテゴリーを統一ルールで扱うため
+// enum CauseType { ... }
+// - 不足理由のカテゴリを文字列の揺れなしで固定化する仕組み
+// - 不足の理由カテゴリーを統一ルールで扱うため
 
+// LOW_INTAKE : 摂取量不足タイプを表す定数
+// IRREGULAR_MEAL : 食事リズム乱れタイプを表す定数
+// HIGH_STRESS : ストレス由来タイプを表す定数
+// UNBALANCED_DIET : 偏食/バランス不良タイプを表す定数
 
-//LOW_INTAKE : 摂取量不足タイプを表す定数
-//IRREGULAR_MEAL : 食事リズム乱れタイプを表す定数
-//HIGH_STRESS : ストレス由来タイプを表す定数
-//UNBALANCED_DIET : 偏食/バランス不良タイプを表す定数
-
-//=====================================================
+// =====================================================
 
 enum CauseType {
   LOW_INTAKE
@@ -41,45 +51,44 @@ enum CauseType {
   UNBALANCED_DIET
 }
 
-//====================================================
+// ====================================================
 
-//relationについて
-// [] がついた側 = N側
-// fields + references がある側 = FKを持つ側
+// relationについて
+// - [] がついた側 = N側
+// - fields + references がある側 = FKを持つ側
 
-//relation
-// Profile ↔ Diagnosis（1:N）
-// Diagnosis ↔ DiagnosisAnswer（1:N）
+// relation
+// - Profile ↔ Diagnosis（1:N）
+// - Diagnosis ↔ DiagnosisAnswer（1:N）
 
-//indexは回答一覧を取る時間を短くするために設定
+// indexは回答一覧を取る時間を短くするために設定
 
-//=====================================================
+// =====================================================
 
+// ================================
+// Auth/ユーザー系(ユーザーの土台)
+// ================================
+// 使用用途
+// - Authとアプリ情報を分離して安全に拡張できる。
 
+// model User
 
+// 役割
+// - Supabase Authと紐づく「認証ユーザーの受け皿」(ログイン主体)
 
-//================================
-//Auth/ユーザー系(ユーザーの土台)
-//================================
-//使用用途 : Authとアプリ情報を分離して安全に拡張できる。
+// ポイント
+// - 1ユーザーが複数回診断できる
+// - 履歴の起点になる
+// - id String @id：ユーザーの主キー（Supabase Auth の user.id を使う想定）。
+// - diagnoses Diagnosis[]：1ユーザーが複数回診断できる関係（履歴の根拠）。
+// - User1人: Diagnosis 複数
 
-//model User
-
-//役割 : Supabase Authと紐づく「認証ユーザーの受け皿」(ログイン主体)
-
-//1ユーザーが複数回診断できる
-//履歴の起点になる
-//id String @id：ユーザーの主キー（Supabase Auth の user.id を使う想定）。
-//diagnoses Diagnosis[]：1ユーザーが複数回診断できる関係（履歴の根拠）。
-//User1人: Diagnosis 複数
-
-//=====================================================
+// =====================================================
 
 model User {
   id        String      @id
   diagnoses Diagnosis[]
 }
-
 
 //================================================
 
@@ -120,7 +129,6 @@ model Profile {
 //Prisma model
 // ================================
 
-
 //==================
 //診断イベント系
 //==================
@@ -134,7 +142,6 @@ model Profile {
 //いつ診断したか記録
 //回答ログを紐付け
 //集計スコアを保存
-
 
 //回答ログと1:Nの関係
 //userと紐付け
@@ -158,25 +165,24 @@ model Profile {
 //=========================================================
 
 model Diagnosis {
-  id              String @id   @default(cuid())
-  userId          String
-  user            User              @relation(fields: [userId], references: [id])
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  status          String?
-  completedAt     DateTime?
-  createdAt       DateTime     @default(now())
-  currentStep     Int?
-  profileId       String?
-  startedAt       DateTime?
-  updatedAt       DateTime          @updatedAt
-  profile         Profile?          @relation(fields: [profileId], references: [id])
-  answers         DiagnosisAnswer[]
-  scores          DiagnosisNutrientScore[]
+  status      String?
+  completedAt DateTime?
+  createdAt   DateTime                 @default(now())
+  currentStep Int?
+  profileId   String?
+  startedAt   DateTime?
+  updatedAt   DateTime                 @updatedAt
+  profile     Profile?                 @relation(fields: [profileId], references: [id])
+  answers     DiagnosisAnswer[]
+  scores      DiagnosisNutrientScore[]
 
   @@index([profileId])
   @@index([userId])
 }
-
 
 //==========================
 //診断マスタ・回答ログ系
@@ -206,19 +212,18 @@ model Diagnosis {
 
 //=======================================================
 
-
 model DiagnosisQuestion {
-  id           String            @id @default(cuid())
+  id           String @id @default(cuid())
   questionText String
-  order        Int               @unique
+  order        Int    @unique
 
-  nutrientId     String
-  nutrient      Nutrient   @relation(fields: [nutrientId], references: [id])
+  nutrientId String
+  nutrient   Nutrient @relation(fields: [nutrientId], references: [id])
 
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  
-  answers      DiagnosisAnswer[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  answers DiagnosisAnswer[]
 }
 
 //============================================================
@@ -271,19 +276,19 @@ model DiagnosisQuestion {
 //=========================================================
 
 model DiagnosisAnswer {
-  id                String @id @default(cuid())
+  id String @id @default(cuid())
 
-  diagnosisId       String
-  questionId        String
+  diagnosisId String
+  questionId  String
 
-  diagnosis         Diagnosis         @relation(fields: [diagnosisId], references: [id])
-  question          DiagnosisQuestion @relation(fields: [questionId], references: [id])
+  diagnosis Diagnosis         @relation(fields: [diagnosisId], references: [id])
+  question  DiagnosisQuestion @relation(fields: [questionId], references: [id])
 
-  value             Int
+  value Int
 
-  answeredAt        DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  answeredAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@unique([diagnosisId, questionId])
   @@index([diagnosisId])
@@ -292,65 +297,74 @@ model DiagnosisAnswer {
 
 //=================================================
 
-
-
-
 // ================================
 //  Nutrition Engine(計算ロジックの為)
 //スコアを計算する際の型
 // ================================
 
-
-
-
 //===============
 //栄養マスタ系
 //===============
 
-//model Nutrient(栄養素マスタ)
+// model Nutrient(栄養素マスタ)
 
-//役割 : スコア計算の基準単位(単位基準値を持つため)
+// 役割
+// - スコア計算の基準単位(単位基準値を持つため)
 
-//使用用途 : 
-//計算のキー（id）と表示（name）を完全分離できる。
-//推奨量管理
-//各種リンク管理
+// 使用用途
+// - 計算のキー（id）と表示（name）を完全分離できる。
+// - 推奨量管理
+// - 各種リンク管理
 
-//栄養素そのもの
+// ポイント
+// - 栄養素そのもの
 
-//id String @id @default(cuid())：栄養素の主キー（計算キー）。
-//name String @unique：表示名（画面・文章に出す人間向けラベル）。
-//unit String：単位（mg, g など表示用）。
-//dailyStandard Float：目安量（将来の不足判定・レコメンドの基準）。
-//messages NutrientMessage[]：原因タイプごとの表示文言セット。
-//questions DiagnosisQuestion[]：この栄養素に紐づく質問マスタ。
-//DiagnosisNutrientScores DiagnosisNutrientScore[]：診断ごとのスコア履歴（推移が作れる）。
-//ingredientLinks / recipeLinks ...：食材・レシピ提案へ繋ぐリンク。
+// id String @id @default(cuid())
+// - 栄養素の主キー（計算キー）。
+// name String @unique
+// - 表示名（画面・文章に出す人間向けラベル）。
+// unit String
+// - 単位（mg, g など表示用）。
+// dailyStandard Float
+// - 目安量（将来の不足判定・レコメンドの基準）。
+// messages NutrientMessage[]
+// - 原因タイプごとの表示文言セット。
+// questions DiagnosisQuestion[]
+// - この栄養素に紐づく質問マスタ。
+// DiagnosisNutrientScores DiagnosisNutrientScore[]
+// - 診断ごとのスコア履歴（推移が作れる）。
+// ingredientLinks / recipeLinks ...
+// - 食材・レシピ提案へ繋ぐリンク。
+// recommendations NutrientRecommendation[]
+// - 1つの栄養素が、複数の提案を持てるようにしている。
+// 例.
+// 鉄 → 食品提案1・食品提案2・行動提案1
+// - NutrientRecommendation側 から栄養素をつなぐだけでなく、栄養素側から提案一覧を取得するため
 
-//=========================================
+// =========================================
 
 model Nutrient {
-  id                  String    @id @default(cuid())
-  name                String   @unique
-  unit                String
-  dailyStandard       Float
+  id            String @id @default(cuid())
+  name          String @unique
+  unit          String
+  dailyStandard Float
 
-  messages            NutrientMessage[]
-  recipeLinks         RecipeNutrient[]
-  ingredientLinks     IngredientNutrient[]
-  DiagnosisNutrientScores    DiagnosisNutrientScore[]
-  questions                 DiagnosisQuestion[]
+  messages                NutrientMessage[]
+  recipeLinks             RecipeNutrient[]
+  ingredientLinks         IngredientNutrient[]
+  DiagnosisNutrientScores DiagnosisNutrientScore[]
+  questions               DiagnosisQuestion[]
+  recommendations         NutrientRecommendation[]
 
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
+// =======================================================
 
-//=======================================================
+// model NutrientMessage(不足理由ごとのストーリー文)(栄養素×原因ストーリー)
 
-//model NutrientMessage(不足理由ごとのストーリー文)(栄養素×原因ストーリー)
-
-//役割 : 不足理由×栄養素の文章マスタ(栄養素×原因ごとの「一言/共感/原因/行動」を確定表示するため)
+// 役割 : 不足理由×栄養素の文章マスタ(栄養素×原因ごとの「一言/共感/原因/行動」を確定表示するため)
 
 //使用用途 : 
 //診断結果の“見せ方”をDBで管理でき、UIが薄くなる。
@@ -370,16 +384,16 @@ model Nutrient {
 //================================================================
 
 model NutrientMessage {
-  id                  String   @id @default(cuid())
-  nutrientId          String
-  causeType           CauseType
+  id         String    @id @default(cuid())
+  nutrientId String
+  causeType  CauseType
 
-  shortMessage        String
-  empathyText         String
-  reasonText          String
-  actionText          String
+  shortMessage String
+  empathyText  String
+  reasonText   String
+  actionText   String
 
-  nutrient            Nutrient   @relation(fields: [nutrientId], references: [id])
+  nutrient Nutrient @relation(fields: [nutrientId], references: [id])
 
   @@unique([nutrientId, causeType])
   @@index([nutrientId])
@@ -405,7 +419,9 @@ model NutrientMessage {
 //id String @id @default(cuid())：スコア保存レコードの主キー。
 //diagnosisId String：どの診断の結果か。
 //nutrientId String：どの栄養素のスコアか。
-//score Int：合計スコア（回答ログから集計して保存する）。
+//score Int
+// - 栄養素ごとの 0~100 の栄養充足傾向スコア（回答ログから集計して保存する）。
+// - 高いほど不足リスクが低く、低いほど不足しやすい傾向を表す。
 //diagnosis Diagnosis @relation(...)：診断イベントへ紐づく。
 //nutrient Nutrient @relation(...)：栄養素マスタへ紐づく。
 //@@unique([diagnosisId, nutrientId])：診断×栄養素=1行 を保証（上書き/再計算が安全）。
@@ -415,13 +431,13 @@ model NutrientMessage {
 //===================================================================
 
 model DiagnosisNutrientScore {
-  id                          String  @id @default(cuid())
-  diagnosisId                 String
-  nutrientId                  String
-  score                       Int
+  id          String @id @default(cuid())
+  diagnosisId String
+  nutrientId  String
+  score       Int
 
-  diagnosis                  Diagnosis   @relation(fields: [diagnosisId], references: [id])
-  nutrient                   Nutrient    @relation(fields: [nutrientId],references: [id])
+  diagnosis Diagnosis @relation(fields: [diagnosisId], references: [id])
+  nutrient  Nutrient  @relation(fields: [nutrientId], references: [id])
 
   @@unique([diagnosisId, nutrientId])
   @@index([diagnosisId])
@@ -455,15 +471,15 @@ model DiagnosisNutrientScore {
 //======================================================================
 
 model Recipe {
-  id                 String   @id  @default(cuid())
-  name               String
-  steps              Json
+  id    String @id @default(cuid())
+  name  String
+  steps Json
 
-  nutrientLinks      RecipeNutrient[]
-  ingredientLinks    RecipeIngredient[]
+  nutrientLinks   RecipeNutrient[]
+  ingredientLinks RecipeIngredient[]
 
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 //=====================================================
@@ -476,7 +492,6 @@ model Recipe {
 //レシピと多対多
 //栄養素と多対多
 
-
 //id / name @unique：食材の識別と表示（重複防止）。
 //category String?：野菜/肉/乳製品などの分類（フィルタ用）。
 //nutrientLinks / recipeLinks：食材から栄養/レシピへ辿れるようにする。
@@ -484,15 +499,15 @@ model Recipe {
 //=============================================================
 
 model Ingredient {
-  id                   String   @id  @default(cuid())
-  name                 String   @unique
-  category             String?
+  id       String  @id @default(cuid())
+  name     String  @unique
+  category String?
 
-  nutrientLinks        IngredientNutrient[]
-  recipeLinks          RecipeIngredient[]
+  nutrientLinks IngredientNutrient[]
+  recipeLinks   RecipeIngredient[]
 
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 //=====================================================================
@@ -504,23 +519,21 @@ model Ingredient {
 //recipeId / nutrientId / impactScore：このレシピがどの栄養素にどれだけ効くか。
 //@@unique([recipeId, nutrientId])：同じ組み合わせの重複防止。
 
-
 //====================================================================
 
 model RecipeNutrient {
-  id                    String   @id  @default(cuid())
-  recipeId              String
-  nutrientId            String
-  impactScore           Float
+  id          String @id @default(cuid())
+  recipeId    String
+  nutrientId  String
+  impactScore Float
 
-  recipe                Recipe     @relation(fields: [recipeId], references: [id])
-  nutrient              Nutrient   @relation(fields: [nutrientId], references: [id])
+  recipe   Recipe   @relation(fields: [recipeId], references: [id])
+  nutrient Nutrient @relation(fields: [nutrientId], references: [id])
 
   @@unique([recipeId, nutrientId])
   @@index([nutrientId])
   @@index([recipeId])
 }
-
 
 //======================================================================
 
@@ -531,18 +544,17 @@ model RecipeNutrient {
 //ingredientId / nutrientId / approxAmount：食材に含まれる栄養の概算（不足埋めの根拠）。
 //@@unique([ingredientId, nutrientId])：重複防止。
 
-
 //=========================================================================
 
 model IngredientNutrient {
-  id                       String    @id  @default(cuid())
-  ingredientId             String
-  nutrientId               String
+  id           String @id @default(cuid())
+  ingredientId String
+  nutrientId   String
 
-  approxAmount             Float
+  approxAmount Float
 
-  ingredient             Ingredient  @relation(fields: [ingredientId], references: [id])
-  nutrient               Nutrient    @relation(fields: [nutrientId], references: [id])
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  nutrient   Nutrient   @relation(fields: [nutrientId], references: [id])
 
   @@unique([ingredientId, nutrientId])
   @@index([nutrientId])
@@ -560,17 +572,121 @@ model IngredientNutrient {
 //==========================================================================
 
 model RecipeIngredient {
-  id                     String   @id @default(cuid())
-  recipeId               String
-  ingredientId           String
-  amount                 String?
+  id           String  @id @default(cuid())
+  recipeId     String
+  ingredientId String
+  amount       String?
 
-  recipe                 Recipe         @relation(fields: [recipeId], references: [id])
-  ingredient             Ingredient    @relation(fields: [ingredientId], references: [id])
+  recipe     Recipe     @relation(fields: [recipeId], references: [id])
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
 
   @@unique([recipeId, ingredientId])
   @@index([recipeId])
   @@index([ingredientId])
 }
 
-//===========================================================================
+// ===========================================================================
+
+// ポイント
+// 1つの栄養素び対して、複数の食品・行動提案を持てる
+
+// 関係のイメージ
+// 例.
+// Nutrient
+// 鉄
+// │
+// ├─ NutrientRecommendation
+// │  type: FOOD
+// │  title: 食品に関する提案
+// │
+// ├─ NutrientRecommendation
+// │  type: FOOD
+// │  title: 別の食品提案
+// │
+// └─ NutrientRecommendation
+//     type: ACTION
+//     title: 生活行動に関する提案
+
+// enum RecommendationType {...}
+// - 提案の種類を固定
+// - 自由な文字列にすると怒る表記揺れを防ぐため
+
+// FOOD
+// - 食品・食材に関する提案
+
+// ACTION
+// - 生活行動に関する提案
+
+enum RecommendationType {
+  FOOD
+  ACTION
+}
+
+// =====================================================================================
+
+// model NutrientRecommendation {...}
+// - 栄養素に対する提案1件を保存するmodel
+// - 1行が、「鉄 × FOOD × 赤身肉を取り入れる」 のような1提案を表す。
+
+// id
+// - 提案1件ごとの主キー
+
+// nutrientId
+// - この提案がどの栄養素に属するかを保存する
+
+// type
+// - この提案が FOOD なのか ACTION なのかを保存する
+
+// title
+// - 画面で目立たせるタイトル
+
+// description
+// - 提案の補足説明を保存する
+
+// sortOrder
+// - 提案の表示順を保存する
+
+// nutrient Nutrient @relation(...)
+// - nutrient Nutrient
+// この提案が属する栄養素本体を表す
+// - fields: [nutrientId]
+// この model内 のどのカラムが外部キーなのかを指定している
+// - references: [id]
+// Nutrient のどのカラムを参照するかを指定しています。
+// 例.
+// NutrientRecommendation.nutrientId
+// ↓
+// Nutrient.id
+
+// createdAt
+// - 提案レコードを最初に作った日時を自動保存する
+// updatedAt
+// - 提案を更新したときの日時をPrismaが自動更新する
+// @@unique([nutrientId, type, title])
+// -  3項目(栄養素・提案種類・タイトル)がすべて同じ提案を重複登録できないようにします。
+// @@index([nutrientId, type, sortOrder])
+// - 次回からの取得を効率化するための索引です。
+// 特定の栄養素
+// ↓
+// FOODまたはACTIONで絞る
+// ↓
+// sortOrder順に並べる
+
+model NutrientRecommendation {
+  id          String             @id @default(cuid())
+  nutrientId  String
+  type        RecommendationType
+  title       String
+  description String
+  sortOrder   Int                @default(0)
+
+  nutrient Nutrient @relation(fields: [nutrientId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([nutrientId, type, title])
+  @@index([nutrientId, type, sortOrder])
+}
+
+// =======================================================================================================

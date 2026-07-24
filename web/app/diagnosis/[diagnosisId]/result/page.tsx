@@ -1,9 +1,10 @@
 // web/app/diagnosis/[diagnosisId]/result/page.tsx
 
+
 // 全体の概要
 // - URL の diagnosisId と Supabase の token を使って、
 // 結果取得API(`web/app/api/diagnosis/[diagnosisId]/result/route.ts`) を呼び出し、
-// 診断結果をチャートとランキングで表示するページ
+// 診断結果を チャート と ランキング と 食品/行動提案 で表示するページ
 // - URLから diagnosisId を取得し、結果取得APIを呼んで、
 // 受け取った診断結果をチャートとランキング一覧で表示する
 
@@ -117,8 +118,8 @@
 // 役割
 // - URLから diagnosisId を取る
 // - tokenをAPIに渡す
-// - APIから診断結果を受け取る
-// - 画面に表示する
+// - APIから診断結果(ランキング・前回差分・食品/行動提案)を受け取る
+// - チャート・ランキング・提案 を画面に表示する
 
 
 
@@ -155,7 +156,7 @@
 //   ↓
 // `web/app/diagnosis/[diagnosisId]/result/page.tsx`
 //   ↓
-// フロント側が画面にチャートとランキングを表示
+// フロント側が画面にチャート と ランキング と 提案 を表示
 //   ↓
 // 「今回の履歴詳細を見る」・「マイページ」 の<Link>...</Link> から
 // `web/app/history/[diagnosisId]/page.tsx`・`web/app/mypage/page.tsx` へ遷移可能
@@ -207,7 +208,7 @@
 // ↓
 // `web/app/diagnosis/[diagnosisId]/result/page.tsx` に ranking / diffRanking を返す(本人の診断結果をJSON形式で返す)
 // ↓
-// `web/app/diagnosis/[diagnosisId]/result/page.tsx` で画面に診断結果(チャート と ランキング) を表示
+// `web/app/diagnosis/[diagnosisId]/result/page.tsx` で画面に診断結果(チャート と ランキング と 提案) を表示
 
 
 
@@ -362,18 +363,157 @@ export default function ResultPage() {
         {data.diffRanking.map((item, index) => (
           <div key={item.nutrientId}>
             {/* index は 0から始まるので 「+ 1」をする */}
-            {index + 1}位 {item.nutrient} {item.total}点
-            {/* 前回との差分がある場合だけ表示 */}
-            {/* プラスの時は「+」、マイナスの時は「-」を表示 */}
-            {item.diff !== null && (
-              <span>
-                {" "}
-                (前回 {item.diff > 0 ? "+" : ""}
-                {item.diff})
-              </span>
-            )}
+            {index + 1}位 {item.nutrient} {item.score}点
+            
+
+            {/*
+              API側(web/app/api/diagnosis/[diagnosisId]/result/route.ts) で
+              計算した今回スコア と 前回スコアとの 差分(diff) に対応する差分表示文(diffLabel) を受け取り、
+              表示する。
+            */}
+            {/*
+              表示例.
+              (+50 改善)
+              (-50 低下)
+              (0 変化なし)
+              (前回データなし)
+            */}
+            <span>
+              {" "}
+              ({item.diffLabel})
+            </span>
           </div>
         ))}
+      </section>
+
+      {/* 不足傾向の栄養素に対応する食品・行動提案 */}
+      <section className="mt-8">
+        <h2>食生活・生活習慣のヒント</h2>
+
+        {/*
+          提案(recommendations) が無い場合の分岐
+          - recommendations が0件の場合(score が 50点未満の栄養素が存在しない)、
+          改善提案は表示しない、見直し候補が無いというメッセージを表示する
+
+          recommendationsが0件？
+          ├─ はい → 見直し候補なしの文章を表示
+          └─ いいえ → 提案一覧を表示
+
+
+          data.recommendations.length === 0 を確認する理由
+          - 今回のAPIでは、score < 50 (49~0)に該当する栄養素だけを提案対象にしている。
+          そのため、全ての栄養素が 50点以上の場合、recommendation[] (空配列) を返し、画面には何も表示されないになるのを防ぐため、
+          "data.recommendations.length === 0" の場合、ユーザーに対してのメッセージを表示するようにしている。。
+
+
+        */}
+        {data.recommendations.length === 0 ? (
+          <p className="mt-4 rounded-lg border p-4">
+            現在、大きな見直し候補はありません。
+            <br />
+            今の生活習慣を維持しましょう。
+          </p>
+        ) : (
+
+          // 提案対象となった栄養素を1件ずつ表示する
+
+          // recommendation 1件に対しては、ResultRecommendation 型の以下の内容のデータが入る
+          // - nutrientId
+          // - nutrient
+          // - score
+          // - items
+
+          // recommendations.map(...)
+          // - 提案対象の栄養素を1件ずつ取り出す
+
+          // 提案を FOOD と ACTION に分けて表示しやすくする
+          // - API から受け取る items では FOOD(食品提案) と ACTION(行動提案) が
+          // 同じ items内 に格納された状態で受け取るため、そのまま表示するとFOOD(食品提案) と ACTION(行動提案) の違いがわかりにくいので
+          // それぞれを表示しやすいように .filter(...) で提案の種類ごとに分けて表示する。
+
+          <div className="mt-4 space-y-6">
+            {data.recommendations.map((recommendation) => {
+              // FOODタイプの提案だけを取り出す
+              const foodItems = recommendation.items.filter(
+                (item) => item.type === "FOOD"
+              );
+
+              // ACTIONタイプの提案だけを取り出す
+              const actionItems = recommendation.items.filter(
+                (item) => item.type === "ACTION"
+              );
+
+              // <article>...</article>
+              // - 1つの栄養素に関する提案は、それだけで独立した内容です。
+              // - 1つのまとまりであることを表現するため
+
+              // key には、nutrientId を使用
+              // - React が各栄養素を識別するために必要
+              // - 提案対象の栄養素に対して、key={recommendation.nutrientId} を使用して、識別する。
+              // 提案対象 の 栄養素は、"iron","protein","vitaminD" のように 一意なので key が適している。
+              // - 提案1件に対して、key={item.id} を使用して、識別する。。
+              // 提案レコードごとのDB上のID のため、一意なので key が適している。
+              return (
+                <article
+                  key={recommendation.nutrientId}
+                  className="rounded-lg border p-4"
+                >
+                  {/* 提案対象の栄養素名と今回のスコア */}
+                  <h3 className="text-lg font-semibold">
+                    {recommendation.nutrient} ({recommendation.score}点)
+                  </h3>
+
+                  {/*
+                    "foodItems.length > 0 && (...)"
+                    - FOOD(食品提案) が 1件以上存在する場合だけ、食品のヒント (見出し)を表示する。
+                    - 仮に、ある栄養素に ACTION しか登録されていない場合、
+                    不自然な表示(「食品のヒント」というタイトルだけ表示している状態 など)を防ぐことができる。
+                    
+                  */}
+                  {foodItems.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="font-semibold">
+                        食品のヒント
+                      </h4>
+
+                      <div className="mt-2 space-y-3">
+                        {foodItems.map((item) => (
+                          <div key={item.id}>
+                            <p className="font-semibold">{item.title}</p>
+                            <p>{item.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/*
+                    "actionItems.length > 0 && (...)"
+                    - ACTION(行動提案) が1件以上存在する場合だけ、生活習慣のヒントを表示する
+                    - 仮に、ある栄養素に FOOD しか登録されていない場合、
+                    不自然な表示(「生活習慣のヒント」というタイトルだけ表示している状態 など) を防ぐことができる。
+                  */}
+                  {actionItems.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="font-semibold">
+                        生活習慣のヒント
+                      </h4>
+
+                      <div className="mt-2 space-y-3">
+                        {actionItems.map((item) => (
+                          <div key={item.id}>
+                            <p className="font-semibold">{item.title}</p>
+                            <p>{item.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <nav
