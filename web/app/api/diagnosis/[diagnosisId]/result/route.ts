@@ -351,20 +351,30 @@ export async function GET(request: Request, { params }: Props) {
 
     // .map(...)
     // - DB のレコードから、画面へ必要な項目だけを取り出す
-    const recommendations = recommendationTargets.map((target) => ({
-      nutrientId: target.nutrientId,
-      nutrient: target.nutrient,
-      score: target.score,
-      items: recommendationItems
-        .filter((recommendation) => recommendation.nutrientId === target.nutrientId,)
+    const recommendations = recommendationTargets.map((target) => {
+      const items = recommendationItems
+        .filter((recommendation) => recommendation.nutrientId === target.nutrientId)
         .map((recommendation) => ({
           id: recommendation.id,
           type: recommendation.type,
           title: recommendation.title,
           description: recommendation.description,
           sortOrder: recommendation.sortOrder,
-        })),
-    }));
+        }));
+      return {
+        nutrientId: target.nutrientId,
+        nutrient: target.nutrient,
+        score: target.score,
+
+        foodItems: items.filter(
+          (item) => item.type === "FOOD"
+        ),
+
+        actionItems: items.filter(
+          (item) => item.type === "ACTION"
+        ),
+      };
+    });
 
     const responseBody: DiagnosisResultResponse = {
       success: true,

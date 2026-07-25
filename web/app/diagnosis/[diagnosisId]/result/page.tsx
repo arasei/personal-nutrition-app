@@ -433,15 +433,6 @@ export default function ResultPage() {
 
           <div className="mt-4 space-y-6">
             {data.recommendations.map((recommendation) => {
-              // FOODタイプの提案だけを取り出す
-              const foodItems = recommendation.items.filter(
-                (item) => item.type === "FOOD"
-              );
-
-              // ACTIONタイプの提案だけを取り出す
-              const actionItems = recommendation.items.filter(
-                (item) => item.type === "ACTION"
-              );
 
               // <article>...</article>
               // - 1つの栄養素に関する提案は、それだけで独立した内容です。
@@ -470,14 +461,14 @@ export default function ResultPage() {
                     不自然な表示(「食品のヒント」というタイトルだけ表示している状態 など)を防ぐことができる。
                     
                   */}
-                  {foodItems.length > 0 && (
+                  {recommendation.foodItems.length > 0 && (
                     <div className="mt-4">
                       <h4 className="font-semibold">
                         食品のヒント
                       </h4>
 
                       <div className="mt-2 space-y-3">
-                        {foodItems.map((item) => (
+                        {recommendation.foodItems.map((item) => (
                           <div key={item.id}>
                             <p className="font-semibold">{item.title}</p>
                             <p>{item.description}</p>
@@ -493,14 +484,14 @@ export default function ResultPage() {
                     - 仮に、ある栄養素に FOOD しか登録されていない場合、
                     不自然な表示(「生活習慣のヒント」というタイトルだけ表示している状態 など) を防ぐことができる。
                   */}
-                  {actionItems.length > 0 && (
+                  {recommendation.actionItems.length > 0 && (
                     <div className="mt-4">
                       <h4 className="font-semibold">
                         生活習慣のヒント
                       </h4>
 
                       <div className="mt-2 space-y-3">
-                        {actionItems.map((item) => (
+                        {recommendation.actionItems.map((item) => (
                           <div key={item.id}>
                             <p className="font-semibold">{item.title}</p>
                             <p>{item.description}</p>

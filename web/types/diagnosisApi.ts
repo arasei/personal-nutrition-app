@@ -318,26 +318,31 @@ export type RecommendationType =
   // - nutrient: 栄養素名
   // - score: 今回のスコア
   // - item: この栄養素に対する提案一覧
+  // - foodItems: この栄養素に対する食品提案一覧
+  // - actionItems: この栄養素に対する行動提案一覧
 
 
   // - 以下のような 栄養素ごとの提案 を表している型
   // nutrientId・nutrient・score
   // 鉄
   // ↓
-  // items: ResultRecommendationItem[]
+  // foodItems: ResultRecommendationItem[]
   // 食品: レバー
   // ↓
-  // items: ResultRecommendationItem[]
+  // foodItems: ResultRecommendationItem[]
   // 食品: 赤身肉
   // ↓
-  // items: ResultRecommendationItem[]
+  // actionItems: ResultRecommendationItem[]
   // 行動: ビタミンCを一緒に撮る
 
   export type ResultRecommendation = {
     nutrientId: string;
     nutrient: string;
     score: number;
-    items: ResultRecommendationItem[];
+
+    foodItems: ResultRecommendationItem[];
+
+    actionItems: ResultRecommendationItem[];
   };
 
 
