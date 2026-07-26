@@ -1,6 +1,7 @@
 // web/components/SafeRadarChart.tsx
 
-//SafeRadarChart を経由することで、ブラウザで動いた後だけRadarChart.tsxを描画するための中継コンポーネント
+// 全体の概要
+//- SafeRadarChart を経由することで、ブラウザで動いた後だけRadarChart.tsxを描画するための中継コンポーネント
 
 
 
@@ -17,7 +18,7 @@
 // dynamic import で RadarChart をブラウザ側だけ読み込む
 //   ↓
 // ranking.map(item => item.nutrient)
-// ranking.map(item => item.total)
+// ranking.map(item => item.score)
 //   ↓
 // 読み込み中は「チャートを読み込み中...」
 //   ↓
@@ -45,8 +46,8 @@ const RadarChart = dynamic(() => import("./RadarChart"), {
 });
 
 // rankingを受け取るためのPropsの型を定義
-// nutrientId, nutrient, total を持つ rankingを安全に受け取り、使えるようにするため
-// result/page.tsx から渡される data.ranking と型を揃える必要がある。
+// - nutrientId, nutrient, score を持つ rankingを安全に受け取り、使えるようにするため
+// - result/page.tsx から渡される data.ranking と型を揃える必要がある。
 type Props = {
   ranking: ResultRankingItem[];
 };

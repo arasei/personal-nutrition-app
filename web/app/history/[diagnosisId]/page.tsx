@@ -1,5 +1,6 @@
 // web/app/history/[diagnosisId]/page.tsx
 
+
 // 全体の概要
 // - 履歴詳細を表示するページ
 // - ログイン中ユーザーの token と URL の [diagnosisId] を使い、履歴詳細API を呼び出し、
@@ -117,9 +118,9 @@
 //   ↓
 // Prismaで user.id で本人の完了済み診断だけ取得(Prisma で userId: user.id の履歴だけ検索)
 //   ↓
-// scores を score 昇順(score の低い順 = 不足度が高い順)で取得
+// scores を score 昇順(score の低い順 = 不足傾向が高い順)で取得
 //   ↓
-// 不足度が高い順で並べたランキングの上位3栄養素(lowNutrients)だけ整形して作成
+// 不足傾向が高い順で並べたランキングの上位3栄養素(lowNutrients)だけ整形して作成
 //   ↓
 // 履歴一覧表示に必要な値(histories) を `web/app/history/page.tsx` に返す
 //   ↓
@@ -165,8 +166,8 @@
 //   ↓
 // 同じnutrientIdを元に前回との差分を作る(differences)
 //   ↓
-// 前回データがあるか判定
-// ├─ ある → diff を計算
+// buildScoreDifference.ts で前回データの有無を判定し、計算
+// ├─ ある → diff / diffLabel を計算し、作成
 // └─ ない → 前回データなし
 //   ↓
 // createdAt を toISOString() で文字列にする
@@ -355,23 +356,25 @@ export default function HistoryDetailPage() {
     );
   }
   
-  // APIから来るデータをチャート用のデータ形に変換
-  // - nutrientはそのまま、score を total に変換して、SafeRadarChartに渡す。
+  // APIから来るデータ(nutrientScores)をチャート用のデータ形(ranking 形式)に変換
+  // - nutrientId はそのまま SafeRadarChart に渡す。
+  // - nutrient はそのまま SafeRadarChart に渡す。
+  // - item.score を ranking.score として、SafeRadarChart に渡す。
 
-  // 変換の流れ
+  // - 変換の流れ
 
   // APIの nutrientScores
-  // score
+  // nutrientScores[].score
   // ↓
-  // チャート用 ranking
-  // total
+  // チャート用 ranking のために、item.score を ranking[].score に変換
+  // ranking[].score
   // ↓
-  // SafeRadarChart
+  // SafeRadarChartに ranking を渡す
 
   const ranking = historyDetail.nutrientScores.map((item) => ({
     nutrientId: item.nutrientId,
     nutrient: item.nutrient,
-    total: item.score,
+    score: item.score,
   }));
 
 
@@ -404,16 +407,16 @@ export default function HistoryDetailPage() {
           <p>栄養素スコアがありません。</p>
         ) : (
           <ul>
-            {historyDetail.nutrientScores.map((score) => (
-              <li key={score.nutrientId}>
-                {score.nutrient} : {score.score}
+            {historyDetail.nutrientScores.map((nutrientScore) => (
+              <li key={nutrientScore.nutrientId}>
+                {nutrientScore.nutrient} : {nutrientScore.score}
               </li>
             ))}
           </ul>
         )}
       </section>
 
-      {/* 満たせている上位3件 */}
+      {/* 満たせている栄養素 上位3件 */}
       <section className="mt-6">
         <h2>満たせている栄養素 上位3件</h2>
         {historyDetail.topNutrients.length === 0 ? (
@@ -429,7 +432,7 @@ export default function HistoryDetailPage() {
         )}
       </section>
 
-      {/* 不足傾向の下位3件 */}
+      {/* 不足傾向の栄養素 下位3件 */}
       <section className="mt-6">
         <h2>不足傾向の栄養素 下位3件</h2>
 
@@ -446,7 +449,10 @@ export default function HistoryDetailPage() {
         )}
       </section>
 
-      {/* 各栄養素の前回との差分 */}
+      {/*
+        各栄養素の前回との差分表示
+        - API側、正確には buildScoreDifference.ts 側で作った diffLabel を受け取り、表示している
+      */}
       <section className="mt-6">
         <h2>前回との差分</h2>
 

@@ -28,6 +28,47 @@
 // - 画面遷移は行わない
 // - 回答フォームの表示は行わない
 
+// - score計算については、栄養素ごとに回答値を集計し、その平均を 0~100点 に変換する
+// 流れ
+
+// 回答一覧
+// ↓
+// 栄養素ごとに回答値の合計と回答数を数える
+// ↓
+// 平均回答値を出す
+// ↓
+// 平均値を0〜100点へ変換する
+// ↓
+// DiagnosisNutrientScoreへ保存する形へ整える
+
+// 計算結果に対するスコアの意味
+// - 平均回答値が 1 の場合、スコアは 100 点(不足リスクが低い傾向)
+// - 平均回答値が 2 の場合、スコアは 50 点(不足リスクが中程度の傾向)
+// - 平均回答値が 3 の場合、スコアは 0 点(不足リスクが高い傾向)
+
+// - タンパク質の例
+// タンパク質には質問が2つある。
+// 質問1：回答1
+// 質問5：回答3
+
+// 計算は以下です。
+
+// 合計：1 + 3 = 4
+// 回答数：2
+// 平均：4 / 2 = 2
+// スコア：50点
+
+// - 質問が1つだけの鉄でも、
+// 回答2
+// ↓
+// 平均：2
+// ↓
+// スコア：50点
+
+// になる。
+
+// これで、質問数が違っても同じ基準で比較できる。
+
 
 
 
@@ -143,9 +184,10 @@ type QuestionItem = {
 };
 
 // 栄養素の合計スコアをDB保存用の1行分のスコアデータの型
+// 0~100点 のスコアを表す型
 type ScoreRow = {
   nutrientId: string;
-  total: number;
+  score: number;
 };
 
 // 質問一覧から、質問IDと栄養素IDの対応表を作成
@@ -160,37 +202,70 @@ function buildQuestionMap(questions: QuestionItem[]) {
   return questionMap;
 }
 
-// 回答一覧を元に、質問→栄養素の対応表を使って、栄養素ごとの合計点を作る関数
-function buildScoreMap(
-  answers: AnswerItem[],
-  questionMap: Record<string, string>
-) {
-  // 栄養素ごとの合計点を入れる箱
-  const scoreMap: Record<string, number> = {};
 
-  // 回答の questionId から、対応する nutrientId を取り出す
-  for (const a of answers) {
-    const nutrientId = questionMap[a.questionId];
+// 栄養素ごとの回答値の合計と回答数を保持する型
+type NutrientAnswerAggregate = {
+  totalAnswerValue: number;
+  answerCount: number;
+};
+
+// 回答一覧を元に、質問→栄養素の対応表を使って、栄養素ごとの合計点を作る関数
+// - scoreMap(栄養素ごとの合計点) をDB保存用の配列に変換する
+function buildScoreRows(
+  answers:AnswerItem[],
+  questionMap: Record<string,string>
+): ScoreRow[] {
+  // 栄養素ごとの回答値の合計と回答数を入れる箱
+  const aggregateMap: Record<string, NutrientAnswerAggregate> = {};
+  
+  // 回答一覧(answers)を元にループして、回答(answer)に対応する質問ID(questionId)から栄養素ID(nutrientId)を取得し、栄養素ごとの合計値と回答数を集計
+  for (const answer of answers) {
+    const nutrientId = questionMap[answer.questionId];
 
     // 対応する栄養素IDがなければその回答をスキップ
-    if (!nutrientId) continue;
+    if (!nutrientId) {
+      continue;
+    }
 
-    // その栄養素の合計点に、回答値を足す
-    scoreMap[nutrientId] = (scoreMap[nutrientId] ?? 0) + a.value;
+    // 栄養素ごとの合計値と回答数を集計するための箱を作成
+    // - aggregateMap[nutrientId] (栄養素に対応する回答・集計データ)が 存在しない(undefined)場合、初期値を 0 として設定
+    const current = aggregateMap[nutrientId] ?? {
+      totalAnswerValue: 0,
+      answerCount: 0,
+    };
+
+    // 栄養素(nutrientId) ごとの合計値と回答値を更新
+    // - totalAnswerValue: 回答値の合計(質問ごとに回答値を足していく)
+    // - answerCount: 回答の合計(回答値が確認できた質問の数を集計)
+    aggregateMap[nutrientId] = {
+      totalAnswerValue: current.totalAnswerValue + answer.value,
+      answerCount: current.answerCount + 1,
+    };
   }
 
-  return scoreMap;
-}
+  // - aggregateMap をDB保存(DiagnosisNutrientScoreへ保存)するために配列に変換し、
+  // 栄養素ごとのスコアの平均を計算して返す
+  // - 表示順はresult/route.ts 側で並び替える。ここでは変換だけ行う。
+  return Object.entries(aggregateMap).map(([nutrientId, aggregate]) => {
 
-// scoreMap(栄養素ごとの合計点) をDB保存用の配列に変換する
-// - 表示順はresult/route.ts 側で並び替える。ここでは変換だけ行う。
-function buildScoreRows(scoreMap: Record<string, number>): ScoreRow[] {
-  return Object.entries(scoreMap).map(([nutrientId, total]) => ({
-    nutrientId,
-    total,
-  }));
-}
+    // 栄養素ごとの平均値を計算
+    const averageAnswerValue = aggregate.totalAnswerValue / aggregate.answerCount;
 
+    // 平均値の表示を 0~100点 に変換する
+    // - 平均値が 3 の場合、スコアは 0 点
+    // - 平均値が 1 の場合、スコアは 100 点
+    // averageAnswerValue: 平均値
+    const score = Math.round(
+      ((3 - averageAnswerValue) / 2) * 100
+    );
+
+    // 栄養素ごとのスコアを返す
+    return {
+      nutrientId,
+      score,
+    }
+  })
+}
 
 
 
@@ -452,12 +527,10 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 質問ID → 栄養素ID の対応表を作成
+      // 質問ID → 栄養素ID の対応表を作成する関数
       const questionMap = buildQuestionMap(questions);
-      // 回答一覧 → 栄養素ごとの合計点 の対応表を作成
-      const scoreMap = buildScoreMap(answers, questionMap);
-      // scoreMap をDB保存用のスコア配列に変換する表を作成
-      const scoreRows = buildScoreRows(scoreMap);
+      // 回答一覧(answers) と 質問ID → 栄養素ID(questionMap) の対応表から、栄養素ごとの 0~100点 の充足傾向スコアを作成する関数
+      const scoreRows = buildScoreRows(answers, questionMap);
 
       // 回答値の有無・回答値を保存用に変換出来ているかチェック
       if (scoreRows.length === 0) {
@@ -477,7 +550,7 @@ export async function POST(request: NextRequest) {
         data: scoreRows.map((row) => ({
           diagnosisId,
           nutrientId: row.nutrientId,
-          score: row.total,
+          score: row.score,
         })),
       });
 

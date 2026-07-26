@@ -143,9 +143,9 @@
 //   ↓
 // Prismaで user.id で本人の完了済み診断だけ取得(Prisma で userId: user.id の履歴だけ検索)
 //   ↓
-// scores を score 昇順(score の低い順 = 不足度が高い順)で取得
+// scores を score 昇順(score の低い順 = 不足傾向が高い順)で取得
 //   ↓
-// 不足度が高い順で並べたランキングの上位3栄養素(lowNutrients)だけ整形して作成
+// 不足傾向が高い順で並べたランキングの上位3栄養素(lowNutrients)だけ整形して作成
 //   ↓
 // 履歴一覧表示に必要な値(histories) を `web/app/history/page.tsx` に返す
 //   ↓
@@ -224,6 +224,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { GetDiagnosisHistoryDetailResponse } from "@/types/diagnosisApi";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
+// 差分計算用の共通関数
+import { buildScoreDifference } from "@/lib/diagnosis/buildScoreDifference";
 
 // GETリクエストが来た時に実行する関数
 // - `/api/diagnosis/history/[diagnosisId]` にアクセスされたときに、
@@ -327,7 +329,7 @@ export async function GET(
 
     // 栄養素スコアデータを画面表示用に整形
     // - 今回の栄養スコアを使いやすい形(配列)に整えて、栄養スコア一覧を作成
-    // - .sort((a, b) => b.score - a.score);でscoreが高い順に並び替え
+    // - .sort((a, b) => b.score - a.score);で score が高い順に並び替えている
     const nutrientScores = currentDiagnosis.scores
       .map((score) => ({
         nutrient: score.nutrient.name,
@@ -337,10 +339,12 @@ export async function GET(
       .sort((a, b) => b.score - a.score);
 
     // スコアが高い順の上位3件(満たせている栄養素トップ3)
+    // - `const nutrientScores = ... ` で score が高い順に並べた状態の配列を元に slice(0, 3) で 先頭3件を指定している(満たせている傾向が高い順の栄養素トップ3)
     const topNutrients = nutrientScores.slice(0, 3);
 
-    // スコアが低い順の上位3件(不足傾向の栄養素トップ3)
-    // - nutrientScores で score が高い順に並べ替えた状態(配列)も表示したいので残して元の配列 [...nutrientScores] をコピーして使用
+    // スコアが低い順の上位3件(不足傾向が高い順の栄養素トップ3)
+    // - `.sort((a, b) => a.score - b.score)` で score が低い順に並べ替えた状態の配列を元に slice(0, 3) で 先頭3件を指定している(不足傾向が高い順の栄養素トップ3)
+    // - `const nutrientScores = ...` で score が高い順に並べ替えた状態(配列)も表示したいので残して元の配列 [...nutrientScores] としてコピーして使用している
     const lowNutrients = [...nutrientScores]
       .sort((a, b) => a.score - b.score)
       .slice(0, 3);
@@ -349,41 +353,33 @@ export async function GET(
     // - 差分計算する対象を今回診断と同じ栄養素ID(nutrientId)として一致するかどうかで判断して探す
     // - current: 今回の各栄養素スコア1件
     const differences = nutrientScores.map((current) => {
+      // 前回診断から同じ栄養素ID のスコアを探す
       const previous = previousDiagnosis?.scores.find(
         (item) => item.nutrientId === current.nutrientId
       );
 
-      // 前回の診断結果に対して前回スコアが存在する栄養素なのかを true / false に変換(フロントに返し表示するデータとして使うため)
-      const hasPrevious = !!previous;
-      // 前回スコアがあればその値を使い、ない時は、nullにする。
-      const previousScore = previous?.score ?? null;
-      // - 前回スコア(previous) が存在する時は previous.score を使って今回スコア(current.score)との差分計算
-      // - 前回スコア(previous) が存在しない時は diff は null にする
-      const diff = previous ? current.score - previous.score : null;
+      // 前回スコアを取得
+      // - 前回スコアがあれば、`previousScore` に前回スコアが入る
+      // - 前回スコアが無ければ `undefined` を受け取る
+      const previousScore = previous?.score;
 
-      // 差分表示用の文字列
-      // - 最初の初期値: "前回データなし"
-      let diffLabel = "前回データなし";
-
-      // 差分の内容ごとの表示文の条件分岐
-      // - score は高いほど満たせている扱いのため、 diff > 0 を改善として表示する
-      // - 今回スコア - 前回スコア がプラスの場合 = 点数が上がっている → 「+〇〇 改善」
-      if (diff !== null) {
-        if (diff > 0) {
-          diffLabel = `+${diff} 改善`;
-        } else if (diff < 0) {
-          diffLabel = `${diff} 低下`;
-        } else {
-          diffLabel = "0 変化なし";
-        }
-      }
+      // 差分計算のために、`web/lib/diagnosis/buildScoreDifference.ts`(差分計算の共通関数) に必要な値を渡し、計算結果を受け取る
+      // - `web/lib/diagnosis/buildScoreDifference.ts`(差分計算の共通関数) に差分計算(今回スコア - 前回スコア = 差分) に必要な値(diff,hasPrevious,diffLabel,)を渡し、計算し、
+      // 返ってきた差分情報を元に diff・hasPrevious・diffLabel を作成し、フロントに渡し、表示する。
+      const {
+        diff,
+        hasPrevious,
+        diffLabel,
+      } = buildScoreDifference(current.score, previousScore);
 
       // フロント側(`web/app/history/[diagnosisId]/page.tsx`)に返す用に差分表示用データを作成
+      // - APIレスポンス上では、previous は 「number | null」 と指定していることで、
+      // 前回データがな場合、"undefined" ではなく "null" として返すことで対応している。。
       return {
         nutrient: current.nutrient,
         nutrientId: current.nutrientId,
         current: current.score,
-        previous: previousScore,
+        previous: previousScore ?? null,
         diff,
         hasPrevious,
         diffLabel,
