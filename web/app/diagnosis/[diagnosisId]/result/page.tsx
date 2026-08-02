@@ -386,7 +386,7 @@ export default function ResultPage() {
         ))}
       </section>
 
-      {/* 不足傾向の栄養素に対応する食品・行動提案 */}
+      {/* 不足傾向の栄養素に対応する食品・料理・行動提案 */}
       <section className="mt-8">
         <h2>食生活・生活習慣のヒント</h2>
 
@@ -418,18 +418,20 @@ export default function ResultPage() {
           // 提案対象となった栄養素を1件ずつ表示する
 
           // recommendation 1件に対しては、ResultRecommendation 型の以下の内容のデータが入る
-          // - nutrientId
-          // - nutrient
-          // - score
-          // - items
+          // - nutrientId: 栄養素ID
+          // - nutrient: 栄養素名
+          // - score： 今回のスコア
+          // - foodItems: 食品についての提案文章
+          // - actionItems: 行動についての提案文章
+          // - ingredients: 具体的な食品
+          // - recipes: 具体的な料理
 
           // recommendations.map(...)
           // - 提案対象の栄養素を1件ずつ取り出す
 
           // 提案を FOOD と ACTION に分けて表示しやすくする
-          // - API から受け取る items では FOOD(食品提案) と ACTION(行動提案) が
-          // 同じ items内 に格納された状態で受け取るため、そのまま表示するとFOOD(食品提案) と ACTION(行動提案) の違いがわかりにくいので
-          // それぞれを表示しやすいように .filter(...) で提案の種類ごとに分けて表示する。
+          // - API側で食品の提案文章と行動の提案文章に分けているため、フロント側では foodItems と actionItems をそれぞれ表示する。
+          // - 具体的な食品は ingredients・料理は recipes から表示する。
 
           <div className="mt-4 space-y-6">
             {data.recommendations.map((recommendation) => {
@@ -449,16 +451,21 @@ export default function ResultPage() {
                   key={recommendation.nutrientId}
                   className="rounded-lg border p-4"
                 >
-                  {/* 提案対象の栄養素名と今回のスコア */}
+                  {/* 提案対象の栄養素名と今回のスコアを表示 */}
                   <h3 className="text-lg font-semibold">
                     {recommendation.nutrient} ({recommendation.score}点)
                   </h3>
 
                   {/*
+                    文章による食品のヒント
+                    - 対象の栄養素に関する食品提案の文章を表示
+                  */}
+                  {/*
                     "foodItems.length > 0 && (...)"
-                    - FOOD(食品提案) が 1件以上存在する場合だけ、食品のヒント (見出し)を表示する。
-                    - 仮に、ある栄養素に ACTION しか登録されていない場合、
-                    不自然な表示(「食品のヒント」というタイトルだけ表示している状態 など)を防ぐことができる。
+                    - 食品提案(foodItems) が 1件以上存在する場合だけ、食品のヒント (見出し)を表示する。
+                    - 関連する食品提案(foodItems) がない場合は、見出しも一覧も表示しない。
+                    仮に、ある栄養素に ACTION しか登録されていない場合、
+                    「食品のヒント」という見出しだけ表示されることを防ぐため
                     
                   */}
                   {recommendation.foodItems.length > 0 && (
@@ -478,11 +485,74 @@ export default function ResultPage() {
                     </div>
                   )}
 
+
+                  {/*
+                    具体的なおすすめ食品の提案
+                    - 対象の栄養素に関する具体的な食品の提案を表示
+                  */}
+                  {/*
+                    recommendation.ingredients.length > 0
+                    - 具体的な食品(ingredients)が1件以上ある場合だけ、見出しと一覧を表示する
+                    - 関連する具体的な食品(ingredients)がない場合は、見出しも一覧も表示しない。
+                    仮に、ある栄養素に ACTION しか登録されていない場合、
+                    「おすすめ食品」という見出しだけ表示されることを防ぐため
+                  */}
+                  {recommendation.ingredients.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="font-semibold">
+                        おすすめ食品
+                      </h4>
+
+                      <ul className="mt-2 list-disc pl-5">
+                        {recommendation.ingredients.map((ingredient) => (
+                          <li key={ingredient.id}>
+                            {ingredient.name}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+
+
+                  {/*
+                    具体的なおすすめ料理の提案
+                    - 対象の栄養素に関する具体的な料理の提案を表示
+                  */}
+                  {/*
+                    recommendation.recipes.length > 0
+                    - おすすめ料理(recipes)が1件以上ある場合だけ、見出しと一覧を表示する。
+                    - 関連するおすすめ料理(recipes)がない場合は、見出しも一覧も表示しない。
+                    仮に、ある栄養素に ACTION しか登録されていない場合、
+                    「おすすめ料理」という見出しだけ表示されることを防ぐため
+                  */}
+                  {recommendation.recipes.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="font-semibold">
+                        おすすめ料理
+                      </h4>
+
+                      <ul className="mt-2 list-disc pl-5">
+                        {recommendation.recipes.map((recipe) => (
+                          <li key={recipe.id}>
+                            {recipe.name}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+
+                  {/*
+                    文章による生活習慣のヒント
+                    - 対象の栄養素に関する行動提案の文章を表示
+                  */}
                   {/*
                     "actionItems.length > 0 && (...)"
-                    - ACTION(行動提案) が1件以上存在する場合だけ、生活習慣のヒントを表示する
-                    - 仮に、ある栄養素に FOOD しか登録されていない場合、
-                    不自然な表示(「生活習慣のヒント」というタイトルだけ表示している状態 など) を防ぐことができる。
+                    - 行動提案の文章(actionItems) が1件以上存在する場合だけ、生活習慣のヒントを表示する
+                    - 関連する行動提案の文章(actionItems) がない場合は、見出しも一覧も表示しない。
+                    仮に、ある栄養素に FOOD しか登録されていない場合、
+                    「生活習慣のヒント」という見出しだけ表示されることを防ぐため。
                   */}
                   {recommendation.actionItems.length > 0 && (
                     <div className="mt-4">
