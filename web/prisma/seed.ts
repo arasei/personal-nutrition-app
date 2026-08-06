@@ -135,7 +135,7 @@ const nutrients = [
   {
     id:"fiber",
     name: "食物繊維",
-    unit: "mg",
+    unit: "g",
     dailyStandard:20
   },
   {
@@ -492,14 +492,14 @@ const nutrientRecommendations: NutrientRecommendationSeed[] = [
 // 食品ID(Ingredient.id)1件に対して 表示名(name) と 分類(category) を紐付けている
 
 // id: "..."
-// - 食品に対して固有のID を付ける。
+// - DB内部で食品を特定するための固有のID
 // - 現在のschema では、"id String @id @default(cuid())" のため ID を省略すると毎回自動生成される。
 // 自動生成ID だけに頼ると、後の "IngredientNutrient" や "RecipeIngredient" で参照しづらくなる。
 // - 固有ID として使用することで別の配列からでもそのまま固有ID を使用可能にする。
 
 // name: "..."
 // - 画面に表示する食品名
-// - ingredients.name には、@unique が付いているため、同じ食材名を重複登録できない。
+// - ingredients.name には、@unique が付いているため、同じ食品名を重複登録できない。
 
 // category: "..."
 // - 食品の分類
@@ -542,6 +542,106 @@ const ingredients: IngredientSeed[] = [
     name: "納豆",
     category: "豆類",
   },
+  {
+    id: "ingredient_barley",
+    name: "大麦",
+    category: "穀類",
+  },
+  {
+    id: "ingredient_sweet_potato",
+    name: "さつまいも",
+    category: "いも類",
+  },
+  {
+    id: "ingredient_burdock",
+    name: "ごぼう",
+    category: "野菜類",
+  },
+  {
+    id: "ingredient_lean_beef",
+    name: "牛赤身肉",
+    category: "肉類",
+  },
+  {
+    id: "ingredient_clam",
+    name: "あさり",
+    category: "魚介類",
+  },
+  {
+    id: "ingredient_komatsuna",
+    name: "小松菜",
+    category: "野菜類",
+  },
+  {
+    id: "ingredient_spinach",
+    name: "ほうれん草",
+    category: "野菜類",
+  },
+  {
+    id: "ingredient_red_bell_pepper",
+    name: "赤パプリカ",
+    category: "野菜類",
+  },
+  {
+    id: "ingredient_broccoli",
+    name: "ブロッコリー",
+    category: "野菜類",
+  },
+  {
+    id: "ingredient_kiwi",
+    name: "キウイ",
+    category: "果実類",
+  },
+  {
+    id: "ingredient_strawberry",
+    name: "いちご",
+    category: "果実類",
+  },
+  {
+    id: "ingredient_mackerel",
+    name: "さば",
+    category: "魚介類",
+  },
+  {
+    id: "ingredient_dried_shiitake",
+    name: "干ししいたけ",
+    category: "きのこ類",
+  },
+  {
+    id: "ingredient_pork",
+    name: "豚肉",
+    category: "肉類",
+  },
+  {
+    id: "ingredient_sardine",
+    name: "いわし",
+    category: "魚介類",
+  },
+  {
+    id: "ingredient_walnut",
+    name: "くるみ",
+    category: "種実類",
+  },
+  {
+    id: "ingredient_water",
+    name: "水",
+    category: "飲料",
+  },
+  {
+    id: "ingredient_barley_tea",
+    name: "麦茶",
+    category: "飲料",
+  },
+  {
+    id: "ingredient_cucumber",
+    name: "きゅうり",
+    category: "野菜類",
+  },
+  {
+    id: "ingredient_tomato",
+    name: "トマト",
+    category: "野菜類",
+  },
 ];
 
 
@@ -551,6 +651,14 @@ const ingredients: IngredientSeed[] = [
 // 食品×栄養素 マスタ
 // - 1件の 食品×1件の栄養素 を紐付け
 // 1件の 食品ID(ingredientId) に対して、1件の栄養素ID(nutrientId)紐付けている。
+// - 同じ食品に違う栄養素名の組み合わせも登録している。
+// 食品に対して含まれている栄養素が1つだけではない食品が存在するため
+// 例.
+// 鮭は3回追加している
+// ingredient_salmon × vitaminD
+// ingredient_salmon × vitaminB
+// ingredient_salmon × omega3
+
 
 // ingredientId: 固有の食品ID
 // nutrientId: 栄養素ID
@@ -569,6 +677,7 @@ type IngredientNutrientSeed = {
 
 // 食品×栄養素 データを追加
 const ingredientNutrients: IngredientNutrientSeed[] = [
+  // タンパク質
   {
     ingredientId: "ingredient_chicken_breast",
     nutrientId: "protein",
@@ -594,6 +703,158 @@ const ingredientNutrients: IngredientNutrientSeed[] = [
     nutrientId: "protein",
     approxAmount: null,
   },
+  // 食物繊維
+  {
+    ingredientId: "ingredient_barley",
+    nutrientId: "fiber",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_sweet_potato",
+    nutrientId: "fiber",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_burdock",
+    nutrientId: "fiber",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_natto",
+    nutrientId: "fiber",
+    approxAmount: null,
+  },
+  // 鉄
+  {
+    ingredientId: "ingredient_lean_beef",
+    nutrientId: "iron",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_clam",
+    nutrientId: "iron",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_komatsuna",
+    nutrientId: "iron",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_spinach",
+    nutrientId: "iron",
+    approxAmount: null,
+  },
+
+  // ビタミンC
+  {
+    ingredientId: "ingredient_red_bell_pepper",
+    nutrientId: "vitaminC",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_broccoli",
+    nutrientId: "vitaminC",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_kiwi",
+    nutrientId: "vitaminC",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_strawberry",
+    nutrientId: "vitaminC",
+    approxAmount: null,
+  },
+
+  // ビタミンD
+  {
+    ingredientId: "ingredient_salmon",
+    nutrientId: "vitaminD",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_mackerel",
+    nutrientId: "vitaminD",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_dried_shiitake",
+    nutrientId: "vitaminD",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_egg",
+    nutrientId: "vitaminD",
+    approxAmount: null,
+  },
+
+  // ビタミンB群
+  {
+    ingredientId: "ingredient_pork",
+    nutrientId: "vitaminB",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_salmon",
+    nutrientId: "vitaminB",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_egg",
+    nutrientId: "vitaminB",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_natto",
+    nutrientId: "vitaminB",
+    approxAmount: null,
+  },
+
+  // オメガ3脂肪酸
+  {
+    ingredientId: "ingredient_salmon",
+    nutrientId: "omega3",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_mackerel",
+    nutrientId: "omega3",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_sardine",
+    nutrientId: "omega3",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_walnut",
+    nutrientId: "omega3",
+    approxAmount: null,
+  },
+
+  // 水分
+  {
+    ingredientId: "ingredient_water",
+    nutrientId: "water",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_barley_tea",
+    nutrientId: "water",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_cucumber",
+    nutrientId: "water",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_tomato",
+    nutrientId: "water",
+    approxAmount: null,
+  },
 ];
 
 
@@ -606,9 +867,9 @@ const ingredientNutrients: IngredientNutrientSeed[] = [
 // - 詳しい作り方は将来のレシピ機能で追加する
 
 // id:
-// - 料理を一意に識別するための固有ID
+// - DB内部で料理を特定するための固有ID
 // name:
-// - 画面に表示する料理名
+// - 画面に表示するおすすめ料理名
 
 
 // 料理マスタの型を定義
@@ -637,6 +898,66 @@ const recipes: RecipeSeed[] = [
     id: "recipe_natto_rice",
     name: "納豆ご飯",
   },
+  {
+    id: "recipe_barley_rice",
+    name: "麦ご飯",
+  },
+  {
+    id: "recipe_sweet_potato_miso_soup",
+    name: "さつまいものみそ汁",
+  },
+  {
+    id: "recipe_kinpira_burdock",
+    name: "きんぴらごぼう",
+  },
+  {
+    id: "recipe_clam_miso_soup",
+    name: "あさりのみそ汁",
+  },
+  {
+    id: "recipe_spinach_sesame_salad",
+    name: "ほうれん草のごまあえ",
+  },
+  {
+    id: "recipe_beef_komatsuna_stir_fry",
+    name: "牛肉と小松菜のオイスター炒め",
+  },
+  {
+    id: "recipe_broccoli_salad",
+    name: "ブロッコリーサラダ",
+  },
+  {
+    id: "recipe_bell_pepper_stir_chicken_breast_fry",
+    name: "赤パプリカと鶏むね肉のチンジャオロース",
+  },
+  {
+    id: "recipe_kiwi_strawberry_fruit_salad",
+    name: "キウイといちごのフルーツサラダ",
+  },
+  {
+    id: "recipe_grilled_mackerel",
+    name: "焼きさば",
+  },
+  {
+    id: "recipe_dried_shiitake_egg_soup",
+    name: "干ししいたけと卵のスープ",
+  },
+  {
+    id: "recipe_pork_ginger",
+    name: "豚のしょうが焼き",
+  },
+  {
+    id: "recipe_sardine_simmer",
+    name: "いわしの煮付け",
+  },
+  {
+    id: "recipe_vegetable_soup",
+    name: "野菜スープ",
+  },
+  {
+    id: "recipe_cucumber_tomato_salad",
+    name: "きゅうりとトマトのサラダ",
+  },
 ];
 
 // =====================================================================================================================
@@ -664,6 +985,7 @@ type RecipeIngredientSeed = {
 
 // 料理×食品 の 関連データを追加
 const recipeIngredients: RecipeIngredientSeed[] = [
+  // 親子丼
   {
     recipeId: "recipe_oyakodon",
     ingredientId: "ingredient_chicken_breast",
@@ -672,17 +994,136 @@ const recipeIngredients: RecipeIngredientSeed[] = [
     recipeId: "recipe_oyakodon",
     ingredientId: "ingredient_egg",
   },
+  // 焼き鮭
   {
     recipeId: "recipe_grilled_salmon",
     ingredientId: "ingredient_salmon",
   },
+  // 冷やっこ
   {
     recipeId: "recipe_hiyayakko",
     ingredientId: "ingredient_tofu",
   },
+  // 納豆ご飯
   {
     recipeId: "recipe_natto_rice",
     ingredientId: "ingredient_natto",
+  },
+  // 麦ご飯
+  {
+    recipeId: "recipe_barley_rice",
+    ingredientId: "ingredient_barley"
+  },
+  // さつまいものみそ汁
+  {
+    recipeId: "recipe_sweet_potato_miso_soup",
+    ingredientId: "ingredient_sweet_potato",
+  },
+
+  // きんぴらごぼう
+  {
+    recipeId: "recipe_kinpira_burdock",
+    ingredientId: "ingredient_burdock",
+  },
+
+  // あさりのみそ汁
+  {
+    recipeId: "recipe_clam_miso_soup",
+    ingredientId: "ingredient_clam",
+  },
+
+  // ほうれん草のごまあえ
+  {
+    recipeId: "recipe_spinach_sesame_salad",
+    ingredientId: "ingredient_spinach",
+  },
+
+  // 牛肉と小松菜のオイスター炒め
+  {
+    recipeId: "recipe_beef_komatsuna_stir_fry",
+    ingredientId: "ingredient_lean_beef",
+  },
+  {
+    recipeId: "recipe_beef_komatsuna_stir_fry",
+    ingredientId: "ingredient_komatsuna",
+  },
+
+  // ブロッコリーサラダ
+  {
+    recipeId: "recipe_broccoli_salad",
+    ingredientId: "ingredient_broccoli",
+  },
+
+  // 赤パプリカと鶏むね肉のチンジャオロース
+  {
+    recipeId: "recipe_bell_pepper_stir_chicken_breast_fry",
+    ingredientId: "ingredient_red_bell_pepper",
+  },
+  {
+    recipeId: "recipe_bell_pepper_stir_chicken_breast_fry",
+    ingredientId: "ingredient_chicken_breast",
+  },
+
+  // キウイといちごのフルーツサラダ
+  {
+    recipeId: "recipe_kiwi_strawberry_fruit_salad",
+    ingredientId: "ingredient_kiwi",
+  },
+  {
+    recipeId: "recipe_kiwi_strawberry_fruit_salad",
+    ingredientId: "ingredient_strawberry",
+  },
+
+  // 焼きさば
+  {
+    recipeId: "recipe_grilled_mackerel",
+    ingredientId: "ingredient_mackerel",
+  },
+
+  // 干ししいたけと卵のスープ
+  {
+    recipeId: "recipe_dried_shiitake_egg_soup",
+    ingredientId: "ingredient_dried_shiitake",
+  },
+  {
+    recipeId: "recipe_dried_shiitake_egg_soup",
+    ingredientId: "ingredient_egg",
+  },
+
+  // 豚のしょうが焼き
+  {
+    recipeId: "recipe_pork_ginger",
+    ingredientId: "ingredient_pork",
+  },
+
+  // いわしの煮付け
+  {
+    recipeId: "recipe_sardine_simmer",
+    ingredientId: "ingredient_sardine",
+  },
+
+  // 野菜スープ
+  {
+    recipeId: "recipe_vegetable_soup",
+    ingredientId: "ingredient_water",
+  },
+  {
+    recipeId: "recipe_vegetable_soup",
+    ingredientId: "ingredient_tomato",
+  },
+  {
+    recipeId: "recipe_vegetable_soup",
+    ingredientId: "ingredient_broccoli",
+  },
+
+  // きゅうりとトマトのサラダ
+  {
+    recipeId: "recipe_cucumber_tomato_salad",
+    ingredientId: "ingredient_cucumber",
+  },
+  {
+    recipeId: "recipe_cucumber_tomato_salad",
+    ingredientId: "ingredient_tomato",
   },
 ];
 
@@ -717,6 +1158,7 @@ type RecipeNutrientSeed = {
 
 // 料理×栄養素マスタ の 関連データを追加
 const recipeNutrients: RecipeNutrientSeed[] = [
+  // タンパク質
   {
     recipeId: "recipe_oyakodon",
     nutrientId: "protein",
@@ -732,6 +1174,106 @@ const recipeNutrients: RecipeNutrientSeed[] = [
   {
     recipeId: "recipe_natto_rice",
     nutrientId: "protein",
+  },
+  // 食物繊維
+  {
+    recipeId: "recipe_barley_rice",
+    nutrientId: "fiber",
+  },
+  {
+    recipeId: "recipe_sweet_potato_miso_soup",
+    nutrientId: "fiber",
+  },
+  {
+    recipeId: "recipe_kinpira_burdock",
+    nutrientId: "fiber",
+  },
+  {
+    recipeId: "recipe_natto_rice",
+    nutrientId: "fiber",
+  },
+  // 鉄
+  {
+    recipeId: "recipe_clam_miso_soup",
+    nutrientId: "iron",
+  },
+  {
+    recipeId: "recipe_spinach_sesame_salad",
+    nutrientId: "iron",
+  },
+  {
+    recipeId: "recipe_beef_komatsuna_stir_fry",
+    nutrientId: "iron",
+  },
+
+  // ビタミンC
+  {
+    recipeId: "recipe_broccoli_salad",
+    nutrientId: "vitaminC",
+  },
+  {
+    recipeId: "recipe_bell_pepper_stir_chicken_breast_fry",
+    nutrientId: "vitaminC",
+  },
+  {
+    recipeId: "recipe_kiwi_strawberry_fruit_salad",
+    nutrientId: "vitaminC",
+  },
+
+  // ビタミンD
+  {
+    recipeId: "recipe_grilled_salmon",
+    nutrientId: "vitaminD",
+  },
+  {
+    recipeId: "recipe_grilled_mackerel",
+    nutrientId: "vitaminD",
+  },
+  {
+    recipeId: "recipe_dried_shiitake_egg_soup",
+    nutrientId: "vitaminD",
+  },
+
+  // ビタミンB群
+  {
+    recipeId: "recipe_pork_ginger",
+    nutrientId: "vitaminB",
+  },
+  {
+    recipeId: "recipe_grilled_salmon",
+    nutrientId: "vitaminB",
+  },
+  {
+    recipeId: "recipe_natto_rice",
+    nutrientId: "vitaminB",
+  },
+  {
+    recipeId: "recipe_oyakodon",
+    nutrientId: "vitaminB",
+  },
+
+  // オメガ3脂肪酸
+  {
+    recipeId: "recipe_grilled_salmon",
+    nutrientId: "omega3",
+  },
+  {
+    recipeId: "recipe_grilled_mackerel",
+    nutrientId: "omega3",
+  },
+  {
+    recipeId: "recipe_sardine_simmer",
+    nutrientId: "omega3",
+  },
+
+  // 水分
+  {
+    recipeId: "recipe_vegetable_soup",
+    nutrientId: "water",
+  },
+  {
+    recipeId: "recipe_cucumber_tomato_salad",
+    nutrientId: "water",
   },
 ];
 
