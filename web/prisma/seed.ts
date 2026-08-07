@@ -7,6 +7,10 @@
 // - Nutrient
 // - DiagnosisQuestion
 // - NutrientRecommendation
+// - Ingredient
+// - IngredientNutrient
+// - Recipe
+// - RecipeIngredient
 
 
 // ポイント
@@ -25,6 +29,7 @@
 // - 空配列でも型は明示する必要がある
 // - Prismaのリレーションフィールド名はcamelCaseが適している
 
+
 // このファイル内の流れ
 // seed.ts
 //   │
@@ -32,13 +37,36 @@
 //   │      ↓
 //   │   Nutrient
 //   │
+//   │
+//   ├─ ingredient[]
+//   │      ↓
+//   │   Ingredient
+//   │
+//   │
+//   ├─ recipe[]
+//   │      ↓
+//   │   Recipe
+//   │
+//   │
+//   ├─ ingredientNutrient[]
+//   │      ↓
+//   │   IngredientNutrient
+//   │
+//   │
+//   ├─ recipeIngredient[]
+//   │      ↓
+//   │   RecipeIngredient
+//   │
+//   │
 //   ├─ diagnosisQuestions[]
 //   │      ↓
 //   │   DiagnosisQuestion
 //   │
+//   │
 //   └─ nutrientRecommendations[]
 //          ↓
 //       NutrientRecommendation
+
 
 // すべてtransaction内で実行
 //          ↓
@@ -81,11 +109,22 @@ import {
 } from "@prisma/client";
 
 
+// DB操作するための入り口のオブジェクト作成
+const prisma = new PrismaClient();
+
+
+// =====================================================================================================================
 // 栄養素マスター
+// - 1件の栄養素に対して、名前と単位と目安量 を登録
+// 1件の栄養素ID(nutrients.id) に対して 名前(name)と単位(unit)と目安量(dailyStandard) を紐付け
+
 // - seed を実行すると、この配列の内容を DB に登録する
 // - unit は 単位
 // - dailyStandard は目安値
 
+
+
+// 栄養素のデータ を追加
 const nutrients = [
   {
     id:"protein",
@@ -96,7 +135,7 @@ const nutrients = [
   {
     id:"fiber",
     name: "食物繊維",
-    unit: "mg",
+    unit: "g",
     dailyStandard:20
   },
   {
@@ -135,14 +174,24 @@ const nutrients = [
     unit: "ml",
     dailyStandard:2000
   },
-]
+];
 
-// 診断質問マスター(質問ごとに栄養素(nutrientId)を紐付け)
+
+// =====================================================================================================================
+// 診断質問マスター
+// - 1件の質問ごとに 栄養素 と表示順 を 紐付け
+// 1件の質問ID(diagnosisQuestions.id)に対して 栄養素ID(nutrientId)1件 と表示順(order) を紐付けている
+
+
 // - 診断画面に表示する固定質問を定義
 // - DBロジックとデータを分離、後から質問を足すだけの仕様
 // - order: 質問の順番であり識別するための値ではない、表示順
 // - 外部キーは不変である必要がある。
 // - diagnosisQuestionsに外部キーとしてidを作成。
+
+
+
+// 診断質問 のデータを追加
 const diagnosisQuestions = [
   {
     id: "question_1",
@@ -208,25 +257,17 @@ const diagnosisQuestions = [
 
 
 
-// DB操作するための入り口のオブジェクト作成
-const prisma = new PrismaClient();
+// =====================================================================================================================
+// 食品・行動提案 × 栄養素 マスター
+// - 不足表示する栄養素ごとに、食品提案 と 行動提案 を紐付け
+// 不足表示する栄養素(nutrientRecommendations.nutrientId)1件に対して、食品提案2つ(type FOOD)・行動提案1つ(type ACTION) と 見出し(title) と 補足情報(description) と 順番(sortOrder)
+// を紐付け
 
-type NutrientRecommendationSeed = {
-  nutrientId: string;
-  type: RecommendationType;
-  title: string;
-  description: string;
-  sortOrder: number;
-};
+// - score が 49点以下の栄養素のみ提案する
+// - 最大3栄養素表示
+// - 医療診断のような断定はしない
+// - 「食生活を見直すヒント」を表示する
 
-// 食品・行動提案マスター(食品・行動提案ごとに栄養素を紐づけ)
-
-// score が 49点以下の栄養素のみ提案する
-// 最大3栄養素表示
-// 医療診断のような断定はしない
-// 「食生活を見直すヒント」を表示する
-
-// 栄養素1件に対して 食品提案2つ(FOOD)・行動提案1つ(ACTION) の設計
 
 // 現在の件数
 // - 栄養素8件
@@ -251,6 +292,20 @@ type NutrientRecommendationSeed = {
 // sortOrder
 // - 同じ栄養素・同じ種類の提案をする場合の表示する順番を指定
 // - FOOD は 1・2 ACTION は 1
+
+
+// 食品・行動提案 × 栄養素 マスター の型を定義
+type NutrientRecommendationSeed = {
+  nutrientId: string;
+  type: RecommendationType;
+  title: string;
+  description: string;
+  sortOrder: number;
+};
+
+
+
+// 食品・行動提案 × 栄養素 データを追加
 const nutrientRecommendations: NutrientRecommendationSeed[] = [
   // タンパク質
   {
@@ -431,6 +486,803 @@ const nutrientRecommendations: NutrientRecommendationSeed[] = [
 ];
 
 
+// =====================================================================================================================
+// 食品マスター
+// - 食品ごとに 表示名 と 分類 を紐付け
+// 食品ID(Ingredient.id)1件に対して 表示名(name) と 分類(category) を紐付けている
+
+// id: "..."
+// - DB内部で食品を特定するための固有のID
+// - 現在のschema では、"id String @id @default(cuid())" のため ID を省略すると毎回自動生成される。
+// 自動生成ID だけに頼ると、後の "IngredientNutrient" や "RecipeIngredient" で参照しづらくなる。
+// - 固有ID として使用することで別の配列からでもそのまま固有ID を使用可能にする。
+
+// name: "..."
+// - 画面に表示する食品名
+// - ingredients.name には、@unique が付いているため、同じ食品名を重複登録できない。
+
+// category: "..."
+// - 食品の分類
+// - 将来的に、肉類だけ表示・魚介類だけ表示・野菜類だけ表示 という絞り込みに使用可能。
+
+
+// 食品マスターの型を定義
+type IngredientSeed = {
+  id: string;
+  name: string;
+  category: string | null;
+};
+
+
+
+// 食品データ を追加
+const ingredients: IngredientSeed[] = [
+  {
+    id: "ingredient_chicken_breast",
+    name: "鶏むね肉",
+    category: "肉類",
+  },
+  {
+    id: "ingredient_salmon",
+    name: "鮭",
+    category: "魚介類",
+  },
+  {
+    id: "ingredient_egg",
+    name: "卵",
+    category: "卵類",
+  },
+  {
+    id: "ingredient_tofu",
+    name: "豆腐",
+    category: "豆類",
+  },
+  {
+    id: "ingredient_natto",
+    name: "納豆",
+    category: "豆類",
+  },
+  {
+    id: "ingredient_barley",
+    name: "大麦",
+    category: "穀類",
+  },
+  {
+    id: "ingredient_sweet_potato",
+    name: "さつまいも",
+    category: "いも類",
+  },
+  {
+    id: "ingredient_burdock",
+    name: "ごぼう",
+    category: "野菜類",
+  },
+  {
+    id: "ingredient_lean_beef",
+    name: "牛赤身肉",
+    category: "肉類",
+  },
+  {
+    id: "ingredient_clam",
+    name: "あさり",
+    category: "魚介類",
+  },
+  {
+    id: "ingredient_komatsuna",
+    name: "小松菜",
+    category: "野菜類",
+  },
+  {
+    id: "ingredient_spinach",
+    name: "ほうれん草",
+    category: "野菜類",
+  },
+  {
+    id: "ingredient_red_bell_pepper",
+    name: "赤パプリカ",
+    category: "野菜類",
+  },
+  {
+    id: "ingredient_broccoli",
+    name: "ブロッコリー",
+    category: "野菜類",
+  },
+  {
+    id: "ingredient_kiwi",
+    name: "キウイ",
+    category: "果実類",
+  },
+  {
+    id: "ingredient_strawberry",
+    name: "いちご",
+    category: "果実類",
+  },
+  {
+    id: "ingredient_mackerel",
+    name: "さば",
+    category: "魚介類",
+  },
+  {
+    id: "ingredient_dried_shiitake",
+    name: "干ししいたけ",
+    category: "きのこ類",
+  },
+  {
+    id: "ingredient_pork",
+    name: "豚肉",
+    category: "肉類",
+  },
+  {
+    id: "ingredient_sardine",
+    name: "いわし",
+    category: "魚介類",
+  },
+  {
+    id: "ingredient_walnut",
+    name: "くるみ",
+    category: "種実類",
+  },
+  {
+    id: "ingredient_water",
+    name: "水",
+    category: "飲料",
+  },
+  {
+    id: "ingredient_barley_tea",
+    name: "麦茶",
+    category: "飲料",
+  },
+  {
+    id: "ingredient_cucumber",
+    name: "きゅうり",
+    category: "野菜類",
+  },
+  {
+    id: "ingredient_tomato",
+    name: "トマト",
+    category: "野菜類",
+  },
+];
+
+
+
+
+// =====================================================================================================================
+// 食品×栄養素 マスタ
+// - 1件の 食品×1件の栄養素 を紐付け
+// 1件の 食品ID(ingredientId) に対して、1件の栄養素ID(nutrientId)紐付けている。
+// - 同じ食品に違う栄養素名の組み合わせも登録している。
+// 食品に対して含まれている栄養素が1つだけではない食品が存在するため
+// 例.
+// 鮭は3回追加している
+// ingredient_salmon × vitaminD
+// ingredient_salmon × vitaminB
+// ingredient_salmon × omega3
+
+
+// ingredientId: 固有の食品ID
+// nutrientId: 栄養素ID
+// approxAmount: 食品100gあたりの栄養量(現在は未登録のため null)
+
+
+
+// 食品×栄養素 マスタ の型を定義
+type IngredientNutrientSeed = {
+  ingredientId: string;
+  nutrientId: string;
+  approxAmount: number | null;
+};
+
+
+
+// 食品×栄養素 データを追加
+const ingredientNutrients: IngredientNutrientSeed[] = [
+  // タンパク質
+  {
+    ingredientId: "ingredient_chicken_breast",
+    nutrientId: "protein",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_salmon",
+    nutrientId: "protein",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_egg",
+    nutrientId: "protein",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_tofu",
+    nutrientId: "protein",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_natto",
+    nutrientId: "protein",
+    approxAmount: null,
+  },
+  // 食物繊維
+  {
+    ingredientId: "ingredient_barley",
+    nutrientId: "fiber",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_sweet_potato",
+    nutrientId: "fiber",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_burdock",
+    nutrientId: "fiber",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_natto",
+    nutrientId: "fiber",
+    approxAmount: null,
+  },
+  // 鉄
+  {
+    ingredientId: "ingredient_lean_beef",
+    nutrientId: "iron",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_clam",
+    nutrientId: "iron",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_komatsuna",
+    nutrientId: "iron",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_spinach",
+    nutrientId: "iron",
+    approxAmount: null,
+  },
+
+  // ビタミンC
+  {
+    ingredientId: "ingredient_red_bell_pepper",
+    nutrientId: "vitaminC",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_broccoli",
+    nutrientId: "vitaminC",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_kiwi",
+    nutrientId: "vitaminC",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_strawberry",
+    nutrientId: "vitaminC",
+    approxAmount: null,
+  },
+
+  // ビタミンD
+  {
+    ingredientId: "ingredient_salmon",
+    nutrientId: "vitaminD",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_mackerel",
+    nutrientId: "vitaminD",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_dried_shiitake",
+    nutrientId: "vitaminD",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_egg",
+    nutrientId: "vitaminD",
+    approxAmount: null,
+  },
+
+  // ビタミンB群
+  {
+    ingredientId: "ingredient_pork",
+    nutrientId: "vitaminB",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_salmon",
+    nutrientId: "vitaminB",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_egg",
+    nutrientId: "vitaminB",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_natto",
+    nutrientId: "vitaminB",
+    approxAmount: null,
+  },
+
+  // オメガ3脂肪酸
+  {
+    ingredientId: "ingredient_salmon",
+    nutrientId: "omega3",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_mackerel",
+    nutrientId: "omega3",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_sardine",
+    nutrientId: "omega3",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_walnut",
+    nutrientId: "omega3",
+    approxAmount: null,
+  },
+
+  // 水分
+  {
+    ingredientId: "ingredient_water",
+    nutrientId: "water",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_barley_tea",
+    nutrientId: "water",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_cucumber",
+    nutrientId: "water",
+    approxAmount: null,
+  },
+  {
+    ingredientId: "ingredient_tomato",
+    nutrientId: "water",
+    approxAmount: null,
+  },
+];
+
+
+// =====================================================================================================================
+// 料理マスタ
+// - 料理に 表示名 を登録する。
+// 料理ID(recipes.id)1件に、表示名(name) を紐付けている
+// - 診断結果画面で「主な料理」として表示する料理名を登録する
+// - 現在は料理名だけを登録し、管理。
+// - 詳しい作り方は将来のレシピ機能で追加する
+
+// id:
+// - DB内部で料理を特定するための固有ID
+// name:
+// - 画面に表示するおすすめ料理名
+
+
+// 料理マスタの型を定義
+// - 料理1件がどの項目を持つかを定義している
+type RecipeSeed = {
+  id: string;
+  name: string;
+};
+
+
+// 料理データを追加
+const recipes: RecipeSeed[] = [
+  {
+    id: "recipe_oyakodon",
+    name: "親子丼",
+  },
+  {
+    id: "recipe_grilled_salmon",
+    name: "焼き鮭",
+  },
+  {
+    id: "recipe_hiyayakko",
+    name: "冷ややっこ",
+  },
+  {
+    id: "recipe_natto_rice",
+    name: "納豆ご飯",
+  },
+  {
+    id: "recipe_barley_rice",
+    name: "麦ご飯",
+  },
+  {
+    id: "recipe_sweet_potato_miso_soup",
+    name: "さつまいものみそ汁",
+  },
+  {
+    id: "recipe_kinpira_burdock",
+    name: "きんぴらごぼう",
+  },
+  {
+    id: "recipe_clam_miso_soup",
+    name: "あさりのみそ汁",
+  },
+  {
+    id: "recipe_spinach_sesame_salad",
+    name: "ほうれん草のごまあえ",
+  },
+  {
+    id: "recipe_beef_komatsuna_stir_fry",
+    name: "牛肉と小松菜のオイスター炒め",
+  },
+  {
+    id: "recipe_broccoli_salad",
+    name: "ブロッコリーサラダ",
+  },
+  {
+    id: "recipe_bell_pepper_stir_chicken_breast_fry",
+    name: "赤パプリカと鶏むね肉のチンジャオロース",
+  },
+  {
+    id: "recipe_kiwi_strawberry_fruit_salad",
+    name: "キウイといちごのフルーツサラダ",
+  },
+  {
+    id: "recipe_grilled_mackerel",
+    name: "焼きさば",
+  },
+  {
+    id: "recipe_dried_shiitake_egg_soup",
+    name: "干ししいたけと卵のスープ",
+  },
+  {
+    id: "recipe_pork_ginger",
+    name: "豚のしょうが焼き",
+  },
+  {
+    id: "recipe_sardine_simmer",
+    name: "いわしの煮付け",
+  },
+  {
+    id: "recipe_vegetable_soup",
+    name: "野菜スープ",
+  },
+  {
+    id: "recipe_cucumber_tomato_salad",
+    name: "きゅうりとトマトのサラダ",
+  },
+];
+
+// =====================================================================================================================
+// 料理×食品マスタ
+// - 1件の料理×主要な食品(複数可) を紐付け
+// 1件の料理ID(recipeIngredients.recipeId) に対して複数の食品ID(ingredientId) を紐付けている
+// - ここでは、料理 と 食品 の関連だけを管理する。
+// 現在は診断結果で料理を提案するための最小データを登録する
+// 詳しい材料や正確な分量は将来のレシピ機能で追加予定
+
+
+// recipeId:
+// - 料理マスタで定義した料理ID を使用し、料理を指定するID
+// ingredientId:
+// - 食品マスタで定義した食品ID を使用し、食品を指定するID
+
+
+
+// 料理×食品・分量マスタ の型 を定義
+type RecipeIngredientSeed = {
+  recipeId: string;
+  ingredientId: string;
+};
+
+
+// 料理×食品 の 関連データを追加
+const recipeIngredients: RecipeIngredientSeed[] = [
+  // 親子丼
+  {
+    recipeId: "recipe_oyakodon",
+    ingredientId: "ingredient_chicken_breast",
+  },
+  {
+    recipeId: "recipe_oyakodon",
+    ingredientId: "ingredient_egg",
+  },
+  // 焼き鮭
+  {
+    recipeId: "recipe_grilled_salmon",
+    ingredientId: "ingredient_salmon",
+  },
+  // 冷やっこ
+  {
+    recipeId: "recipe_hiyayakko",
+    ingredientId: "ingredient_tofu",
+  },
+  // 納豆ご飯
+  {
+    recipeId: "recipe_natto_rice",
+    ingredientId: "ingredient_natto",
+  },
+  // 麦ご飯
+  {
+    recipeId: "recipe_barley_rice",
+    ingredientId: "ingredient_barley"
+  },
+  // さつまいものみそ汁
+  {
+    recipeId: "recipe_sweet_potato_miso_soup",
+    ingredientId: "ingredient_sweet_potato",
+  },
+
+  // きんぴらごぼう
+  {
+    recipeId: "recipe_kinpira_burdock",
+    ingredientId: "ingredient_burdock",
+  },
+
+  // あさりのみそ汁
+  {
+    recipeId: "recipe_clam_miso_soup",
+    ingredientId: "ingredient_clam",
+  },
+
+  // ほうれん草のごまあえ
+  {
+    recipeId: "recipe_spinach_sesame_salad",
+    ingredientId: "ingredient_spinach",
+  },
+
+  // 牛肉と小松菜のオイスター炒め
+  {
+    recipeId: "recipe_beef_komatsuna_stir_fry",
+    ingredientId: "ingredient_lean_beef",
+  },
+  {
+    recipeId: "recipe_beef_komatsuna_stir_fry",
+    ingredientId: "ingredient_komatsuna",
+  },
+
+  // ブロッコリーサラダ
+  {
+    recipeId: "recipe_broccoli_salad",
+    ingredientId: "ingredient_broccoli",
+  },
+
+  // 赤パプリカと鶏むね肉のチンジャオロース
+  {
+    recipeId: "recipe_bell_pepper_stir_chicken_breast_fry",
+    ingredientId: "ingredient_red_bell_pepper",
+  },
+  {
+    recipeId: "recipe_bell_pepper_stir_chicken_breast_fry",
+    ingredientId: "ingredient_chicken_breast",
+  },
+
+  // キウイといちごのフルーツサラダ
+  {
+    recipeId: "recipe_kiwi_strawberry_fruit_salad",
+    ingredientId: "ingredient_kiwi",
+  },
+  {
+    recipeId: "recipe_kiwi_strawberry_fruit_salad",
+    ingredientId: "ingredient_strawberry",
+  },
+
+  // 焼きさば
+  {
+    recipeId: "recipe_grilled_mackerel",
+    ingredientId: "ingredient_mackerel",
+  },
+
+  // 干ししいたけと卵のスープ
+  {
+    recipeId: "recipe_dried_shiitake_egg_soup",
+    ingredientId: "ingredient_dried_shiitake",
+  },
+  {
+    recipeId: "recipe_dried_shiitake_egg_soup",
+    ingredientId: "ingredient_egg",
+  },
+
+  // 豚のしょうが焼き
+  {
+    recipeId: "recipe_pork_ginger",
+    ingredientId: "ingredient_pork",
+  },
+
+  // いわしの煮付け
+  {
+    recipeId: "recipe_sardine_simmer",
+    ingredientId: "ingredient_sardine",
+  },
+
+  // 野菜スープ
+  {
+    recipeId: "recipe_vegetable_soup",
+    ingredientId: "ingredient_water",
+  },
+  {
+    recipeId: "recipe_vegetable_soup",
+    ingredientId: "ingredient_tomato",
+  },
+  {
+    recipeId: "recipe_vegetable_soup",
+    ingredientId: "ingredient_broccoli",
+  },
+
+  // きゅうりとトマトのサラダ
+  {
+    recipeId: "recipe_cucumber_tomato_salad",
+    ingredientId: "ingredient_cucumber",
+  },
+  {
+    recipeId: "recipe_cucumber_tomato_salad",
+    ingredientId: "ingredient_tomato",
+  },
+];
+
+
+
+
+
+
+// =====================================================================================================================
+// 料理×栄養素マスタ
+
+// 役割
+// - どの料理がどの栄養素のおすすめ料理なのかを管理する
+// - 診断結果画面で「おすすめ料理」を表示するため
+// - 現在は料理と栄養素の関連のみを登録する
+
+
+// recipeId:
+// - どの料理なのか 識別ID
+// 料理マスタで定義した料理ID を使用し、料理を指定するID
+
+// nutrientId:
+// - どの栄養素なのか 識別ID
+// 栄養素マスタで定義した栄養素ID を使用し、栄養素を指定するID
+
+
+// 料理×栄養素マスタ の型を定義
+type RecipeNutrientSeed = {
+  recipeId: string;
+  nutrientId: string;
+};
+
+// 料理×栄養素マスタ の 関連データを追加
+const recipeNutrients: RecipeNutrientSeed[] = [
+  // タンパク質
+  {
+    recipeId: "recipe_oyakodon",
+    nutrientId: "protein",
+  },
+  {
+    recipeId: "recipe_grilled_salmon",
+    nutrientId: "protein",
+  },
+  {
+    recipeId: "recipe_hiyayakko",
+    nutrientId: "protein",
+  },
+  {
+    recipeId: "recipe_natto_rice",
+    nutrientId: "protein",
+  },
+  // 食物繊維
+  {
+    recipeId: "recipe_barley_rice",
+    nutrientId: "fiber",
+  },
+  {
+    recipeId: "recipe_sweet_potato_miso_soup",
+    nutrientId: "fiber",
+  },
+  {
+    recipeId: "recipe_kinpira_burdock",
+    nutrientId: "fiber",
+  },
+  {
+    recipeId: "recipe_natto_rice",
+    nutrientId: "fiber",
+  },
+  // 鉄
+  {
+    recipeId: "recipe_clam_miso_soup",
+    nutrientId: "iron",
+  },
+  {
+    recipeId: "recipe_spinach_sesame_salad",
+    nutrientId: "iron",
+  },
+  {
+    recipeId: "recipe_beef_komatsuna_stir_fry",
+    nutrientId: "iron",
+  },
+
+  // ビタミンC
+  {
+    recipeId: "recipe_broccoli_salad",
+    nutrientId: "vitaminC",
+  },
+  {
+    recipeId: "recipe_bell_pepper_stir_chicken_breast_fry",
+    nutrientId: "vitaminC",
+  },
+  {
+    recipeId: "recipe_kiwi_strawberry_fruit_salad",
+    nutrientId: "vitaminC",
+  },
+
+  // ビタミンD
+  {
+    recipeId: "recipe_grilled_salmon",
+    nutrientId: "vitaminD",
+  },
+  {
+    recipeId: "recipe_grilled_mackerel",
+    nutrientId: "vitaminD",
+  },
+  {
+    recipeId: "recipe_dried_shiitake_egg_soup",
+    nutrientId: "vitaminD",
+  },
+
+  // ビタミンB群
+  {
+    recipeId: "recipe_pork_ginger",
+    nutrientId: "vitaminB",
+  },
+  {
+    recipeId: "recipe_grilled_salmon",
+    nutrientId: "vitaminB",
+  },
+  {
+    recipeId: "recipe_natto_rice",
+    nutrientId: "vitaminB",
+  },
+  {
+    recipeId: "recipe_oyakodon",
+    nutrientId: "vitaminB",
+  },
+
+  // オメガ3脂肪酸
+  {
+    recipeId: "recipe_grilled_salmon",
+    nutrientId: "omega3",
+  },
+  {
+    recipeId: "recipe_grilled_mackerel",
+    nutrientId: "omega3",
+  },
+  {
+    recipeId: "recipe_sardine_simmer",
+    nutrientId: "omega3",
+  },
+
+  // 水分
+  {
+    recipeId: "recipe_vegetable_soup",
+    nutrientId: "water",
+  },
+  {
+    recipeId: "recipe_cucumber_tomato_salad",
+    nutrientId: "water",
+  },
+];
+
+
+// =====================================================================================================================
+
+
+
+
 
 
 // prisma.$transaction(...)で、途中で1件でも失敗した場合、全部無かったことにする
@@ -446,8 +1298,9 @@ async function main() {
   await prisma.$transaction([
     // Nutrient
     // - 栄養素マスタ
-    // - 栄養素1件ずつを DB操作へ変換
-    // - 今回と同じIDの栄養素が存在すれば更新、存在しなければ新規作成する
+    // - 栄養素データを1件ずつ DB操作へ変換する
+    // - 同じ栄養素ID(Nutrient.id)が既存レコードにあれば更新(update)、なければ新規作成(create)する
+
     ...nutrients.map ((nutrient) =>
       prisma.nutrient.upsert({
         where: {
@@ -463,10 +1316,147 @@ async function main() {
     ),
 
 
+
+    // Ingredient
+    // - 食材マスタ
+    // - 食材データを1件ずつ DB操作へ変換する
+    // - 同じ食材ID(Ingredient.id)が既存レコードに あれば更新(update)、なければ新規作成(create)する
+    // 同じIngredient.id が存在する？
+    // ├─ ある
+    // │  └─ name・categoryを更新
+    // └─ ない
+    //     └─ 新しく作成
+
+    ...ingredients.map((ingredient) =>
+      prisma.ingredient.upsert({
+        where: {
+          id: ingredient.id,
+        },
+        update: {
+          name: ingredient.name,
+          category: ingredient.category,
+        },
+        create: ingredient,
+      })
+    ),
+
+
+
+    // Recipe
+    // - 料理マスタ
+    // - 料理データを1件ずつDB操作へ変換する
+    // - 同じRecipe.Id が 既存レコードに あれば更新(update)、なければ新規作成(create)する
+    // 同じRecipe.idがある？
+    //  ├─ ある
+    //  │  └─ 料理名(name)を更新
+    //  └─ ない
+    //      └─ id と 料理名 で新しく作成
+
+    ...recipes.map((recipe) =>
+      prisma.recipe.upsert({
+        where: {
+          id: recipe.id,
+        },
+        update: {
+          name: recipe.name,
+        },
+        create: recipe,
+      })
+    ),
+
+
+
+
+
+    // IngredientNutrients
+    // - Ingredient(食材) × Nutrient(栄養素) マスタ
+    // - 食材 × 栄養素 関連データ を1件ずつDB操作へ変換する
+    // - 食材ID(ingredientId) × 栄養素ID (nutrientId) が同じ組み合わせのID(ingredientNutrient.ingredientId_nutrientId)が
+    // 既存レコードに あれば更新(update)、なければ新規作成(create)する
+    // - @@unique([ingredientId, nutrientId])
+    // Schema の複合ユニークキーを使用
+
+    ...ingredientNutrients.map((link) =>
+      prisma.ingredientNutrient.upsert({
+        where: {
+          ingredientId_nutrientId: {
+            ingredientId: link.ingredientId,
+            nutrientId: link.nutrientId,
+          },
+        },
+        update: {
+          approxAmount: link.approxAmount,
+        },
+        create: link,
+      })
+    ),
+
+
+
+    // RecipeIngredient
+    // - Recipe(料理) × Ingredient(食品) マスタ
+    // - 料理 × 食品 関連データ を1件ずつDB操作へ変換する。
+    // - 同じ recipeId × ingredientId があれば更新(update)、なければ新規作成(create)する
+    // - Schema の複合ユニークキー"@@unique([recipeId, ingredientId])" を利用する
+    // 同じ料理×同じ食品 を重複登録できないようにするため(1度登録した内容(組み合わせ)は登録不可)
+    // - update: {}
+    // 現在、RecipeIngredient には更新する項目がないため `{}` とする。
+    // 識別対象は `recipeId` と `ingredientId` (この2つは複合ユニークキーそのもののため、既存データが見つかった場合、変更不要。)
+    // ある
+    // → 何も更新しない(update: {},)
+
+    // ない
+    // → 新規作成する(create: link,)
+
+    ...recipeIngredients.map((link) =>
+      prisma.recipeIngredient.upsert({
+        where: {
+          recipeId_ingredientId: {
+            recipeId: link.recipeId,
+            ingredientId: link.ingredientId,
+          },
+        },
+        update: {},
+        create: link,
+      })
+    ),
+
+
+
+    // RecipeNutrients
+    // - Recipe(料理) × Nutrient(栄養素) マスタ
+    // - 料理 × 栄養素 関連データ を1件ずつDB操作へ変換する。
+    // - 同じ recipeId × nutrientId があれば更新(update)、なければ新規作成(create)する
+    // - Schema の複合ユニークキー"@@unique([recipeId, nutrientId])" を利用する
+    // - 現在、recipeNutrient には更新する項目がないため `{}` とする
+    // - 識別対象は `recipeId` と `nutrientId` (この2つは複合ユニークキーそのもののため、既存データが見つかった場合、変更不要。)
+    // ある
+    // → 何も更新しない(update: {},)
+
+    // ない
+    // → 新規作成する(create: link,)
+
+    ...recipeNutrients.map((link) =>
+      prisma.recipeNutrient.upsert({
+        where: {
+          recipeId_nutrientId: {
+            recipeId: link.recipeId,
+            nutrientId: link.nutrientId,
+          },
+        },
+        update: {},
+        create: link,
+      })
+    ),
+
+
+
     // DiagnosisQuestion
     // - 質問マスタ
-    // - 同じ質問IDが既存レコードにあれば更新(update)、なければ新規作成(create)
+    // - 質問データを1件ずつDB操作へ変換する
+    // - 同じ質問ID(DiagnosisQuestion.id) が既存レコードにあれば更新(update)、なければ新規作成(create)する
     // - order: 表示順
+
     ...diagnosisQuestions.map((question) =>
       prisma.diagnosisQuestion.upsert({
         where: {
@@ -495,10 +1485,11 @@ async function main() {
     ),
 
 
+
     // NutrientRecommendation
     // - 提案マスタ
     // - 提案データを1件ずつDB操作へ変換する
-    // - 同じ提案が存在すれば更新し(update)、なければ新規作成(create)する
+    // - 同じ提案ID(NutrientRecommendation.id) が既存レコードにあれば更新し(update)、なければ新規作成(create)する
     // 同じ nutrientId・type・title のデータがある？
     // ├─ ある(update)
     // │   → description と sortOrder を更新
@@ -507,6 +1498,7 @@ async function main() {
     //      → 新しく作成
     // - nutrientId_type_title: {...} :
     // Schema で定義した複合ユニークキー(nutrientId・type・title)を使う
+
     ...nutrientRecommendations.map((recommendation) =>
       prisma.nutrientRecommendation.upsert({
         where: {
@@ -525,7 +1517,12 @@ async function main() {
     ),
   ]);
   console.log(
-    `seed完了: 栄養素${nutrients.length}件、質問${diagnosisQuestions.length}件、提案${nutrientRecommendations.length}件`
+    [
+      `seed完了:
+      栄養素${nutrients.length}件、質問${diagnosisQuestions.length}件、提案${nutrientRecommendations.length}件、
+      食品${ingredients.length}件、食品栄養リンク${ingredientNutrients.length}件、料理${recipes.length}件、
+      料理食品リンク${recipeIngredients.length}件、料理栄養素リンク${recipeNutrients.length}件`
+    ]
   );
 }
 
