@@ -21,7 +21,7 @@
 
 
 // ポイント
-// - 回答を栄養素ごとに集計し、前回との差分も作成する
+// - 保存済みの栄養素スコアを取得し、ランキングと前回との差分を作成する
 // - previousScoreMap は 前回診断のスコアを入れておく箱
 // - ranking は 今回診断の栄養素スコアランキング
 // - diffRanking は 今回スコア と 前回スコア の差分
@@ -37,7 +37,7 @@
 // ↓
 // GET /api/diagnosis/[diagnosisId]/result
 // ↓
-// `web/app/api/diagnosis/[diagnosisId]/result/route.ts`(結果ページ)
+// `web/app/api/diagnosis/[diagnosisId]/result/route.ts`(診断結果API)
 // ↓
 // 認証
 // getAuthenticatedUser(request)
@@ -53,7 +53,7 @@
 // ↓
 // 前回との差分を作る
 // ↓
-// ranking / diffRanking を返す
+// ranking / diffRanking / recommendations を返す
 
 
 
@@ -91,11 +91,11 @@
 // ↓
 // 前回との差分(diffRanking) 作成
 // ↓
-// `web/app/diagnosis/[diagnosisId]/result/page.tsx` に ranking / diffRanking を返す(本人の診断結果をJSON形式で返す)
+// `web/app/diagnosis/[diagnosisId]/result/page.tsx` に ranking / diffRanking / recommendations を返す(本人の診断結果をJSON形式で返す)
 // ↓
 // `web/app/diagnosis/[diagnosisId]/result/page.tsx`
 // ↓
-// `web/app/diagnosis/[diagnosisId]/result/page.tsx` で画面に診断結果(チャート と ランキング) を表示
+// `web/app/diagnosis/[diagnosisId]/result/page.tsx` で画面に診断結果(チャート・ランキング・食品・料理・行動提案) を表示
 
 
 
@@ -105,7 +105,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 // このAPIが返すJSONの型を指定するため
-import type { DiagnosisResultResponse } from "@/types/diagnosisApi";
+import type {
+  DiagnosisResultResponse,
+  ResultRecommendation,
+} from "@/types/diagnosisApi";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 // 差分計算用の共通関数
 import { buildScoreDifference } from "@/lib/diagnosis/buildScoreDifference";
@@ -166,6 +169,7 @@ export async function GET(request: Request, { params }: Props) {
     // ----------------------------------認可チェック-------------------------------------------
     // 今回の診断結果のデータを1つ取得
     // - 「ログイン中ユーザー本人の完了済み診断」に限定してDBから取得
+    // scores は DB取得時に score昇順、同点の場合はnutrientId昇順で並べかえて取得
     // - URL の diagnosisId が存在するが、でもログイン中ユーザー本人の診断ではないという場合、取得できない状態
     // - where: {...}で今回の診断ID(diagnosisId)・ログイン中ユーザー本人の情報(user.id)・完了済み診断("COMPLETED")だけを指定
     // - select: {...}で結果画面に必要な項目だけ指定して取得
@@ -185,7 +189,23 @@ export async function GET(request: Request, { params }: Props) {
         userId: true,
         createdAt: true,
         scores: {
-          include: { nutrient: true },
+          select: {
+            nutrientId: true,
+            score: true,
+            nutrient: {
+              select: {
+                name: true,
+              },
+            },
+          },
+          orderBy: [
+            {
+              score: "asc",
+            },
+            {
+              nutrientId: "asc",
+            },
+          ],
         },
       },
     });
@@ -214,10 +234,10 @@ export async function GET(request: Request, { params }: Props) {
     }
 
     // 今回の診断の 栄養素scoreランキング を作成
-    // - 点数の低い順に不足順ランキングとして並べて表示するため
-    // - 「score が低い = 不足しやすい傾向が高い」と判断するため、score 昇順でソートする
-    const ranking = [...currentDiagnosis.scores]
-      .sort((a, b) => a.score - b.score)
+    // - 点数の低い順に不足順ランキングとして並べて表示する
+    // - 「score が低い = 不足しやすい傾向が高い」と判断するため
+    // scores はDB取得時にscore 昇順、同点の場合は nutrientId 昇順で並べかえて取得しているので .map で表示するだけ
+    const ranking = currentDiagnosis.scores
       .map((item) => ({
         nutrientId: item.nutrientId,
         nutrient: item.nutrient.name,
@@ -294,11 +314,9 @@ export async function GET(request: Request, { params }: Props) {
 
     // score が低い順(不足しやすい傾向が高い順)に並べ替え作成した ranking を元に提案対象を取り出す
     // - 提案する対象を決める
-    const recommendationTargets = [...ranking]
+    const recommendationTargets = ranking
       // 50点未満(49~0)
-      .filter((item) => item.score < RECOMMENDATION_SCORE_THRESHOLD,)
-      // score が低い順
-      .sort((a, b) => a.score - b.score)
+      .filter((item) => item.score < RECOMMENDATION_SCORE_THRESHOLD)
       // 先頭から最大3件を指定
       .slice(0, MAX_RECOMMENDATION_NUTRIENTS);
 
@@ -311,175 +329,173 @@ export async function GET(request: Request, { params }: Props) {
       (item) => item.nutrientId,
     );
 
-    // DB から提案の対象になる栄養素ID を元に提案マスターから提案を取得する
+
+
+    // DB から提案の対象になる栄養素ID を元に提案マスターから関連する提案(文章・食品・料理)を取得する
+    // - 3つの提案検索は独立しているので、Promise.all で並列実行する
     // - findMany で複数の提案データを取得可能(1栄養素につき3件登録しているため、最大 3栄養素×3提案 = 9件)
 
-    // recommendationTargetIds.length > 0
-    // - 対象の栄養素が1件以上あるか確認している
-    // - 対象が無い場合、DB 検索を行わず、[] を返す
-    // - 不要な DB問い合わせ を避けるため
-    const recommendationItems = recommendationTargetIds.length > 0 ? await prisma.nutrientRecommendation.findMany({
-      // recommendationTargetIds(提案の対象栄養素のID) の栄養素ID を指定して提案を取得する
-      where: {
-        nutrientId: {
-          in: recommendationTargetIds,
-        },
-      },
-      orderBy:[
-        {
-          nutrientId: "asc",
-        },
-        {
-          type: "asc",
-        },
-        {
-          sortOrder: "asc",
-        },
-      ],
-    }) : [];
-
-
-
-    // 提案対象の栄養素に関連する具体的な食品を DBから取得する
-    // - IngredientNutrient は 栄養素と食品の関連を 結んでいる中間テーブル
-    // 例. protein(タンパク質) × 鶏むね肉、卵、納豆、豆腐 など
-    // - 対象栄養素が0件の場合は、DB検索せず、空配列を使用する。
+    // 提案対象がない場合は空配列のまま返す
+    let recommendations: ResultRecommendation[] = [];
 
     // recommendationTargetIds.length > 0
     // - 対象の栄養素が1件以上あるか確認している
     // - 対象が無い場合、DB 検索を行わず、[] を返す
     // - 不要な DB問い合わせ を避けるため
-
-    const ingredientLinks =
-      recommendationTargetIds.length > 0 ? await prisma.ingredientNutrient.findMany({
-        // recommendationTargetIds(提案の対象栄養素のID) の栄養素ID を指定して食品を取得する
-        where: {
-          nutrientId: {
-            in: recommendationTargetIds,
-          },
-        },
-        // select で、ingredientNutrient の中の
-        // 必要な情報(nutrientId(どの栄養素に関係するか)・ingredient(食品)の id と name )だけを取得する
-        select: {
-          nutrientId: true,
-          ingredient: {
-            select: {
-              id: true,
-              name: true,
+    if (recommendationTargetIds.length > 0) {
+      // 3つのDB検索は互いに依存していないため、`Promise.all` により同時に実行する。
+      const [recommendationItems, ingredientLinks, recipeLinks] =
+        await Promise.all([
+          // 文章による食品・行動提案を取得
+          // - recommendationTargetIds(提案の対象栄養素のID) の栄養素ID を指定して提案を取得する
+          prisma.nutrientRecommendation.findMany({
+            where: {
+              nutrientId: {
+                in: recommendationTargetIds,
+              },
             },
-          },
-        },
-        orderBy: {
-          nutrientId: "asc",
-        },
-      }) : [];
+            orderBy: [
+              {
+                nutrientId: "asc",
+              },
+              {
+                type: "asc",
+              },
+              {
+                sortOrder: "asc",
+              },
+            ],
+          }),
 
+          // 栄養素に関連する具体的な食品を取得
+          // - recommendationTargetIds(提案の対象栄養素のID) の栄養素ID を指定して食品を取得する
 
-
-    // 提案対象の栄養素に関連する料理を DBから取得する
-    // - RecipeNutrient は 栄養素と料理の関連を 結んでいる中間テーブル
-    // 例. protein(タンパク質) × 親子丼・焼き鮭・冷ややっこ・納豆ご飯 など
-    // - 対象栄養素が0件の場合は、Db検索せず、空配列を使用する。
-
-    const recipeLinks =
-      recommendationTargetIds.length > 0 ? await prisma.recipeNutrient.findMany({
-        // recommendationTargetIds(提案の対象栄養素のID) の栄養素ID を指定して料理を取得する
-        where: {
-          nutrientId: {
-            in: recommendationTargetIds,
-          },
-        },
-        // select で、recipeNutrient の中の
-        // 必要な情報(nutrientId(どの栄養素に関係するか)・recipe(料理)の id と name )だけを取得する
-        select: {
-          nutrientId: true,
-          recipe: {
-            select: {
-              id: true,
-              name: true,
+          // 提案対象の栄養素に関連する具体的な食品を DBから取得する
+          // - IngredientNutrient は 栄養素と食品の関連を 結んでいる中間テーブル
+          // 例. protein(タンパク質) × 鶏むね肉、卵、納豆、豆腐 など
+          prisma.ingredientNutrient.findMany({
+            where: {
+              nutrientId: {
+                in: recommendationTargetIds,
+              },
             },
-          },
-        },
-        orderBy: {
-          nutrientId: "asc",
-        },
-      }) : [];
+            // select で、ingredientNutrient の中の
+            // 必要な情報(nutrientId(どの栄養素に関係するか)・ingredient(食品)の id と name )だけを取得する
+            select: {
+              nutrientId: true,
+              ingredient: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+            orderBy: {
+              nutrientId: "asc",
+            },
+          }),
+
+          // 栄養素に関連する具体的な料理を取得
+          // - recommendationTargetIds(提案の対象栄養素のID) の栄養素ID を指定して料理を取得する
+
+          // 提案対象の栄養素に関連する料理を DBから取得する
+          // - RecipeNutrient は 栄養素と料理の関連を 結んでいる中間テーブル
+          // 例. protein(タンパク質) × 親子丼・焼き鮭・冷ややっこ・納豆ご飯 など
+          prisma.recipeNutrient.findMany({
+            where: {
+              nutrientId: {
+                in: recommendationTargetIds,
+              },
+            },
+            // select で、recipeNutrient の中の
+            // 必要な情報(nutrientId(どの栄養素に関係するか)・recipe(料理)の id と name )だけを取得する
+            select: {
+              nutrientId: true,
+              recipe: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+            orderBy: {
+              nutrientId: "asc",
+            },
+          }),
+        ]);
 
 
+      // 結果画面で使いやすいように栄養素ごとに提案をまとめる
+      // 提案の対象栄養素(50点未満・scoreが低い順・最大先頭3件)を、1件ずつAPIレスポンス用データに変換する
+      // - 診断結果に基づく情報(nutrientId:...・nutrient:...・score:...)を、そのまま提案データにも持たせる
+      // 画面側で、
+      // 鉄
+      // 今回のスコア: 0点
+      // などを表示しやすくするため
 
+      // .filter(...)
+      // - 全提案の中から、現在処理中の栄養素に属するものだけを残す
 
+      // .map(...)
+      // - DB のレコードから、画面へ必要な項目だけを取り出す
+      recommendations = recommendationTargets.map((target) => {
+        // 現在の栄養素に対応する提案文章を取り出す
+        const items = recommendationItems
+          .filter((recommendation) => recommendation.nutrientId === target.nutrientId)
+          .map((recommendation) => ({
+            id: recommendation.id,
+            type: recommendation.type,
+            title: recommendation.title,
+            description: recommendation.description,
+            sortOrder: recommendation.sortOrder,
+          }));
+        return {
+          nutrientId: target.nutrientId,
+          nutrient: target.nutrient,
+          score: target.score,
 
-    // 結果画面で使いやすいように栄養素ごとに提案をまとめる
-    // 提案の対象栄養素(50点未満・scoreが低い順・最大先頭3件)を、1件ずつAPIレスポンス用データに変換する
-    // - 診断結果に基づく情報(nutrientId:...・nutrient:...・score:...)を、そのまま提案データにも持たせる
-    // 画面側で、
-    // 鉄 
-    // 今回のスコア: 0点 
-    // などを表示しやすくするため
+          // 提案文章の内容(items)を、食品(foodItems)と行動(actionItems)に分けて返す
 
-    // .filter(...)
-    // - 全提案の中から、現在処理中の栄養素に属するものだけを残す
+          // - 食品についての提案文章(foodItems)を、items の中から type が "FOOD" のものだけを指定し、取り出して返す
+          foodItems: items.filter(
+            (item) => item.type === "FOOD"
+          ),
 
-    // .map(...)
-    // - DB のレコードから、画面へ必要な項目だけを取り出す
-    const recommendations = recommendationTargets.map((target) => {
-      // 現在の栄養素に対応する提案文章を取り出す
-      const items = recommendationItems
-        .filter((recommendation) => recommendation.nutrientId === target.nutrientId)
-        .map((recommendation) => ({
-          id: recommendation.id,
-          type: recommendation.type,
-          title: recommendation.title,
-          description: recommendation.description,
-          sortOrder: recommendation.sortOrder,
-        }));
-      return {
-        nutrientId: target.nutrientId,
-        nutrient: target.nutrient,
-        score: target.score,
+          // - 行動についての提案文章(actionItems)を、items の中から type が "ACTION" のものだけを指定し、取り出して返す
+          actionItems: items.filter(
+            (item) => item.type === "ACTION"
+          ),
 
-        // 提案文章の内容(items)を、食品(foodItems)と行動(actionItems)に分けて返す
+          // 具体的な食品の提案(ingredientLinks)を、ingredientLinks の中から nutrientId が現在処理中の栄養素ID(target.nutrientId)と同じものだけを指定し、取り出して返す
 
-        // - 食品についての提案文章(foodItems)を、items の中から type が "FOOD" のものだけを指定し、取り出して返す
-        foodItems: items.filter(
-          (item) => item.type === "FOOD"
-        ),
+          // 全対象栄養素の食品
+          // ↓ filter
+          // 現在処理中の栄養素に関係する食品だけ残す
+          // ↓ map
+          // 画面に必要な id・name だけへ変換
+          ingredients: ingredientLinks
+            .filter((link) => link.nutrientId === target.nutrientId)
+            .map((link) => ({
+              id: link.ingredient.id,
+              name: link.ingredient.name,
+            })),
 
-        // - 行動についての提案文章(actionItems)を、items の中から type が "ACTION" のものだけを指定し、取り出して返す
-        actionItems: items.filter(
-          (item) => item.type === "ACTION"
-        ),
+          // 具体的な料理の提案(recipeLinks)を、recipeLinks の中から nutrientId が現在処理中の栄養素ID(target.nutrientId)と同じものだけを指定し、取り出して返す
 
-        // 具体的な食品の提案(ingredientLinks)を、ingredientLinks の中から nutrientId が現在処理中の栄養素ID(target.nutrientId)と同じものだけを指定し、取り出して返す
-
-        // 全対象栄養素の食品
-        // ↓ filter
-        // 現在処理中の栄養素に関係する食品だけ残す
-        // ↓ map
-        // 画面に必要な id・name だけへ変換
-        ingredients: ingredientLinks
-          .filter((link) => link.nutrientId === target.nutrientId)
-          .map((link) => ({
-            id: link.ingredient.id,
-            name: link.ingredient.name,
-          })),
-
-        // 具体的な料理の提案(recipeLinks)を、recipeLinks の中から nutrientId が現在処理中の栄養素ID(target.nutrientId)と同じものだけを指定し、取り出して返す
-
-        // 全対象栄養素の料理
-        // ↓ filter
-        // 現在処理中の栄養素に関係する料理だけ残す
-        // ↓ map
-        // 画面に必要な id・name だけへ変換
-        recipes: recipeLinks
-          .filter((link) => link.nutrientId === target.nutrientId)
-          .map((link) => ({
-            id: link.recipe.id,
-            name: link.recipe.name,
-          })),
-      };
-    });
-
+          // 全対象栄養素の料理
+          // ↓ filter
+          // 現在処理中の栄養素に関係する料理だけ残す
+          // ↓ map
+          // 画面に必要な id・name だけへ変換
+          recipes: recipeLinks
+            .filter((link) => link.nutrientId === target.nutrientId)
+            .map((link) => ({
+              id: link.recipe.id,
+              name: link.recipe.name,
+            })),
+        };
+      });
+    }
     const responseBody: DiagnosisResultResponse = {
       success: true,
       ranking,
