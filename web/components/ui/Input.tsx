@@ -51,7 +51,7 @@
 
 
 
-// - このファイル内の流れ
+// このファイル内の流れ
 
 // signup/page.tsx などの画面
 //         ↓
@@ -63,10 +63,14 @@
 
 
 
-// - forwardRef : 親コンポーネント や react-hook-form から渡された ref を フロントで使用している <input> に渡すために使う
-// - ComponentPropsWithoutRef : 通常の <input> が 本来使用できる機能・属性(type・value・onChange など)を、そのまま TypeScript で使えるようにするための型
+// forwardRef
+// - 親コンポーネント や react-hook-form から渡された ref を フロントで使用している <input> に渡すために使う
+// ComponentPropsWithoutRef
+// - 通常の <input> が 本来使用できる機能・属性(type・value・onChange など)を、そのまま TypeScript で使えるようにするための型
 import { forwardRef, type ComponentPropsWithoutRef } from "react";
 
+
+// type InputProps = ComponentPropsWithoutRef<"input">;
 // - 通常の <input> 内 で 使用するために書いている内容(機能・属性) を
 // 共通Inputコンポーネント(`web/components/ui/Input.tsx`) でも受け取り、使えるようにするための props の型 を定義
 // - 通常の <input> に渡せるもの・属性・機能(type・value・onChange・required など)
@@ -76,6 +80,7 @@ type InputProps = ComponentPropsWithoutRef<"input">;
 
 
 
+// forwardRef<HTMLInputElement, InputProps>
 // - `web/components/ui/Input.tsx` は 親コンポーネントや react-hook-form から input 要素への ref を受け取れる(HTMLInputElement)
 // かつ、input に使える属性も受け取れる(InputProps)
 // そして、その `ref` を 実際のフロント側 の <input/> 要素へ渡して、ref を通じて、その input を直接操作できる機能を使用できるようにする
@@ -88,15 +93,20 @@ type InputProps = ComponentPropsWithoutRef<"input">;
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   // props と ref を受け取る
 
-  // - `className = ""` :
-  // className を
+  // className = "",
+  // - 共通UI をまとめている。
+  // - className を
   // フロント側で書いていた場合、書いた内容を使用する
   // フロント側で書いていない場合、空文字とする
 
-  // - `...props` : 呼び出し側(フロント側の<input/>) で 書いた <input/> に渡す機能・属性(type、value、onChange、required など) を
+  // ...props
+  // - <input/> に渡す機能・属性(type、value、onChange、required など) をまとめている。
+  // - 呼び出し側(フロント側の<input/>) で 書いた <input/> に渡す機能・属性(type、value、onChange、required など) を
   // `...props` として `web/components/ui/Input.tsx` で まとめて受け取り、<input>内で使用する
 
-  // - `ref` : forwardRef`web/components/ui/Input.tsx` で共通化した <input> の機能・属性 を フロントで使い回すために `forwardRef` を使用する。
+  // ref
+  // - 実際のinput要素 をまとめている
+  // - forwardRef`web/components/ui/Input.tsx` で共通化した <input> の機能・属性 を フロントで使い回すために `forwardRef` を使用する。
   // `ref={ref}` を通じて、その <input/> の内容を 直接操作することができる。この、`ref` には、HTMLInputElement という型を付与している
   // - ref のイメージ
   // Input コンポーネント
@@ -111,7 +121,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       <input
         ref={ref}
         {...props}
-        className={`w-full rounded border px-3 py-2 ${className}`}
+        className={`min-h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 transition-colors placeholder:text-gray-400 focus-visible:border-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 ${className}`}
       />
     );
   }
