@@ -46,13 +46,14 @@ import type { ComponentPropsWithoutRef } from "react";
 // - 通常の <label> に渡せるもの・属性・機能(htmlFor・children・className など)
 type LabelProps = ComponentPropsWithoutRef<"label">;
 
-// - `{...props}` : 呼び出し側(フロント側の<label/>)で書いた <label> に渡す機能・属性(htmlFor・children・aria属性など) を
+// {...props}
+// - 呼び出し側(フロント側の<label/>)で書いた <label> に渡す機能・属性(htmlFor・children・aria属性など) を
 // `...props` として `web/components/ui/Label.tsx` でまとめて受け取り、<label/>内で使用する。
 export function Label({ className = "", ...props }: LabelProps) {
   return (
     <label
       {...props}
-      className={`mb-1 block text-sm font-medium ${className}`}
+      className={`mb-1 block text-sm font-medium text-gray-900 ${className}`}
     />
   )
 }

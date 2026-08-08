@@ -1,10 +1,87 @@
+/* web/app/globals.css */
+
+/*
+  全体の概要
+  - アプリ全体に共通する背景色・文字色・フォント・Tailwind のデザイントークンを定義するファイル
+  - 全ての画面に本当に共通するもの を書く場所
+  - layout.tsx(アプリ全体を包む箱) に対して その箱全体に適用する内装ルール
+ */
+
+/*
+  ポイント
+
+  globals.css
+  ↓
+  色・フォントなど、本当に全体共通
+  - 基本フォント
+  - 基本背景
+  - 基本文字色
+  など
+
+
+  各page.tsx
+  ↓
+  幅・余白・レイアウト
+  - ページ幅
+  - カードの余白
+  - ボタンサイズ
+  - 診断結果だけの色
+  など
+*/
+
+
+/*
+  このファイル内の流れ
+
+  layout.tsx
+  │
+  ├─ Geistを登録
+  │
+  ↓
+  globals.css
+  │
+  ├─ TailwindへGeist登録
+  │
+  ├─ bodyでもGeist使用
+  │
+  └─ ライト表示に固定
+  │
+  ↓
+  全ページ
+*/
+
+
+/* Tailwind CSS を読み込む */
 @import "tailwindcss";
 
+
+/*
+  :root {...}
+  - アプリ全体で使う基本色を変数として登録
+  同じ値を何度も書かずに済むため
+
+  `--background`
+  - 背景色につけた名前
+
+  `--foreground`
+  - 文字色につけた名前
+*/
 :root {
   --background: #ffffff;
   --foreground: #171717;
 }
 
+/*
+  @theme inline {...}
+  - Tailwind CSS 側へ、
+  `このアプリでは、
+  background色
+  foreground色
+  sansフォント
+  monoフォント`
+  とすると定義。
+  - 標準設定(Tailwindで使うデザイン値とCSS変数)
+*/
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -12,15 +89,29 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
 
+
+/*
+  font-Family: ...;
+  - 今回のアプリの標準のフォント設定を定義
+  - 適用する優先順位の順番を設定している
+  第1候補
+  Geist
+  ↓ Geistが使えなかった場合
+  第2候補
+  Arial
+  ↓
+  第3候補
+  Helvetica
+  ↓
+  第4候補
+  一般的なsans-serif
+*/
 body {
+  /* アプリ全体の基本背景 */
   background: var(--background);
+  /* アプリ全体の基本文字色 */
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* アプリ全体の基本フォント */
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
