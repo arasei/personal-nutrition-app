@@ -360,10 +360,20 @@ export default function ResultPage() {
         </p>
       </header>
 
-      <section>
-        <h2>栄養素バランス</h2>
-        {/* API から受けとった ranking を SafeRadarChart へ渡し、レーダーチャートを描画する。 */}
-        <SafeRadarChart ranking={data.ranking} />
+      <section className="mt-8 rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
+        <h2 className="text-xl font-semibold text-gray-900">
+          栄養素バランス
+        </h2>
+
+        <p className="mt-1 text-sm text-gray-600">
+          各栄養素の今回スコアを確認できます。
+        </p>
+
+        {/* RadarChart.tsx 自体にはカードUIを持たせない */}
+        <div className="mt-4">
+          {/* API から受けとった ranking を SafeRadarChart へ渡し、レーダーチャートを描画する。 */}
+          <SafeRadarChart ranking={data.ranking} />
+        </div>
       </section>
 
       <section>
