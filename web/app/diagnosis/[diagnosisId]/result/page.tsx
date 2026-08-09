@@ -376,36 +376,73 @@ export default function ResultPage() {
         </div>
       </section>
 
-      <section>
-        {/* 順位・栄養素名・今回の点数を表示 */}
-        <h2>不足しやすい栄養素ランキング</h2>
+      <section className="mt-8">
+        <div>
+          {/* 順位・栄養素名・今回の点数を表示 */}
+          <h2 className="text-xl font-semibold text-gray-900">
+            不足しやすい栄養素ランキング
+          </h2>
 
-        {/* 前回との差分付きランキング */}
-        {/* diffRanking の配列を1件ずつ取り出して表示 */}
-        {data.diffRanking.map((item, index) => (
-          <div key={item.nutrientId}>
-            {/* index は 0から始まるので 「+ 1」をする */}
-            {index + 1}位 {item.nutrient} {item.score}点
-            
+          <p className="mt-1 text-sm leading-6 text-gray-600">
+            スコアが低い栄養素から順に確認できます。
+          </p>
+        </div>
 
-            {/*
-              API側(web/app/api/diagnosis/[diagnosisId]/result/route.ts) で
-              計算した今回スコア と 前回スコアとの 差分(diff) に対応する差分表示文(diffLabel) を受け取り、
-              表示する。
-            */}
-            {/*
-              表示例.
-              (+50 改善)
-              (-50 低下)
-              (0 変化なし)
-              (前回データなし)
-            */}
-            <span>
-              {" "}
-              ({item.diffLabel})
-            </span>
-          </div>
-        ))}
+        {/*
+        space-y-3
+        - カード同士に余白を作り、間隔を空ける
+
+        article
+        - ランキング1件を独立した情報として扱う
+        例.
+        鉄についての結果 = 1つの独立した情報
+        ビタミンDについての結果 = 1つの独立した情報
+        */}
+        <div className="mt-4 space-y-3">
+          {/* 前回との差分付きランキング */}
+          {/* diffRanking の配列を1件ずつ取り出して表示 */}
+          {data.diffRanking.map((item, index) => (
+            <article
+              key={item.nutrientId}
+              className="rounded-xl border border-gray-200 bg-white p-4"
+            >
+
+              <div className="flex items-start justify-between gap-4">
+
+                <div>
+                  <p className="text-sm font-medium text-gray-500">
+                    {/* index は 0から始まるので 「+ 1」をする */}
+                    {index + 1}位
+                  </p>
+
+                  <h3 className="mt-1 text-lg font-semibold text-gray-900">
+                    {item.nutrient}
+                  </h3>
+                </div>
+
+                <p className="text-lg font-semibold text-gray-900">
+                  {item.score}点
+                </p>
+              </div>
+
+              {/*
+                API側(web/app/api/diagnosis/[diagnosisId]/result/route.ts) で
+                計算した今回スコア と 前回スコアとの 差分(diff) に対応する差分表示文(diffLabel) を受け取り、
+                表示する。
+              */}
+              {/*
+                表示例.
+                (+50 改善)
+                (-50 低下)
+                (0 変化なし)
+                (前回データなし)
+              */}
+              <p className="mt-3 text-sm text-gray-600">
+                前回との差：{item.diffLabel}
+              </p>
+            </article>
+          ))}
+        </div>
       </section>
 
       {/* 不足傾向の栄養素に対応する食品・料理・行動提案 */}
