@@ -447,7 +447,13 @@ export default function ResultPage() {
 
       {/* 不足傾向の栄養素に対応する食品・料理・行動提案 */}
       <section className="mt-8">
-        <h2>食生活・生活習慣のヒント</h2>
+        <h2 className="text-xl font-semibold text-gray-900">
+          食生活・生活習慣のヒント
+        </h2>
+
+        <p className="mt-1 text-sm leading-6 text-gray-600">
+          不足傾向の栄養素について、食品・料理・生活習慣の見直し候補を確認できます。
+        </p>
 
         {/*
           提案(recommendations) が無い場合の分岐
@@ -467,7 +473,7 @@ export default function ResultPage() {
 
         */}
         {data.recommendations.length === 0 ? (
-          <p className="mt-4 rounded-lg border p-4">
+          <p className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm leading-6 text-gray-700">
             現在、大きな見直し候補はありません。
             <br />
             今の生活習慣を維持しましょう。
@@ -508,12 +514,19 @@ export default function ResultPage() {
               return (
                 <article
                   key={recommendation.nutrientId}
-                  className="rounded-lg border p-4"
+                  className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6"
                 >
-                  {/* 提案対象の栄養素名と今回のスコアを表示 */}
-                  <h3 className="text-lg font-semibold">
-                    {recommendation.nutrient} ({recommendation.score}点)
-                  </h3>
+
+                  <div className="flex items-center justify-between gap-4">
+                    {/* 提案対象の栄養素名と今回のスコアを表示 */}
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {recommendation.nutrient} 
+                    </h3>
+
+                    <span className="shrink-0 text-sm font-medium text-gray-600">
+                      {recommendation.score}点
+                    </span>
+                  </div>
 
                   {/*
                     文章による食品のヒント
@@ -527,17 +540,24 @@ export default function ResultPage() {
                     「食品のヒント」という見出しだけ表示されることを防ぐため
                     
                   */}
+
+
                   {recommendation.foodItems.length > 0 && (
-                    <div className="mt-4">
-                      <h4 className="font-semibold">
+                    <div className="mt-5 border-t border-gray-100 pt-5">
+                      <h4 className="text-sm font-semibold text-gray-900">
                         食品のヒント
                       </h4>
 
-                      <div className="mt-2 space-y-3">
+                      <div className="mt-3 space-y-3">
                         {recommendation.foodItems.map((item) => (
                           <div key={item.id}>
-                            <p className="font-semibold">{item.title}</p>
-                            <p>{item.description}</p>
+                            <p className="text-sm font-medium text-gray-900">
+                              {item.title}
+                            </p>
+
+                            <p className="mt-1 text-sm leading-6 text-gray-600">
+                              {item.description}
+                            </p>
                           </div>
                         ))}
                       </div>
@@ -557,14 +577,17 @@ export default function ResultPage() {
                     「おすすめ食品」という見出しだけ表示されることを防ぐため
                   */}
                   {recommendation.ingredients.length > 0 && (
-                    <div className="mt-4">
-                      <h4 className="font-semibold">
+                    <div className="mt-5 border-t border-gray-100 pt-5">
+                      <h4 className="text-sm font-semibold text-gray-900">
                         おすすめ食品
                       </h4>
 
-                      <ul className="mt-2 list-disc pl-5">
+                      <ul className="mt-3 flex flex-wrap gap-2">
                         {recommendation.ingredients.map((ingredient) => (
-                          <li key={ingredient.id}>
+                          <li
+                            key={ingredient.id}
+                            className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700"
+                          >
                             {ingredient.name}
                           </li>
                         ))}
@@ -586,15 +609,19 @@ export default function ResultPage() {
                     「おすすめ料理」という見出しだけ表示されることを防ぐため
                   */}
                   {recommendation.recipes.length > 0 && (
-                    <div className="mt-4">
-                      <h4 className="font-semibold">
+                    <div className="mt-5 border-t border-gray-100 pt-5">
+                      <h4 className="text-sm font-semibold text-gray-900">
                         おすすめ料理
                       </h4>
 
-                      <ul className="mt-2 list-disc pl-5">
+                      <ul className="mt-3 space-y-2">
                         {recommendation.recipes.map((recipe) => (
-                          <li key={recipe.id}>
-                            {recipe.name}
+                          <li
+                            key={recipe.id}
+                            className="text-sm leading-6 text-gray-700"
+                          
+                          >
+                            ・{recipe.name}
                           </li>
                         ))}
                       </ul>
@@ -614,16 +641,20 @@ export default function ResultPage() {
                     「生活習慣のヒント」という見出しだけ表示されることを防ぐため。
                   */}
                   {recommendation.actionItems.length > 0 && (
-                    <div className="mt-4">
-                      <h4 className="font-semibold">
+                    <div className="mt-5 border-t border-gray-100 pt-5">
+                      <h4 className="text-sm font-semibold text-gray-900">
                         生活習慣のヒント
                       </h4>
 
-                      <div className="mt-2 space-y-3">
+                      <div className="mt-3 space-y-3">
                         {recommendation.actionItems.map((item) => (
                           <div key={item.id}>
-                            <p className="font-semibold">{item.title}</p>
-                            <p>{item.description}</p>
+                            <p className="text-sm font-medium text-gray-900">
+                              {item.title}
+                            </p>
+                            <p className="mt-1 text-sm leading-6 text-gray-600">
+                              {item.description}
+                            </p>
                           </div>
                         ))}
                       </div>
