@@ -345,8 +345,20 @@ export default function ResultPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-8">
-      <h1>診断結果</h1>
+    <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
+      <header>
+        <p className="text-sm font-medium text-gray-500">
+          栄養診断
+        </p>
+
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+          診断結果
+        </h1>
+
+        <p className="mt-2 text-sm leading-6 text-gray-600">
+          今回の回答をもとに、栄養素の傾向と生活習慣の見直し候補を確認できます。
+        </p>
+      </header>
 
       <section>
         <h2>栄養素バランス</h2>
