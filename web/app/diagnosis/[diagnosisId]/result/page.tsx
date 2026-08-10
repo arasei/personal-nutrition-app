@@ -456,7 +456,7 @@ export default function ResultPage() {
         </p>
 
         {/*
-          提案(recommendations) が無い場合の分岐
+          提案(recommendations) が無い場合の分岐表示
           - recommendations が0件の場合(score が 50点未満の栄養素が存在しない)、
           改善提案は表示しない、見直し候補が無いというメッセージを表示する
 
@@ -502,6 +502,7 @@ export default function ResultPage() {
             {data.recommendations.map((recommendation) => {
 
               // <article>...</article>
+              // - 提案カード本体
               // - 1つの栄養素に関する提案は、それだけで独立した内容です。
               // - 1つのまとまりであることを表現するため
 
@@ -540,8 +541,6 @@ export default function ResultPage() {
                     「食品のヒント」という見出しだけ表示されることを防ぐため
                     
                   */}
-
-
                   {recommendation.foodItems.length > 0 && (
                     <div className="mt-5 border-t border-gray-100 pt-5">
                       <h4 className="text-sm font-semibold text-gray-900">
@@ -635,7 +634,7 @@ export default function ResultPage() {
                   */}
                   {/*
                     "actionItems.length > 0 && (...)"
-                    - 行動提案の文章(actionItems) が1件以上存在する場合だけ、生活習慣のヒントを表示する
+                    - 行動提案の文章(actionItems) が1件以上存在する場合だけ、見出しと生活習慣のヒントを表示する
                     - 関連する行動提案の文章(actionItems) がない場合は、見出しも一覧も表示しない。
                     仮に、ある栄養素に FOOD しか登録されていない場合、
                     「生活習慣のヒント」という見出しだけ表示されることを防ぐため。
@@ -667,9 +666,18 @@ export default function ResultPage() {
         )}
       </section>
 
+
+      {/*
+        flex-col
+        - 縦方向に配置すると指定
+        - スマホでの表示する際に適用
+        sm:flex-rou
+        - sm 以上の画面幅では横方向に配置に切り替えると指定
+        - PC などの広い画面で表示する際に適用
+       */}
       <nav
         aria-label="診断結果の移動"
-        className="mt-8 flex flex-wrap gap-3"
+        className="mt-10 flex flex-col gap-3 sm:flex-row"
       >
         {/*
           LinkButton でページ遷移を可能にする
@@ -686,13 +694,20 @@ export default function ResultPage() {
         */}
         {/* 履歴詳細ページへ の <LinkButton></LinkButton> を用意し、今回の診断ID(diagnosisId) を元に`web/app/history/[diagnosisId]/page.tsx` へ遷移可能にする */}
         {/* primary: 主ボタン */}
-        <LinkButton href={`/history/${diagnosisId}`}>
+        <LinkButton
+          href={`/history/${diagnosisId}`}
+          className="w-full sm:w-auto"
+        >
           今回の履歴詳細を見る
         </LinkButton>
 
         {/* マイページへ の <LinkButton></LinkButton> を用意し、`web/app/mypage/page.tsx` へ遷移可能にする */}
         {/* secondary: 副ボタン */}
-        <LinkButton href="/mypage" variant="secondary">
+        <LinkButton
+          href="/mypage"
+          variant="secondary"
+          className="w-full sm:w-auto"
+        >
           マイページへ
         </LinkButton>
       </nav>
