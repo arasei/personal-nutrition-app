@@ -345,53 +345,118 @@ export default function ResultPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-8">
-      <h1>診断結果</h1>
+    <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
+      <header>
+        <p className="text-sm font-medium text-gray-500">
+          栄養診断
+        </p>
 
-      <section>
-        <h2>栄養素バランス</h2>
-        {/* API から受けとった ranking を SafeRadarChart へ渡し、レーダーチャートを描画する。 */}
-        <SafeRadarChart ranking={data.ranking} />
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+          診断結果
+        </h1>
+
+        <p className="mt-2 text-sm leading-6 text-gray-600">
+          今回の回答をもとに、栄養素の傾向と生活習慣の見直し候補を確認できます。
+        </p>
+      </header>
+
+      <section className="mt-8 rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
+        <h2 className="text-xl font-semibold text-gray-900">
+          栄養素バランス
+        </h2>
+
+        <p className="mt-1 text-sm text-gray-600">
+          各栄養素の今回スコアを確認できます。
+        </p>
+
+        {/* RadarChart.tsx 自体にはカードUIを持たせない */}
+        <div className="mt-4">
+          {/* API から受けとった ranking を SafeRadarChart へ渡し、レーダーチャートを描画する。 */}
+          <SafeRadarChart ranking={data.ranking} />
+        </div>
       </section>
 
-      <section>
-        {/* 順位・栄養素名・今回の点数を表示 */}
-        <h2>不足しやすい栄養素ランキング</h2>
+      <section className="mt-8">
+        <div>
+          {/* 順位・栄養素名・今回の点数を表示 */}
+          <h2 className="text-xl font-semibold text-gray-900">
+            不足しやすい栄養素ランキング
+          </h2>
 
-        {/* 前回との差分付きランキング */}
-        {/* diffRanking の配列を1件ずつ取り出して表示 */}
-        {data.diffRanking.map((item, index) => (
-          <div key={item.nutrientId}>
-            {/* index は 0から始まるので 「+ 1」をする */}
-            {index + 1}位 {item.nutrient} {item.score}点
-            
+          <p className="mt-1 text-sm leading-6 text-gray-600">
+            スコアが低い栄養素から順に確認できます。
+          </p>
+        </div>
 
-            {/*
-              API側(web/app/api/diagnosis/[diagnosisId]/result/route.ts) で
-              計算した今回スコア と 前回スコアとの 差分(diff) に対応する差分表示文(diffLabel) を受け取り、
-              表示する。
-            */}
-            {/*
-              表示例.
-              (+50 改善)
-              (-50 低下)
-              (0 変化なし)
-              (前回データなし)
-            */}
-            <span>
-              {" "}
-              ({item.diffLabel})
-            </span>
-          </div>
-        ))}
+        {/*
+        space-y-3
+        - カード同士に余白を作り、間隔を空ける
+
+        article
+        - ランキング1件を独立した情報として扱う
+        例.
+        鉄についての結果 = 1つの独立した情報
+        ビタミンDについての結果 = 1つの独立した情報
+        */}
+        <div className="mt-4 space-y-3">
+          {/* 前回との差分付きランキング */}
+          {/* diffRanking の配列を1件ずつ取り出して表示 */}
+          {data.diffRanking.map((item, index) => (
+            <article
+              key={item.nutrientId}
+              className="rounded-xl border border-gray-200 bg-white p-4"
+            >
+
+              <div className="flex items-start justify-between gap-4">
+
+                <div>
+                  <p className="text-sm font-medium text-gray-500">
+                    {/* index は 0から始まるので 「+ 1」をする */}
+                    {index + 1}位
+                  </p>
+
+                  <h3 className="mt-1 text-lg font-semibold text-gray-900">
+                    {item.nutrient}
+                  </h3>
+                </div>
+
+                <p className="text-lg font-semibold text-gray-900">
+                  {item.score}点
+                </p>
+              </div>
+
+              {/*
+                API側(web/app/api/diagnosis/[diagnosisId]/result/route.ts) で
+                計算した今回スコア と 前回スコアとの 差分(diff) に対応する差分表示文(diffLabel) を受け取り、
+                表示する。
+              */}
+              {/*
+                表示例.
+                (+50 改善)
+                (-50 低下)
+                (0 変化なし)
+                (前回データなし)
+              */}
+              <p className="mt-3 text-sm text-gray-600">
+                前回との差：{item.diffLabel}
+              </p>
+            </article>
+          ))}
+        </div>
       </section>
 
       {/* 不足傾向の栄養素に対応する食品・料理・行動提案 */}
       <section className="mt-8">
-        <h2>食生活・生活習慣のヒント</h2>
+        <h2 className="text-xl font-semibold text-gray-900">
+          食生活・生活習慣のヒント
+        </h2>
+
+        <p className="mt-1 text-sm leading-6 text-gray-600">
+          不足傾向の栄養素について、食品・料理・生活習慣の見直し候補を確認できます。
+        </p>
 
         {/*
-          提案(recommendations) が無い場合の分岐
+          提案(recommendations) が無い場合の分岐表示
           - recommendations が0件の場合(score が 50点未満の栄養素が存在しない)、
           改善提案は表示しない、見直し候補が無いというメッセージを表示する
 
@@ -408,7 +473,7 @@ export default function ResultPage() {
 
         */}
         {data.recommendations.length === 0 ? (
-          <p className="mt-4 rounded-lg border p-4">
+          <p className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm leading-6 text-gray-700">
             現在、大きな見直し候補はありません。
             <br />
             今の生活習慣を維持しましょう。
@@ -437,6 +502,7 @@ export default function ResultPage() {
             {data.recommendations.map((recommendation) => {
 
               // <article>...</article>
+              // - 提案カード本体
               // - 1つの栄養素に関する提案は、それだけで独立した内容です。
               // - 1つのまとまりであることを表現するため
 
@@ -449,12 +515,19 @@ export default function ResultPage() {
               return (
                 <article
                   key={recommendation.nutrientId}
-                  className="rounded-lg border p-4"
+                  className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6"
                 >
-                  {/* 提案対象の栄養素名と今回のスコアを表示 */}
-                  <h3 className="text-lg font-semibold">
-                    {recommendation.nutrient} ({recommendation.score}点)
-                  </h3>
+
+                  <div className="flex items-center justify-between gap-4">
+                    {/* 提案対象の栄養素名と今回のスコアを表示 */}
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {recommendation.nutrient} 
+                    </h3>
+
+                    <span className="shrink-0 text-sm font-medium text-gray-600">
+                      {recommendation.score}点
+                    </span>
+                  </div>
 
                   {/*
                     文章による食品のヒント
@@ -469,16 +542,21 @@ export default function ResultPage() {
                     
                   */}
                   {recommendation.foodItems.length > 0 && (
-                    <div className="mt-4">
-                      <h4 className="font-semibold">
+                    <div className="mt-5 border-t border-gray-100 pt-5">
+                      <h4 className="text-sm font-semibold text-gray-900">
                         食品のヒント
                       </h4>
 
-                      <div className="mt-2 space-y-3">
+                      <div className="mt-3 space-y-3">
                         {recommendation.foodItems.map((item) => (
                           <div key={item.id}>
-                            <p className="font-semibold">{item.title}</p>
-                            <p>{item.description}</p>
+                            <p className="text-sm font-medium text-gray-900">
+                              {item.title}
+                            </p>
+
+                            <p className="mt-1 text-sm leading-6 text-gray-600">
+                              {item.description}
+                            </p>
                           </div>
                         ))}
                       </div>
@@ -498,14 +576,17 @@ export default function ResultPage() {
                     「おすすめ食品」という見出しだけ表示されることを防ぐため
                   */}
                   {recommendation.ingredients.length > 0 && (
-                    <div className="mt-4">
-                      <h4 className="font-semibold">
+                    <div className="mt-5 border-t border-gray-100 pt-5">
+                      <h4 className="text-sm font-semibold text-gray-900">
                         おすすめ食品
                       </h4>
 
-                      <ul className="mt-2 list-disc pl-5">
+                      <ul className="mt-3 flex flex-wrap gap-2">
                         {recommendation.ingredients.map((ingredient) => (
-                          <li key={ingredient.id}>
+                          <li
+                            key={ingredient.id}
+                            className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700"
+                          >
                             {ingredient.name}
                           </li>
                         ))}
@@ -527,15 +608,19 @@ export default function ResultPage() {
                     「おすすめ料理」という見出しだけ表示されることを防ぐため
                   */}
                   {recommendation.recipes.length > 0 && (
-                    <div className="mt-4">
-                      <h4 className="font-semibold">
+                    <div className="mt-5 border-t border-gray-100 pt-5">
+                      <h4 className="text-sm font-semibold text-gray-900">
                         おすすめ料理
                       </h4>
 
-                      <ul className="mt-2 list-disc pl-5">
+                      <ul className="mt-3 space-y-2">
                         {recommendation.recipes.map((recipe) => (
-                          <li key={recipe.id}>
-                            {recipe.name}
+                          <li
+                            key={recipe.id}
+                            className="text-sm leading-6 text-gray-700"
+                          
+                          >
+                            ・{recipe.name}
                           </li>
                         ))}
                       </ul>
@@ -549,22 +634,26 @@ export default function ResultPage() {
                   */}
                   {/*
                     "actionItems.length > 0 && (...)"
-                    - 行動提案の文章(actionItems) が1件以上存在する場合だけ、生活習慣のヒントを表示する
+                    - 行動提案の文章(actionItems) が1件以上存在する場合だけ、見出しと生活習慣のヒントを表示する
                     - 関連する行動提案の文章(actionItems) がない場合は、見出しも一覧も表示しない。
                     仮に、ある栄養素に FOOD しか登録されていない場合、
                     「生活習慣のヒント」という見出しだけ表示されることを防ぐため。
                   */}
                   {recommendation.actionItems.length > 0 && (
-                    <div className="mt-4">
-                      <h4 className="font-semibold">
+                    <div className="mt-5 border-t border-gray-100 pt-5">
+                      <h4 className="text-sm font-semibold text-gray-900">
                         生活習慣のヒント
                       </h4>
 
-                      <div className="mt-2 space-y-3">
+                      <div className="mt-3 space-y-3">
                         {recommendation.actionItems.map((item) => (
                           <div key={item.id}>
-                            <p className="font-semibold">{item.title}</p>
-                            <p>{item.description}</p>
+                            <p className="text-sm font-medium text-gray-900">
+                              {item.title}
+                            </p>
+                            <p className="mt-1 text-sm leading-6 text-gray-600">
+                              {item.description}
+                            </p>
                           </div>
                         ))}
                       </div>
@@ -577,9 +666,18 @@ export default function ResultPage() {
         )}
       </section>
 
+
+      {/*
+        flex-col
+        - 縦方向に配置すると指定
+        - スマホでの表示する際に適用
+        sm:flex-rou
+        - sm 以上の画面幅では横方向に配置に切り替えると指定
+        - PC などの広い画面で表示する際に適用
+       */}
       <nav
         aria-label="診断結果の移動"
-        className="mt-8 flex flex-wrap gap-3"
+        className="mt-10 flex flex-col gap-3 sm:flex-row"
       >
         {/*
           LinkButton でページ遷移を可能にする
@@ -596,13 +694,20 @@ export default function ResultPage() {
         */}
         {/* 履歴詳細ページへ の <LinkButton></LinkButton> を用意し、今回の診断ID(diagnosisId) を元に`web/app/history/[diagnosisId]/page.tsx` へ遷移可能にする */}
         {/* primary: 主ボタン */}
-        <LinkButton href={`/history/${diagnosisId}`}>
+        <LinkButton
+          href={`/history/${diagnosisId}`}
+          className="w-full sm:w-auto"
+        >
           今回の履歴詳細を見る
         </LinkButton>
 
         {/* マイページへ の <LinkButton></LinkButton> を用意し、`web/app/mypage/page.tsx` へ遷移可能にする */}
         {/* secondary: 副ボタン */}
-        <LinkButton href="/mypage" variant="secondary">
+        <LinkButton
+          href="/mypage"
+          variant="secondary"
+          className="w-full sm:w-auto"
+        >
           マイページへ
         </LinkButton>
       </nav>
