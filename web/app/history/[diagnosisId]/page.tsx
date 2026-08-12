@@ -379,29 +379,55 @@ export default function HistoryDetailPage() {
 
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-8">
-      <h1 className="text-2xl font-bold">
-        履歴詳細
-      </h1>
+    <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
+      <header>
+        <p className="text-sm font-medium text-gray-500">
+          診断履歴
+        </p>
 
-      {/* 日付表示 */}
-      {/* API側から toISOString() で文字列で返ってくるので new Date(...) で日付表示に変換 */}
-      <p>
-        診断日: {new Date(historyDetail.createdAt).toLocaleDateString("ja-JP")}
-      </p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+          履歴詳細
+        </h1>
+
+        <p className="mt-2 text-sm leading-6 text-gray-600 sm:text-base">
+          過去の診断結果と、前回からの変化を確認できます。
+        </p>
+      </header>
+
+      <div className="mt-6">
+        {/* 日付表示 */}
+        <p className="text-sm text-gray-500">
+          診断日
+        </p>
+
+        {/* API側から toISOString() で文字列で返ってくるので new Date(...) で日付表示に変換 */}
+        <p className="mt-1 font-semibold text-gray-900">
+          {new Date(historyDetail.createdAt).toLocaleDateString("ja-JP")}
+        </p>
+      </div>
 
       {/* 栄養素スコアチャート */}
-      <section className="mt-6">
-        <h2 className="text-xl font-semibold">
-          栄養素スコアチャート
-        </h2>
+      <section className="mt-8 rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">
+            栄養素スコアチャート
+          </h2>
 
-        <SafeRadarChart ranking={ranking} />
+          <p className="mt-1 text-sm leading-6 text-gray-600">
+            診断時の各栄養素のスコアを確認できます。
+          </p>
+        </div>
+
+        <div className="mt-4">
+          <SafeRadarChart ranking={ranking} />
+        </div>
       </section>
 
       {/* 全栄養素のスコアを1件ずつ表示 */}
       <section className="mt-6">
-        <h2>栄養素スコア一覧</h2>
+        <h2 className="text-xl font-semibold text-gray-900">
+          栄養素スコア一覧
+        </h2>
 
         {historyDetail.nutrientScores.length === 0 ? (
           <p>栄養素スコアがありません。</p>
