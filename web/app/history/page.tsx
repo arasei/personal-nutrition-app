@@ -409,14 +409,27 @@ export default function HistoryPage() {
 
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-8">
+    <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
+      <header className="mb-8">
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+          過去の診断結果
+        </h1>
+
+        <h2 className="text-sm font-medium text-gray-500">
+          診断履歴
+        </h2>
+
+        <p className="mt-2 text-sm leading-6 text-gray-600">
+          これまでの診断結果と、不足傾向が高い栄養素を確認できます。
+        </p>
+      </header>
       {/* マイページへ戻る導線(<Link>...</Link>)を置く */}
       {/*  
         Link でページ遷移を可能にする
         - あらかじめ行き先が決まっている通常ページ移動のため Link を使用する
       */}
-      <nav aria-label="履歴一覧の移動">
-        <Link href="/mypage" className="text-sm underline">
+      <nav aria-label="履歴一覧の移動" className="mb-6">
+        <Link href="/mypage" className="text-sm text-gray-600 underline">
           ← マイページへ
         </Link>
       </nav>
@@ -450,6 +463,6 @@ export default function HistoryPage() {
           </div>
         </Link>
       ))}
-    </div>
+    </main>
   );
 }
