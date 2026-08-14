@@ -193,6 +193,7 @@ export default function LoginPage() {
       {/*
         入力フォーム
         - ひとまとまりの入力エリア
+        メールアドレス・パスワード
         - ログインボタンを押した時にフォームの内容を送信し、ログイン処理を動かす
       */}
       <form
@@ -245,8 +246,10 @@ export default function LoginPage() {
           />
         </div>
 
-        {/* error を受け取った場合だけ {errorMessage} を表示 */}
         {/*
+          エラー表示
+          - error を受け取った場合だけ {errorMessage} を表示
+
           role="alert"
           - エラーであることを支援技術へ伝えやすくする
         */}
@@ -258,7 +261,7 @@ export default function LoginPage() {
           </p>
         )}
 
-        {/* ログインボタンを表示 */}
+        {/* ログインボタン */}
         {/* 
           disabled={isLoading}
           - isLoadingがtrueの時disabledを有効にする(二重送信防止)
@@ -274,7 +277,7 @@ export default function LoginPage() {
         </Button>
       </form>
 
-      {/* /signup ページへの遷移リンクを追加 */}
+      {/* 新規登録ページ(/signup)への遷移リンク */}
       {/* 未登録の人がログイン画面から新規登録ページへ移動できるように */}
       <p className="mt-6 text-center text-sm text-gray-600">
         アカウントをお持ちでない方は{" "}
