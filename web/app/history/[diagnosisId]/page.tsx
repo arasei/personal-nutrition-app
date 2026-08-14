@@ -379,73 +379,169 @@ export default function HistoryDetailPage() {
 
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-8">
-      <h1 className="text-2xl font-bold">
-        履歴詳細
-      </h1>
+    <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
+      <header>
+        <p className="text-sm font-medium text-gray-500">
+          診断履歴
+        </p>
 
-      {/* 日付表示 */}
-      {/* API側から toISOString() で文字列で返ってくるので new Date(...) で日付表示に変換 */}
-      <p>
-        診断日: {new Date(historyDetail.createdAt).toLocaleDateString("ja-JP")}
-      </p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+          履歴詳細
+        </h1>
+
+        <p className="mt-2 text-sm leading-6 text-gray-600 sm:text-base">
+          過去の診断結果と、前回からの変化を確認できます。
+        </p>
+      </header>
+
+      <div className="mt-6">
+        {/* 日付表示 */}
+        <p className="text-sm text-gray-500">
+          診断日
+        </p>
+
+        {/* API側から toISOString() で文字列で返ってくるので new Date(...) で日付表示に変換 */}
+        <p className="mt-1 font-semibold text-gray-900">
+          {new Date(historyDetail.createdAt).toLocaleDateString("ja-JP")}
+        </p>
+      </div>
 
       {/* 栄養素スコアチャート */}
-      <section className="mt-6">
-        <h2 className="text-xl font-semibold">
-          栄養素スコアチャート
-        </h2>
+      <section className="mt-8 rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">
+            栄養素スコアチャート
+          </h2>
 
-        <SafeRadarChart ranking={ranking} />
+          <p className="mt-1 text-sm leading-6 text-gray-600">
+            診断時の各栄養素のスコアを確認できます。
+          </p>
+        </div>
+
+        <div className="mt-4">
+          <SafeRadarChart ranking={ranking} />
+        </div>
       </section>
 
       {/* 全栄養素のスコアを1件ずつ表示 */}
-      <section className="mt-6">
-        <h2>栄養素スコア一覧</h2>
+      <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            栄養素スコア一覧
+          </h2>
+
+          <p className="mt-1 text-sm text-gray-600">
+            診断時の各栄養素のスコアです。
+          </p>
+        </div>
+
 
         {historyDetail.nutrientScores.length === 0 ? (
-          <p>栄養素スコアがありません。</p>
+          <p className="text-sm text-gray-600">
+            栄養素スコアがありません。
+          </p>
         ) : (
-          <ul>
+          <div className="divide-y divide-gray-100">
             {historyDetail.nutrientScores.map((nutrientScore) => (
-              <li key={nutrientScore.nutrientId}>
-                {nutrientScore.nutrient} : {nutrientScore.score}
-              </li>
+              <div
+                key={nutrientScore.nutrientId}
+                className="flex items-center justify-between gap-4 py-3"
+              >
+                <span className="text-sm text-gray-700">
+                  {nutrientScore.nutrient}
+                </span>
+
+                <span className="shrink-0 text-sm font-semibold text-gray-900">
+                  {nutrientScore.score}
+                </span>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </section>
 
       {/* 満たせている栄養素 上位3件 */}
-      <section className="mt-6">
-        <h2>満たせている栄養素 上位3件</h2>
+      <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            満たせている栄養素
+          </h2>
+
+          <p className="mt-1 text-sm text-gray-600">
+            スコアが高い栄養素 上位3件です。
+          </p>
+        </div>
+
         {historyDetail.topNutrients.length === 0 ? (
-          <p>表示できる栄養素がありません。</p>
+          <p className="text-sm text-gray-600">
+            表示できる栄養素がありません。
+          </p>
         ) : (
-          <ul>
-            {historyDetail.topNutrients.map((score) => (
-              <li key={score.nutrientId}>
-                {score.nutrient} : {score.score}
-              </li>
+          <div className="space-y-3">
+            {historyDetail.topNutrients.map((score, index) => (
+              <div
+                key={score.nutrientId}
+                className="flex items-center justify-between gap-4 rounded-xl bg-gray-50 p-4"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold text-gray-700">
+                    {index + 1}
+                  </span>
+
+                  <span className="text-sm font-medium text-gray-900">
+                    {score.nutrient}
+                  </span>
+                </div>
+
+                <span className="shrink-0 text-sm font-semibold text-gray-900">
+                  {score.score}
+                </span>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </section>
 
+
       {/* 不足傾向の栄養素 下位3件 */}
-      <section className="mt-6">
-        <h2>不足傾向の栄養素 下位3件</h2>
+      <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            不足傾向の栄養素
+          </h2>
+
+          <p className="mt-1 text-sm text-gray-600">
+            スコアが低い栄養素 下位3件です。
+          </p>
+        </div>
 
         {historyDetail.lowNutrients.length === 0 ? (
-          <p>表示できる栄養素がありません。</p>
+          <p className="text-sm text-gray-600">
+            表示できる栄養素がありません。
+          </p>
         ) : (
-          <ul>
-            {historyDetail.lowNutrients.map((score) => (
-              <li key={score.nutrientId}>
-                {score.nutrient} : {score.score}
-              </li>
+          <div className="space-y-3">
+            {historyDetail.lowNutrients.map((score, index) => (
+              <div
+                key={score.nutrientId}
+                className="flex items-center justify-between gap-4 rounded-xl bg-gray-50 p-4"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold text-gray-700">
+                    {index + 1}
+                  </span>
+
+                  <span className="text-sm font-medium text-gray-900">
+                    {score.nutrient}
+                  </span>
+                </div>
+
+                <span className="shrink-0 text-sm font-semibold text-gray-900">
+                  {score.score}
+                </span>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </section>
 
@@ -453,20 +549,44 @@ export default function HistoryDetailPage() {
         各栄養素の前回との差分表示
         - API側、正確には buildScoreDifference.ts 側で作った diffLabel を受け取り、表示している
       */}
-      <section className="mt-6">
-        <h2>前回との差分</h2>
+      <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            前回との差分
+          </h2>
+
+          <p className="mt-1 text-sm text-gray-600">
+            前回の診断結果との変化を確認できます。
+          </p>
+        </div>
 
         {historyDetail.differences.length === 0 ? (
-          <p>前回との差分データがありません。</p>
+          <p className="text-sm text-gray-600">
+            前回との差分データがありません。
+          </p>
         ) : (
-          <ul>
+          <div className="divide-y divide-gray-100">
             {historyDetail.differences.map((item) => (
-              <li key={item.nutrientId}>
-                {item.nutrient} : 今回 {item.current} / 前回{" "}
-                {item.previous ?? "なし"} / {item.diffLabel}
-              </li>
+              <div
+                key={item.nutrientId}
+                className="flex items-start justify-between gap-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900">
+                    {item.nutrient}
+                  </p>
+
+                  <p className="mt-1 text-xs text-gray-500">
+                    今回 {item.current} / 前回 {item.previous ?? "なし"}
+                  </p>
+                </div>
+
+                <span className="shrink-0 text-sm font-medium text-gray-600">
+                  {item.diffLabel}
+                </span>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </section>
 
@@ -476,17 +596,24 @@ export default function HistoryDetailPage() {
       */}
       <nav
         aria-label="履歴詳細の移動"
-        className="mt-8 flex flex-wrap gap-3"
+        className="mt-10 flex flex-col gap-3 sm:flex-row"
       >
         {/* 履歴一覧へ遷移できる導線(<LinkButton>...</LinkButton>) を置く */}
         {/* primary: 主ボタン */}
-        <LinkButton href="/history">
+        <LinkButton
+          href="/history"
+          className="w-full sm:w-auto"
+        >
           履歴一覧へ戻る
         </LinkButton>
 
         {/* マイページへの遷移できる導線(<LinkButton>...</LinkButton>) を置く */}
         {/* secondary: 副ボタン */}
-        <LinkButton href="/mypage" variant="secondary">
+        <LinkButton
+          href="/mypage"
+          variant="secondary"
+          className="w-full sm:w-auto"
+        >
           マイページへ
         </LinkButton>
       </nav>

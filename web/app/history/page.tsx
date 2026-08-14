@@ -409,47 +409,95 @@ export default function HistoryPage() {
 
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-8">
+    <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
+      <header className="mb-8">
+        <p className="text-sm font-medium text-gray-500">
+          診断履歴
+        </p>
+
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+          過去の診断結果
+        </h1>
+
+        <p className="mt-2 text-sm leading-6 text-gray-600">
+          これまでの診断結果と、不足傾向が高い栄養素を確認できます。
+        </p>
+      </header>
       {/* マイページへ戻る導線(<Link>...</Link>)を置く */}
       {/*  
         Link でページ遷移を可能にする
         - あらかじめ行き先が決まっている通常ページ移動のため Link を使用する
       */}
-      <nav aria-label="履歴一覧の移動">
-        <Link href="/mypage" className="text-sm underline">
+      <nav aria-label="履歴一覧の移動" className="mb-6">
+        <Link href="/mypage" className="text-sm text-gray-600 underline">
           ← マイページへ
         </Link>
       </nav>
 
-      <h1 className="mt-4 text-2xl font-bold">
+      <h2 className="text-xl font-semibold text-gray-900">
         診断履歴
-      </h1>
+      </h2>
 
-      {(!histories || histories.length === 0) && <p>履歴がありません</p>}
+      {/* 履歴が0件の場合の表示 */}
+      {(!histories || histories.length === 0) && (
+        <div className="mt-4 rounded-xl border border-gray-200 bg-white p-6 text-center">
+          <p className="text-sm text-gray-600">
+            まだ診断履歴がありません。
+          </p>
+        </div>
+      )}
 
       {/* 履歴カード一覧を表示 */}
       {/* mapで1件ずつ履歴を表示 */}
-      {histories?.map((history) => (
-        // 履歴一覧 → 詳細リンクに遷移
-        <Link href={`/history/${history.id}`} key={history.id}>
-          <div style={{ border: "1px solid gray", margin: "16px", padding: "16px" }}>
-            {/* 日付表示 */}
-            {/* データとして送られてきた日付を日本環境に対応した表示にする */}
-            <p>
-              日付: {new Date(history.createdAt).toLocaleDateString("ja-JP")}
-            </p>
-            {/* 不足傾向が高い上位3件の栄養素の表示 */}
-            <h3>不足傾向が高い栄養素 上位3件</h3>
-            <ul>
-              {history.lowNutrients.map((nutrient) => (
-                <li key={nutrient.nutrientId}>
-                  {nutrient.nutrientName} : {nutrient.score}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </Link>
-      ))}
-    </div>
+      <div className="mt-4 space-y-3">
+        {histories?.map((history) => (
+          // 履歴一覧 → 詳細リンクに遷移
+          <Link
+            href={`/history/${history.id}`}
+            key={history.id}
+            className="block rounded-xl border border-gray-200 bg-white p-4 transition hover:border-gray-300 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2 sm:p-5"
+          >
+            <div className="flex items-center justify-between gap-4">
+              {/* 日付表示 */}
+              {/* データとして送られてきた日付を日本環境に対応した表示にする */}
+              <p className="font-semibold text-gray-900">
+                {new Date(history.createdAt).toLocaleDateString("ja-JP")}
+              </p>
+
+              <span
+                className="text-sm text-gray-500"
+                aria-hidden="true"
+              >
+                →
+              </span>
+            </div>
+
+            <div className="mt-4 border-t border-gray-100 pt-4">
+              {/* 不足傾向が高い上位3件の栄養素の表示 */}
+              <h3 className="text-sm font-medium text-gray-600">
+                不足傾向が高い栄養素 上位3件
+              </h3>
+
+              <ul className="mt-3 space-y-2">
+                {history.lowNutrients.map((nutrient) => (
+                  <li
+                    key={nutrient.nutrientId}
+                    className="flex items-center justify-between gap-4"
+                  >
+                    <span className="text-sm text-gray-900">
+                      {nutrient.nutrientName}
+                    </span>
+
+                    <span className="shrink-0 text-sm font-semibold text-gray-900">
+                      {nutrient.score}点
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </main>
   );
 }
