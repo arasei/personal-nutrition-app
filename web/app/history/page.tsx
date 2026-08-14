@@ -434,7 +434,7 @@ export default function HistoryPage() {
         </Link>
       </nav>
 
-      <h2 className="mt-4 text-2xl font-bold">
+      <h2 className="text-xl font-semibold text-gray-900">
         診断履歴
       </h2>
 

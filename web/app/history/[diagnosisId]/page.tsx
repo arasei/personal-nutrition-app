@@ -596,17 +596,24 @@ export default function HistoryDetailPage() {
       */}
       <nav
         aria-label="履歴詳細の移動"
-        className="mt-8 flex flex-wrap gap-3"
+        className="mt-10 flex flex-col gap-3 sm:flex-row"
       >
         {/* 履歴一覧へ遷移できる導線(<LinkButton>...</LinkButton>) を置く */}
         {/* primary: 主ボタン */}
-        <LinkButton href="/history">
+        <LinkButton
+          href="/history"
+          className="w-full sm:w-auto"
+        >
           履歴一覧へ戻る
         </LinkButton>
 
         {/* マイページへの遷移できる導線(<LinkButton>...</LinkButton>) を置く */}
         {/* secondary: 副ボタン */}
-        <LinkButton href="/mypage" variant="secondary">
+        <LinkButton
+          href="/mypage"
+          variant="secondary"
+          className="w-full sm:w-auto"
+        >
           マイページへ
         </LinkButton>
       </nav>
