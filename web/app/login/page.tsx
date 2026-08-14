@@ -175,24 +175,40 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="mx-auto max-w-md p-6">
-      <h1 className="mb-6 text-2xl font-bold">
-        ログイン
-      </h1>
+    <main className="mx-auto w-full max-w-md px-4 py-8 sm:px-6 sm:py-10">
+      <header>
+        <p className="text-sm font-medium text-gray-500">
+          栄養診断
+        </p>
 
-      {/* ログインボタンを押した時にログイン処理を動かす */}
-      {/* 入力必須項目 */}
-      <form onSubmit={handleLogin} className="space-y-4">
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+          ログイン
+        </h1>
 
-        {/* 入力必須項目 */}
-        <div>
+        <p>
+          アカウントにログインして、栄養診断を利用できます。
+        </p>
+      </header>
+
+      {/*
+        入力フォーム
+        - ひとまとまりの入力エリア
+        - ログインボタンを押した時にフォームの内容を送信し、ログイン処理を動かす
+      */}
+      <form
+        onSubmit={handleLogin}
+        className="mt-8 space-y-5 rounded-xl border border-gray-200 bg-white p-4 sm:p-6"
+      >
+        <div className="space-y-2">
           <Label htmlFor="email">
             メールアドレス
           </Label>
+
+          {/* 入力必須項目 */}
           <Input
             id="email"
             name="email"
-            type="email" 
+            type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -201,23 +217,23 @@ export default function LoginPage() {
           />
         </div>
 
-        {/* 入力必須項目 */}
-
-        {/*
-        autoComplete : 
-        signup
-        → new-password
-        → 新しく作るパスワード
-
-        login
-        → current-password
-        → 既に登録済みのパスワード
-        */}
-        <div>
+        <div className="space-y-2">
           <Label htmlFor="password">
             パスワード
           </Label>
-          <Input 
+
+          {/* 入力必須項目 */}
+          {/*
+            autoComplete
+            - signup
+            → new-password
+            → 新しく作るパスワード
+
+            - login
+            → current-password
+            → 既に登録済みのパスワード
+          */}
+          <Input
             id="password"
             name="password"
             type="password"
@@ -228,15 +244,27 @@ export default function LoginPage() {
             placeholder="パスワードを入力"
           />
         </div>
-        
+
         {/* error を受け取った場合だけ {errorMessage} を表示 */}
+        {/*
+          role="alert"
+          - エラーであることを支援技術へ伝えやすくする
+        */}
         {errorMessage && (
-          <p className="text-sm text-red-500">{errorMessage}</p>
+          <p
+            role="alert"
+            className="rounded-lg bg-red-50 px-3 py-2 text-sm leading-6 text-red-700">
+            {errorMessage}
+          </p>
         )}
 
         {/* ログインボタンを表示 */}
-        {/* disabled={isLoading} : isLoadingがtrueの時disabledを有効にする(二重送信防止) */}
-        {/* type="submit" : フォーム送信  */}
+        {/* 
+          disabled={isLoading}
+          - isLoadingがtrueの時disabledを有効にする(二重送信防止)
+          type="submit"
+          - フォーム送信  
+        */}
         <Button
           type="submit"
           disabled={isLoading}
@@ -248,12 +276,15 @@ export default function LoginPage() {
 
       {/* /signup ページへの遷移リンクを追加 */}
       {/* 未登録の人がログイン画面から新規登録ページへ移動できるように */}
-      <p className="mt-4 text-sm">
-          アカウントをお持ちでない方は{" "}
-          <Link href="/signup" className="underline">
-            新規登録はこちら
-          </Link>
-        </p>
+      <p className="mt-6 text-center text-sm text-gray-600">
+        アカウントをお持ちでない方は{" "}
+        <Link
+          href="/signup"
+          className="font-medium text-gray-900 underline underline-offset-4"
+        >
+          新規登録はこちら
+        </Link>
+      </p>
     </main>
   );
 }
