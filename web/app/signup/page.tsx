@@ -93,14 +93,13 @@
 
 // 入力されたメールアドレスやパスワードを画面の中で管理するためのuseState
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import Button from "@/components/ui/Button";
+import Link from "next/link";
 
 export default function SignupPage() {
-  const router = useRouter();
 
   // メールアドレスの入力値を保存する場所
   const [email, setEmail] = useState("");
@@ -150,11 +149,27 @@ export default function SignupPage() {
   };
 
   return (
-    <main className="mx-auto max-w-md p-6">
-      <h1 className="mb-6 text-2xl font-bold">
-        新規登録
-      </h1>
+    <main className="mx-auto w-full max-w-md px-4 py-8 sm:px-6 sm:py-10">
+      <header>
+        <p className="text-sm font-medium text-gray-500">
+          栄養診断
+        </p>
 
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+          新規登録
+        </h1>
+
+        <p className="mt-2 text-sm leading-6 text-gray-600">
+          アカウントを作成して、栄養診断を利用できます。
+        </p>
+      </header>
+
+      {/*
+        入力フォーム
+        - ひとまとまりの入力エリア
+        メールアドレス・パスワード
+        - 新規登録ボタンを押した時にフォームの内容を送信し、新規登録処理を動かす
+      */}
       {/* 
       htmlFor と id を メールアドレスに追加することで
       label と input を "email" という名前で紐づけることができる
@@ -163,11 +178,16 @@ export default function SignupPage() {
       ↓
       メールアドレス入力欄にカーソルが入る
        */}
-      <form onSubmit={handleSignup} className="space-y-4">
-        <div>
+      <form
+        onSubmit={handleSignup}
+        className="mt-8 space-y-5 rounded-xl border border-gray-200 bg-white p-4 sm:p-6"
+      >
+        <div className="space-y-2">
           <Label htmlFor="email">
             メールアドレス
           </Label>
+
+          {/* 入力必須項目 */}
           <Input
             id="email"
             name="email"
@@ -191,10 +211,12 @@ export default function SignupPage() {
         → current-password
         → 既に登録済みのパスワード
         */}
-        <div>
+        <div className="space-y-2">
           <Label htmlFor="password">
             パスワード
           </Label>
+
+          {/* 入力必須項目 */}
           <Input
             id="password"
             name="password"
@@ -208,14 +230,35 @@ export default function SignupPage() {
           />
         </div>
 
+        {/* エラー表示 */}
+        {/*
+          role="alert"
+          - 問題が起きた
+        */}
         {errorMessage && (
-          <p className="text-sm text-red-500">{errorMessage}</p>
+          <p
+            role="alert"
+            className="rounded-lg bg-red-50 px-3 py-2 text-sm leading-6 text-red-700"
+          >
+            {errorMessage}
+          </p>
         )}
 
+        {/* 成功表示 */}
+        {/*
+          role="status"
+          - 処理結果のお知らせ
+        */}
         {successMessage && (
-          <p className="text-sm text-green-600">{successMessage}</p>
+          <p
+            role="status"
+            className="rounded-lg bg-green-50 px-3 py-2 text-sm leading-6 text-green-700"
+          >
+            {successMessage}
+          </p>
         )}
 
+        {/* 新規登録ボタン */}
         <Button
           type="submit"
           disabled={isLoading}
@@ -225,13 +268,16 @@ export default function SignupPage() {
         </Button>
       </form>
 
-      <button
-        type="button"
-        onClick={() => router.push("/login")}
-        className="mt-4 text-sm underline"
-      >
-        ログインページへ移動する
-      </button>
+      {/* ログインページ(/login)への遷移リンク */}
+      <p className="mt-6 text-center text-sm text-gray-600">
+        すでにアカウントをお持ちの方は{" "}
+        <Link
+          href="/login"
+          className="font-medium text-gray-900 underline underline-offset-4"
+        >
+          ログインはこちら
+        </Link>
+      </p>
     </main>
   );
 }
