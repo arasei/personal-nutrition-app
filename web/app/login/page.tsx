@@ -130,6 +130,7 @@ import Link from "next/link";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import Button from "@/components/ui/Button";
+import ErrorMessage from "@/components/ui/ErrorMessage";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -249,16 +250,11 @@ export default function LoginPage() {
         {/*
           エラー表示
           - error を受け取った場合だけ {errorMessage} を表示
-
-          role="alert"
-          - エラーであることを支援技術へ伝えやすくする
         */}
         {errorMessage && (
-          <p
-            role="alert"
-            className="rounded-lg bg-red-50 px-3 py-2 text-sm leading-6 text-red-700">
+          <ErrorMessage>
             {errorMessage}
-          </p>
+          </ErrorMessage>
         )}
 
         {/* ログインボタン */}

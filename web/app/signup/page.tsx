@@ -98,6 +98,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import Button from "@/components/ui/Button";
 import Link from "next/link";
+import ErrorMessage from "@/components/ui/ErrorMessage";
 
 export default function SignupPage() {
 
@@ -230,18 +231,14 @@ export default function SignupPage() {
           />
         </div>
 
-        {/* エラー表示 */}
         {/*
-          role="alert"
-          - 問題が起きた
+          エラー表示
+          - error を受け取った場合だけ {errorMessage} を表示
         */}
         {errorMessage && (
-          <p
-            role="alert"
-            className="rounded-lg bg-red-50 px-3 py-2 text-sm leading-6 text-red-700"
-          >
+          <ErrorMessage>
             {errorMessage}
-          </p>
+          </ErrorMessage>
         )}
 
         {/* 成功表示 */}
