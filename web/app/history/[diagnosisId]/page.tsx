@@ -209,6 +209,7 @@ import type {
   GetDiagnosisHistoryDetailResponse,
 } from "@/types/diagnosisApi";
 import { PageLoading } from "@/components/ui/PageLoading";
+import ErrorMessage from "@/components/ui/ErrorMessage";
 
 
 // APIから取得した履歴詳細データの型を定義(成功時だけ使用する型)
@@ -313,22 +314,31 @@ export default function HistoryDetailPage() {
     fetchHistoryDetail();
   }, [diagnosisId, token, isSessionLoading, router]);
 
-  // API取得中・ログイン確認中の表示
-  if (isSessionLoading || isLoading) {
-    return <PageLoading />;
+  // ログイン確認中 の場合のメッセージ表示
+  if (isSessionLoading) {
+    return (
+      <PageLoading message="ログイン情報を確認中です..." />
+    );
+  }
+  
+  // API取得中 の場合のメッセージ表示
+  if (isLoading) {
+    return (
+      <PageLoading message="履歴詳細を読み込み中です..." />
+    );
   }
 
-  // エラー時のメッセージ表示
+  // API取得エラー の場合のエラーメッセージ表示
   if (errorMessage) {
     return (
-      <main className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8">
+      <main className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8 sm:px-6 sm:py-10">
         <h1 className="text-2xl font-bold">
           履歴詳細
         </h1>
 
-        <p className="text-red-600">
+        <ErrorMessage>
           {errorMessage}
-        </p>
+        </ErrorMessage>
 
         {/* API 処理ではなく、行き先が固定された通常のページ移動のため、<LinkButton></LinkButton> で遷移する */}
         <LinkButton href="/history">
@@ -338,15 +348,17 @@ export default function HistoryDetailPage() {
     );
   }
 
-  // 読み込み完了後、履歴詳細データが無い場合のエラー表示
+  // API取得完了後、履歴詳細データが存在しない場合のエラーメッセージ表示
   if (!historyDetail) {
     return (
-      <main className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8">
+      <main className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8 sm:px-6 sm:py-10">
         <h1 className="text-2xl font-bold">
           履歴詳細
         </h1>
 
-        <p>履歴詳細が見つかりません。</p>
+        <ErrorMessage>
+          履歴詳細が見つかりません。
+        </ErrorMessage>
 
         {/* API 処理ではなく、行き先が固定された通常のページ移動のため、<LinkButton></LinkButton> で履歴一覧ページへ遷移する */}
         <LinkButton href="/history">
