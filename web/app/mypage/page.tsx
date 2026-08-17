@@ -89,8 +89,8 @@ export default function Mypage() {
         }
       // ログイン確認中に予期しないエラーが起きた場合の処理
       } catch (error) {
-        console.error("failed to check login:", error);
-        setErrorMessage("ログイン状態の確認に失敗しました");
+        console.error("ログイン状態の確認に失敗しました:", error);
+        setErrorMessage("ログイン状態の確認に失敗しました。時間をおいて再度お試しください。");
       // 成功しても失敗しても、確認処理が終わったら読み込み中を解除する
       } finally {
         setIsCheckingLogin(false);

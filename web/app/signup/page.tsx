@@ -15,7 +15,8 @@
 // - メールアドレスを入力する
 // - パスワードを入力する
 // - supabase.auth.signUp() を呼ぶ
-// - 成功したらログインページへ遷移する
+// - 登録成功したら本人確認メールの案内を表示
+// - 本人確認完了後、ログインページへ遷移する
 
 
 
@@ -79,6 +80,8 @@
 // ↓
 // 成功メッセージを表示
 // ↓
+// 送信された本人確認メールにて認証を行う
+// ↓
 // ユーザーが「ログインページへ移動する」を押す
 // ↓
 // /login に移動
@@ -133,17 +136,26 @@ export default function SignupPage() {
       const error = result.error;
 
       if (error) {
-        setErrorMessage(error.message);
+        console.error("新規登録に失敗しました:", error);
+        setErrorMessage(
+          "新規登録に失敗しました。入力内容をご確認のうえ、再度お試しください。",
+        );
         return;
       }
 
       // 登録成功メッセージ
-      setSuccessMessage("新規登録が完了しました。ログインページからログインしてください。");
+      setSuccessMessage(
+        "登録メールアドレス宛に本人確認メールをお送りいたしました。メール内のリンクからメールアドレスの確認をお願いいたします。"
+      );
       // 登録成功後に入力欄を空にする
       setEmail("");
       setPassword("");
-    } catch {
-      setErrorMessage("新規登録中に予期しないエラーが発生しました。");
+    } catch (error) {
+      console.error("新規登録中に予期しないエラーが発生しました:", error);
+
+      setErrorMessage(
+        "新規登録中に予期しないエラーが発生しました。時間をおいて再度お試しください。"
+      );
     } finally {
       setIsLoading(false);
     }

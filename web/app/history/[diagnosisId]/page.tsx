@@ -304,8 +304,10 @@ export default function HistoryDetailPage() {
         // responseData.success を確認しているので setHistoryDetail(responseData) には成功データだけ入る
         setHistoryDetail(responseData);
       } catch (error) {
-        console.error("failed to fetch history detail:", error);
-        setErrorMessage("履歴詳細の取得中にエラーが発生しました");
+        console.error("履歴詳細取得中にエラーが発生しました:", error);
+        setErrorMessage(
+          "履歴詳細の取得中にエラーが発生しました。時間をおいて再度お試しください。",
+        );
       } finally {
         setIsLoading(false);
       }
