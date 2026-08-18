@@ -59,6 +59,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import LinkButton from "@/components/ui/LinkButton";
 import { PageLoading } from "@/components/ui/PageLoading";
+import ErrorMessage from "@/components/ui/ErrorMessage";
 
 export default function Mypage() {
   const router = useRouter();
@@ -88,8 +89,8 @@ export default function Mypage() {
         }
       // ログイン確認中に予期しないエラーが起きた場合の処理
       } catch (error) {
-        console.error("failed to check login:", error);
-        setErrorMessage("ログイン状態の確認に失敗しました");
+        console.error("ログイン状態の確認に失敗しました:", error);
+        setErrorMessage("ログイン状態の確認に失敗しました。時間をおいて再度お試しください。");
       // 成功しても失敗しても、確認処理が終わったら読み込み中を解除する
       } finally {
         setIsCheckingLogin(false);
@@ -99,17 +100,19 @@ export default function Mypage() {
     checkLogin();
   }, [router]);
 
-  // ログイン確認中はマイページ本体を表示しない
+  // ログイン確認中のローディング表示
+  // - ログイン確認中はマイページ本体を表示しない
   if (isCheckingLogin) {
-    return (
-      <PageLoading message="ログイン状態を確認中です..." />
-    );
+    return <PageLoading />;
   }
 
+  // ログイン確認失敗の場合のエラーメッセージ表示
   if (errorMessage) {
     return (
       <main className="mx-auto w-full max-w-md px-4 py-8 sm:px-6 sm:py-10">
-        <p>{errorMessage}</p>
+        <ErrorMessage>
+          {errorMessage}
+        </ErrorMessage>
       </main>
     );
   }

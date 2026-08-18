@@ -224,7 +224,7 @@ export default function AnswerForm({
       // Supabase がログイン状態を確認中なら、回答を送らない
       if (isSessionLoading) {
         setErrorMessage(
-          "ログイン情報を確認中です。少し待ってから再度お試しください"
+          "読み込み中です。少し待ってから再度お試しください"
         );
         return;
       }

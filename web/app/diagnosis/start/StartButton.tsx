@@ -242,7 +242,7 @@ export default function StartButton() {
         disabled={isButtonDisabled}
         className="w-full"
       >
-        {isSessionLoading ? "ログイン確認中..." : isStarting ? "開始中..." : "診断を始める"}
+        {isSessionLoading ? "読み込み中..." : isStarting ? "開始中..." : "診断を始める"}
       </Button>
 
       {/* errorMessage があるときだけ表示する */}

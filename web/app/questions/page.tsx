@@ -1,3 +1,5 @@
+// web/app/questions/page.tsx
+
 import { prisma }from "@/lib/prisma";
 
 export default async function QuestionsPage() {

@@ -209,6 +209,7 @@ import type {
   GetDiagnosisHistoryDetailResponse,
 } from "@/types/diagnosisApi";
 import { PageLoading } from "@/components/ui/PageLoading";
+import ErrorMessage from "@/components/ui/ErrorMessage";
 
 
 // APIから取得した履歴詳細データの型を定義(成功時だけ使用する型)
@@ -303,8 +304,10 @@ export default function HistoryDetailPage() {
         // responseData.success を確認しているので setHistoryDetail(responseData) には成功データだけ入る
         setHistoryDetail(responseData);
       } catch (error) {
-        console.error("failed to fetch history detail:", error);
-        setErrorMessage("履歴詳細の取得中にエラーが発生しました");
+        console.error("履歴詳細取得中にエラーが発生しました:", error);
+        setErrorMessage(
+          "履歴詳細の取得中にエラーが発生しました。時間をおいて再度お試しください。",
+        );
       } finally {
         setIsLoading(false);
       }
@@ -313,22 +316,26 @@ export default function HistoryDetailPage() {
     fetchHistoryDetail();
   }, [diagnosisId, token, isSessionLoading, router]);
 
-  // API取得中・ログイン確認中の表示
+  // ログイン状態確認中 or 履歴詳細取得中 の場合の表示
+  // isSessionLoading
+  // - Supabase認証確認中
+  // isLoading
+  // - 履歴詳細API取得中
   if (isSessionLoading || isLoading) {
     return <PageLoading />;
   }
 
-  // エラー時のメッセージ表示
+  // API取得エラー の場合のエラーメッセージ表示
   if (errorMessage) {
     return (
-      <main className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8">
+      <main className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8 sm:px-6 sm:py-10">
         <h1 className="text-2xl font-bold">
           履歴詳細
         </h1>
 
-        <p className="text-red-600">
+        <ErrorMessage>
           {errorMessage}
-        </p>
+        </ErrorMessage>
 
         {/* API 処理ではなく、行き先が固定された通常のページ移動のため、<LinkButton></LinkButton> で遷移する */}
         <LinkButton href="/history">
@@ -338,15 +345,17 @@ export default function HistoryDetailPage() {
     );
   }
 
-  // 読み込み完了後、履歴詳細データが無い場合のエラー表示
+  // API取得完了後、履歴詳細データが存在しない場合のエラーメッセージ表示
   if (!historyDetail) {
     return (
-      <main className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8">
+      <main className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8 sm:px-6 sm:py-10">
         <h1 className="text-2xl font-bold">
           履歴詳細
         </h1>
 
-        <p>履歴詳細が見つかりません。</p>
+        <ErrorMessage>
+          履歴詳細が見つかりません。
+        </ErrorMessage>
 
         {/* API 処理ではなく、行き先が固定された通常のページ移動のため、<LinkButton></LinkButton> で履歴一覧ページへ遷移する */}
         <LinkButton href="/history">

@@ -130,6 +130,7 @@ import Link from "next/link";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import Button from "@/components/ui/Button";
+import ErrorMessage from "@/components/ui/ErrorMessage";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -160,14 +161,30 @@ export default function LoginPage() {
       const error = result.error;
       
       if (error) {
-        setErrorMessage("メールアドレスまたはパスワードが正しくありません。");
+        console.error("ログインに失敗しました:", error)
+        // 登録したメールアドレスによる確認が未確認の場合のエラー表示
+
+        // error.code
+        // - `code` はプログラムが、何のエラーなのかを判断するための値
+        if (error.code === "email_not_confirmed") {
+          setErrorMessage(
+            "メールアドレスの確認が完了していません。確認メールをご確認ください。",
+          );
+          return;
+        }
+        // 新規登録完了後、登録した内容と入力したメールアドレスまたはパスワードが不一致の場合のエラー表示
+        setErrorMessage(
+          "メールアドレスまたはパスワードが正しくありません。",
+        );
         return;
       }
       // ログイン成功後にページ遷移
       router.push("/mypage");
     } catch (error) {
       console.error("ログイン中にエラーが発生しました:", error);
-      setErrorMessage("ログイン処理中にエラーが発生しました。時間をおいて再度お試しください。");
+      setErrorMessage(
+        "ログイン処理中にエラーが発生しました。時間をおいて再度お試しください。"
+      );
     } finally {
       // ローディング状態を解除
       setIsLoading(false);
@@ -249,16 +266,11 @@ export default function LoginPage() {
         {/*
           エラー表示
           - error を受け取った場合だけ {errorMessage} を表示
-
-          role="alert"
-          - エラーであることを支援技術へ伝えやすくする
         */}
         {errorMessage && (
-          <p
-            role="alert"
-            className="rounded-lg bg-red-50 px-3 py-2 text-sm leading-6 text-red-700">
+          <ErrorMessage>
             {errorMessage}
-          </p>
+          </ErrorMessage>
         )}
 
         {/* ログインボタン */}

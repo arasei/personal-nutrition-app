@@ -249,8 +249,12 @@ export default function DiagnosisStepPage() {
   // [diagnosisId, step, router] の値が変わる度に useEffect を実行する
   }, [diagnosisId, step, router, token, isSessionLoading]);
 
-  // 読み込み中の画面表示
-  if (isLoading) {
+  // ログイン状態確認中 or 質問取得中の場合の画面表示
+  // isSessionLoading
+  // - Supabase認証確認中
+  // isLoading
+  // - 質問API取得中
+  if (isSessionLoading || isLoading) {
     return <PageLoading />;
   }
 

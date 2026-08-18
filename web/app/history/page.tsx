@@ -297,6 +297,7 @@ import type {
   GetDiagnosisHistoryResponse,
 } from "@/types/diagnosisApi";
 import { PageLoading } from "@/components/ui/PageLoading";
+import ErrorMessage from "@/components/ui/ErrorMessage";
 
 
 // 履歴APIを呼び出すfetcher関数
@@ -390,20 +391,31 @@ export default function HistoryPage() {
     ([, token]) => fetchDiagnosisHistory(token)
   );
 
-  if (isSessionLoading) {
-    return <PageLoading message="ログイン情報を確認中です..." />;
+  // ログイン状態確認中 or 履歴一覧取得中 の場合の表示
+  // isSessionLoading
+  // - Supabase認証確認中
+  // isLoading
+  // - 履歴一覧API取得中
+  if (isSessionLoading || isHistoryLoading) {
+    return <PageLoading />;
   }
 
   if (!token) {
     return <p>ログインページへ移動しています...</p>;
   }
 
-  if (isHistoryLoading) {
-    return <PageLoading message="履歴一覧を読み込み中です..." />;
-  }
 
+  // API取得失敗の場合のエラーメッセージ表示
   if (error) {
-    return <p>{error.message}</p>;
+    console.error("履歴一覧の取得に失敗しました:", error);
+    
+    return (
+      <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
+        <ErrorMessage>
+          {error.message}
+        </ErrorMessage>
+      </main>
+    );
   }
 
 
