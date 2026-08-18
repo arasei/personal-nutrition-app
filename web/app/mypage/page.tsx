@@ -103,9 +103,7 @@ export default function Mypage() {
   // ログイン確認中のローディング表示
   // - ログイン確認中はマイページ本体を表示しない
   if (isCheckingLogin) {
-    return (
-      <PageLoading message="ログイン状態を確認中です..." />
-    );
+    return <PageLoading />;
   }
 
   // ログイン確認失敗の場合のエラーメッセージ表示

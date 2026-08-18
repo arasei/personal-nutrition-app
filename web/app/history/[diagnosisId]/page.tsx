@@ -316,18 +316,13 @@ export default function HistoryDetailPage() {
     fetchHistoryDetail();
   }, [diagnosisId, token, isSessionLoading, router]);
 
-  // ログイン確認中 の場合のメッセージ表示
-  if (isSessionLoading) {
-    return (
-      <PageLoading message="ログイン情報を確認中です..." />
-    );
-  }
-  
-  // API取得中 の場合のメッセージ表示
-  if (isLoading) {
-    return (
-      <PageLoading message="履歴詳細を読み込み中です..." />
-    );
+  // ログイン状態確認中 or 履歴詳細取得中 の場合の表示
+  // isSessionLoading
+  // - Supabase認証確認中
+  // isLoading
+  // - 履歴詳細API取得中
+  if (isSessionLoading || isLoading) {
+    return <PageLoading />;
   }
 
   // API取得エラー の場合のエラーメッセージ表示

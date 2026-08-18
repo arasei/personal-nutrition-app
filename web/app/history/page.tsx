@@ -391,19 +391,19 @@ export default function HistoryPage() {
     ([, token]) => fetchDiagnosisHistory(token)
   );
 
-  // ログイン情報(token) を確認中 の場合の表示メッセージ
-  if (isSessionLoading) {
-    return <PageLoading message="ログイン情報を確認中です..." />;
+  // ログイン状態確認中 or 履歴一覧取得中 の場合の表示
+  // isSessionLoading
+  // - Supabase認証確認中
+  // isLoading
+  // - 履歴一覧API取得中
+  if (isSessionLoading || isHistoryLoading) {
+    return <PageLoading />;
   }
 
   if (!token) {
     return <p>ログインページへ移動しています...</p>;
   }
 
-  // ログイン中ユーザーの履歴一覧データ(histories) を確認し、取得中 の場合の表示メッセージ
-  if (isHistoryLoading) {
-    return <PageLoading message="履歴一覧を読み込み中です..." />;
-  }
 
   // API取得失敗の場合のエラーメッセージ表示
   if (error) {
