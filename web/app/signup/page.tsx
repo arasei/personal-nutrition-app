@@ -33,6 +33,20 @@
 
 
 
+// 新規登録する
+// - Button
+// - 認証処理を実行
+
+// ログインはこちら
+// - Link
+// - 補助的な画面移動
+
+// トップページへ戻る
+// - Link
+// - 補助的な画面移動
+
+
+
 
 
 // 新規登録の流れ
@@ -82,7 +96,7 @@
 // ↓
 // 送信された本人確認メールにて認証を行う
 // ↓
-// ユーザーが「ログインページへ移動する」を押す
+// ユーザーが「ログインページはこちら」を押す
 // ↓
 // /login に移動
 // ↓
@@ -285,6 +299,16 @@ export default function SignupPage() {
           className="font-medium text-gray-900 underline underline-offset-4"
         >
           ログインはこちら
+        </Link>
+      </p>
+
+      {/* トップページ(/)への遷移リンク */}
+      <p className="mt-3 text-center text-sm">
+        <Link
+          href="/"
+          className="text-gray-600 underline underline-offset-4 hover:text-gray-900"
+        >
+          トップページへ戻る
         </Link>
       </p>
     </main>

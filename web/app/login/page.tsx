@@ -32,6 +32,20 @@
 
 
 
+// ログインする
+// - Button
+// - 認証処理を実行
+
+// 新規登録はこちら
+// - Link
+// - 補助的な画面移動
+
+// トップページへ戻る
+// - Link
+// - 補助的な画面移動
+
+
+
 // useState
 // - 入力値や表示状態をJavaScript側で持つためのもの
 // - email に メールアドレスを保存・password にパスワードを保存して、入力するたびにstateを更新
@@ -298,6 +312,16 @@ export default function LoginPage() {
           className="font-medium text-gray-900 underline underline-offset-4"
         >
           新規登録はこちら
+        </Link>
+      </p>
+
+      {/* トップページ(/)への遷移リンク */}
+      <p className="mt-3 text-center text-sm">
+        <Link
+          href="/"
+          className="text-gray-600 underline underline-offset-4 hover:text-gray-900"
+        >
+          トップページ
         </Link>
       </p>
     </main>
