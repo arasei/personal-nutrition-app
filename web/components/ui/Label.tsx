@@ -53,7 +53,7 @@ export function Label({ className = "", ...props }: LabelProps) {
   return (
     <label
       {...props}
-      className={`mb-1 block text-sm font-medium text-gray-900 ${className}`}
+      className={`mb-1 block text-sm font-medium text-foreground ${className}`}
     />
   )
 }

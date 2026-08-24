@@ -145,6 +145,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import Button from "@/components/ui/Button";
 import ErrorMessage from "@/components/ui/ErrorMessage";
+import Card from "@/components/ui/Card";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -227,81 +228,83 @@ export default function LoginPage() {
         メールアドレス・パスワード
         - ログインボタンを押した時にフォームの内容を送信し、ログイン処理を動かす
       */}
-      <form
-        onSubmit={handleLogin}
-        className="mt-8 space-y-5 rounded-xl border border-gray-200 bg-white p-4 sm:p-6"
-      >
-        <div className="space-y-2">
-          <Label htmlFor="email">
-            メールアドレス
-          </Label>
-
-          {/* 入力必須項目 */}
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            placeholder="example@example.com"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="password">
-            パスワード
-          </Label>
-
-          {/* 入力必須項目 */}
-          {/*
-            autoComplete
-            - signup
-            → new-password
-            → 新しく作るパスワード
-
-            - login
-            → current-password
-            → 既に登録済みのパスワード
-          */}
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            placeholder="パスワードを入力"
-          />
-        </div>
-
-        {/*
-          エラー表示
-          - error を受け取った場合だけ {errorMessage} を表示
-        */}
-        {errorMessage && (
-          <ErrorMessage>
-            {errorMessage}
-          </ErrorMessage>
-        )}
-
-        {/* ログインボタン */}
-        {/* 
-          disabled={isLoading}
-          - isLoadingがtrueの時disabledを有効にする(二重送信防止)
-          type="submit"
-          - フォーム送信  
-        */}
-        <Button
-          type="submit"
-          disabled={isLoading}
-          className="w-full"
+      <Card className="mt-8">
+        <form
+          onSubmit={handleLogin}
+          className="space-y-5"
         >
-          {isLoading ? "ログイン中..." : "ログインする"}
-        </Button>
-      </form>
+          <div className="space-y-2">
+            <Label htmlFor="email">
+              メールアドレス
+            </Label>
+
+            {/* 入力必須項目 */}
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              placeholder="example@example.com"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">
+              パスワード
+            </Label>
+
+            {/* 入力必須項目 */}
+            {/*
+              autoComplete
+              - signup
+              → new-password
+              → 新しく作るパスワード
+
+              - login
+              → current-password
+              → 既に登録済みのパスワード
+            */}
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              placeholder="パスワードを入力"
+            />
+          </div>
+
+          {/*
+            エラー表示
+            - error を受け取った場合だけ {errorMessage} を表示
+          */}
+          {errorMessage && (
+            <ErrorMessage>
+              {errorMessage}
+            </ErrorMessage>
+          )}
+
+          {/* ログインボタン */}
+          {/*
+            disabled={isLoading}
+            - isLoadingがtrueの時disabledを有効にする(二重送信防止)
+            type="submit"
+            - フォーム送信
+          */}
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full"
+          >
+            {isLoading ? "ログイン中..." : "ログインする"}
+          </Button>
+        </form>
+      </Card>
 
       {/* 新規登録ページ(/signup)への遷移リンク */}
       {/* 未登録の人がログイン画面から新規登録ページへ移動できるように */}
@@ -309,7 +312,7 @@ export default function LoginPage() {
         アカウントをお持ちでない方は{" "}
         <Link
           href="/signup"
-          className="font-medium text-gray-900 underline underline-offset-4"
+          className="whitespace-nowrap font-medium text-foreground underline underline-offset-4"
         >
           新規登録はこちら
         </Link>

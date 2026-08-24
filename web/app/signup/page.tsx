@@ -116,6 +116,7 @@ import { Label } from "@/components/ui/Label";
 import Button from "@/components/ui/Button";
 import Link from "next/link";
 import ErrorMessage from "@/components/ui/ErrorMessage";
+import Card from "@/components/ui/Card";
 
 export default function SignupPage() {
 
@@ -205,98 +206,101 @@ export default function SignupPage() {
       ↓
       メールアドレス入力欄にカーソルが入る
        */}
-      <form
-        onSubmit={handleSignup}
-        className="mt-8 space-y-5 rounded-xl border border-gray-200 bg-white p-4 sm:p-6"
-      >
-        <div className="space-y-2">
-          <Label htmlFor="email">
-            メールアドレス
-          </Label>
-
-          {/* 入力必須項目 */}
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-            placeholder="example@example.com"
-          />
-        </div>
-
-
-        {/*
-        autoComplete : 
-        signup
-        → new-password
-        → 新しく作るパスワード
-
-        login
-        → current-password
-        → 既に登録済みのパスワード
-        */}
-        <div className="space-y-2">
-          <Label htmlFor="password">
-            パスワード
-          </Label>
-
-          {/* 入力必須項目 */}
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            autoComplete="new-password"
-            placeholder="6文字以上で入力"
-          />
-        </div>
-
-        {/*
-          エラー表示
-          - error を受け取った場合だけ {errorMessage} を表示
-        */}
-        {errorMessage && (
-          <ErrorMessage>
-            {errorMessage}
-          </ErrorMessage>
-        )}
-
-        {/* 成功表示 */}
-        {/*
-          role="status"
-          - 処理結果のお知らせ
-        */}
-        {successMessage && (
-          <p
-            role="status"
-            className="rounded-lg bg-green-50 px-3 py-2 text-sm leading-6 text-green-700"
-          >
-            {successMessage}
-          </p>
-        )}
-
-        {/* 新規登録ボタン */}
-        <Button
-          type="submit"
-          disabled={isLoading}
-          className="w-full"
+      <Card className="mt-8">
+        <form
+          onSubmit={handleSignup}
+          className="space-y-5"
         >
-          {isLoading ? "登録中..." : "新規登録する"}
-        </Button>
-      </form>
+          <div className="space-y-2">
+            <Label htmlFor="email">
+              メールアドレス
+            </Label>
+
+            {/* 入力必須項目 */}
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              placeholder="example@example.com"
+            />
+          </div>
+
+
+          {/*
+          autoComplete="..."
+
+          signup
+          → new-password
+          → 新しく作るパスワード
+
+          login
+          → current-password
+          → 既に登録済みのパスワード
+          */}
+          <div className="space-y-2">
+            <Label htmlFor="password">
+              パスワード
+            </Label>
+
+            {/* 入力必須項目 */}
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              autoComplete="new-password"
+              placeholder="6文字以上で入力"
+            />
+          </div>
+
+          {/*
+            エラー表示
+            - error を受け取った場合だけ {errorMessage} を表示
+          */}
+          {errorMessage && (
+            <ErrorMessage>
+              {errorMessage}
+            </ErrorMessage>
+          )}
+
+          {/* 成功表示 */}
+          {/*
+            role="status"
+            - 処理結果のお知らせ
+          */}
+          {successMessage && (
+            <p
+              role="status"
+              className="rounded-lg bg-green-50 px-3 py-2 text-sm leading-6 text-green-700"
+            >
+              {successMessage}
+            </p>
+          )}
+
+          {/* 新規登録ボタン */}
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full"
+          >
+            {isLoading ? "登録中..." : "新規登録する"}
+          </Button>
+        </form>
+      </Card>
 
       {/* ログインページ(/login)への遷移リンク */}
       <p className="mt-6 text-center text-sm text-gray-600">
         すでにアカウントをお持ちの方は{" "}
         <Link
           href="/login"
-          className="font-medium text-gray-900 underline underline-offset-4"
+          className="whitespace-nowrap font-medium text-foreground underline underline-offset-4"
         >
           ログインはこちら
         </Link>

@@ -62,6 +62,7 @@
 
 
 import LinkButton from "@/components/ui/LinkButton";
+import Card from "@/components/ui/Card";
 
 
 export default function Home() {
@@ -94,58 +95,62 @@ export default function Home() {
         </header>
 
         {/* 診断開始 */}
-        <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-          <h2 className="text-lg font-semibold text-gray-900">
-            栄養診断を始める
-          </h2>
+        <section className="mt-8">
+          <Card>
+            <h2 className="text-lg font-semibold text-gray-900">
+              栄養診断を始める
+            </h2>
 
-          <p className="mt-2 text-sm leading-6 text-gray-600">
-            質問に答えて、現在の栄養素の傾向を確認してみましょう。
-          </p>
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              質問に答えて、現在の栄養素の傾向を確認してみましょう。
+            </p>
 
-          {/*
-            診断開始ページ(web/app/diagnosis/start/page.tsx) への遷移リンク
-            - ここで直接診断API は呼ばない
-          */}
-          <div className="mt-4">
-            <LinkButton
-              href="/diagnosis/start"
-              className="w-full"
-            >
-              診断を始める
-            </LinkButton>
-          </div>
+            {/*
+              診断開始ページ(web/app/diagnosis/start/page.tsx) への遷移リンク
+              - ここで直接診断API は呼ばない
+            */}
+            <div className="mt-4">
+              <LinkButton
+                href="/diagnosis/start"
+                className="w-full"
+              >
+                診断を始める
+              </LinkButton>
+            </div>
+          </Card>
         </section>
 
         {/* アカウント */}
-        <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-          <h2 className="text-lg font-semibold text-gray-900">
-            アカウント
-          </h2>
+        <section className="mt-6">
+          <Card>
+            <h2 className="text-lg font-semibold text-gray-900">
+              アカウント
+            </h2>
 
-          <p className="mt-2 text-sm leading-6 text-gray-600">
-            診断結果や履歴を確認するには、ログインまたは新規登録をしてください。
-          </p>
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              診断結果や履歴を確認するには、ログインまたは新規登録をしてください。
+            </p>
 
-          <div className="mt-4 space-y-3">
-            {/* ログインリンクボタン */}
-            <LinkButton
-              href="/login"
-              variant="secondary"
-              className="w-full"
-            >
-              ログイン
-            </LinkButton>
+            <div className="mt-4 space-y-3">
+              {/* ログインリンクボタン */}
+              <LinkButton
+                href="/login"
+                variant="secondary"
+                className="w-full"
+              >
+                ログイン
+              </LinkButton>
 
-            {/* 新規登録リンクボタン */}
-            <LinkButton
-              href="/signup"
-              variant="secondary"
-              className="w-full"
-            >
-              新規登録
-            </LinkButton>
-          </div>
+              {/* 新規登録リンクボタン */}
+              <LinkButton
+                href="/signup"
+                variant="secondary"
+                className="w-full"
+              >
+                新規登録
+              </LinkButton>
+            </div>
+          </Card>
         </section>
       </div>
     </main>

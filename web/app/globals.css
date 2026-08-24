@@ -4,6 +4,7 @@
   全体の概要
   - アプリ全体に共通する背景色・文字色・フォント・Tailwind のデザイントークンを定義するファイル
   - 全ての画面に本当に共通するもの を書く場所
+  - 色の名前と実際の色を管理する場所
   - layout.tsx(アプリ全体を包む箱) に対して その箱全体に適用する内装ルール
  */
 
@@ -67,8 +68,38 @@
   - 文字色につけた名前
 */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ページ全体の背景 */
+  --background: #f8fafc;
+  /* 基本の文字色 */
+  --foreground: #0f172a;
+
+
+  /* カードや入力欄の白い背景 */
+  --surface: #ffffff;
+  /* カードや入力欄の薄い枠線 */
+  --border: #e2e8f0;
+  /* 補足説明・日付・注釈など */
+  --muted: #64748b;
+
+
+  /* 診断開始・ログインなど、最も重要な操作 */
+  --primary: #059669;
+  /* primaryボタンにマウスを乗せた時 */
+  --primary-hover: #047857;
+  /* 選択状態・薄いエメラルド背景 */
+  --primary-light: #ecfdf5;
+  /* グラフや補助的な強調 */
+  --secondary: #0f766e;
+
+
+  /* 成功を意味する状態色 */
+  --success: #10b981;
+  /* 警告を意味する状態色 */
+  --warning: #f59e0b;
+  /* エラーを意味する状態色 */
+  --error: #ef4444;
+  /* 情報を意味する状態色 */
+  --info: #3b82f6;
 }
 
 /*
@@ -85,6 +116,25 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-light: var(--primary-light);
+  --color-secondary: var(--secondary);
+
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-info: var(--info);
+
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

@@ -33,6 +33,7 @@
 
 import Link from "next/link";
 import StartButton from "./StartButton";
+import Card from "@/components/ui/Card";
 
 export default function DiagnosisStartPage() {
   return (
@@ -56,19 +57,20 @@ export default function DiagnosisStartPage() {
 
 
         {/* 診断開始という1つのまとまりのカードとして表示 */}
-        <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+        <section className="mt-8">
+          <Card>
+            <h2 className="text-lg font-semibold text-foreground">
+              栄養診断を開始する
+            </h2>
 
-          <h2 text-lg font-semibold text-gray-900>
-            栄養診断を開始する
-          </h2>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              ボタンを押すと質問1へ進みます。
+            </p>
 
-          <p className="mt-2 text-sm leading-6 text-gray-600">
-            ボタンを押すと質問1へ進みます。
-          </p>
-
-          <div className="mt-4">
-            <StartButton />
-          </div>
+            <div className="mt-4">
+              <StartButton />
+            </div>
+          </Card>
         </section>
 
         <div className="mt-6 text-center">
