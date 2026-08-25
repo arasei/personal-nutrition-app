@@ -117,6 +117,7 @@ import Button from "@/components/ui/Button";
 import Link from "next/link";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import Card from "@/components/ui/Card";
+import SuccessMessage from "@/components/ui/SuccessMessage";
 
 export default function SignupPage() {
 
@@ -272,16 +273,19 @@ export default function SignupPage() {
 
           {/* 成功表示 */}
           {/*
-            role="status"
-            - 処理結果のお知らせ
+            successMessage が空 の場合
+            - 何も表示しない
+
+            successMessageが存在 する場合
+            - successMessageを表示
+            - StatusMessageのsuccess形式を使用
+            - role="status" を付ける
+
           */}
           {successMessage && (
-            <p
-              role="status"
-              className="rounded-lg bg-green-50 px-3 py-2 text-sm leading-6 text-green-700"
-            >
+            <SuccessMessage>
               {successMessage}
-            </p>
+            </SuccessMessage>
           )}
 
           {/* 新規登録ボタン */}

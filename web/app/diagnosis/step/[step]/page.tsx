@@ -129,6 +129,7 @@ import type {
   ApiErrorResponse,
 } from "@/types/diagnosisApi";
 import { PageLoading } from "@/components/ui/PageLoading";
+import ErrorMessage from "@/components/ui/ErrorMessage";
 
 
 
@@ -265,7 +266,10 @@ export default function DiagnosisStepPage() {
   if (errorMessage || !data || !data.success || !diagnosisId) {
     return (
       <main className="mx-auto w-full max-w-xl space-y-4 px-4 py-8">
-        <p>{errorMessage || "質問を表示できませんでした"}</p>
+        <ErrorMessage>
+          {errorMessage || "質問を表示できませんでした"}
+        </ErrorMessage>
+
         <Link href="/mypage" className="text-sm underline">
           マイページへ戻る
         </Link>

@@ -138,6 +138,7 @@ import { useState } from "react";
 // フォームの値、エラー、送信中状態をまとめて管理するため
 import { useForm } from "react-hook-form";
 import Button from "@/components/ui/Button";
+import ErrorMessage from "@/components/ui/ErrorMessage";
 
 // AnswerForm が親コンポーネントから受け取る値(props)の型を定義
 // - diagnosisId: どの診断に回答を保存するかを示すID
@@ -348,16 +349,22 @@ export default function AnswerForm({
         {isSessionLoading ? "ログイン確認中..." : isSubmitting ? "保存中..." : isLast ? "結果を見る" : "次へ"}
       </Button>
 
+      {/* 回答が選択されていない場合のエラー表示 */}
+      {/*
+        id="answer-error"
+        入力欄の aria-describedby="answer-error" とメッセージを関連付けるため必要
+      */}
       {errors.answer?.message && (
-        <p id="answer-error" className="text-sm text-red-600">
+        <ErrorMessage id="answer-error">
           {errors.answer.message}
-        </p>
+        </ErrorMessage>
       )}
 
+      {/* API通信 や 回答保存処理 で発生したエラー表示 */}
       {errorMessage && (
-        <p className="text-sm text-red-600">
+        <ErrorMessage>
           {errorMessage}
-        </p>
+        </ErrorMessage>
       )}
     </form>
   );
