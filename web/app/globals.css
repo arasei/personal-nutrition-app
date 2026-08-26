@@ -31,6 +31,25 @@
 */
 
 
+
+/* テキスト表示のクラス使用ルール
+  - text-foreground
+  基本文字色
+  見出し・重要な文字
+
+  - text-muted
+  補足文字色
+  説明文・補足文・小見出し・注釈
+
+  - text-primary
+  エメラルド
+  ページ移動リンク
+
+  - hover:text-primary-hover
+  濃いエメラルド
+  リンクのhover
+*/
+
 /*
   このファイル内の流れ
 

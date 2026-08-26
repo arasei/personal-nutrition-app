@@ -31,9 +31,9 @@
 
 
 
-import Link from "next/link";
 import StartButton from "./StartButton";
 import Card from "@/components/ui/Card";
+import LinkButton from "@/components/ui/LinkButton";
 
 export default function DiagnosisStartPage() {
   return (
@@ -42,15 +42,15 @@ export default function DiagnosisStartPage() {
       <div className="mx-auto max-w-xl">
         {/* ページ説明部分 */}
         <header>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted">
             栄養診断
           </p>
 
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-gray-900">
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground">
             診断を始める
           </h1>
 
-          <p className="mt-4 text-sm leading-6 text-gray-600 sm:text-base">
+          <p className="mt-4 text-sm leading-6 text-muted sm:text-base">
             生活習慣や体調についての質問に答えて、栄養素の傾向を確認します。
           </p>
         </header>
@@ -75,12 +75,12 @@ export default function DiagnosisStartPage() {
 
         <div className="mt-6 text-center">
           {/* トップページ(/)への遷移リンク */}
-          <Link
+          <LinkButton
             href="/"
-            className="text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900"
+            variant="text"
           >
             トップページへ戻る
-          </Link>
+          </LinkButton>
         </div>
       </div>
     </main>

@@ -118,6 +118,7 @@ import Link from "next/link";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import Card from "@/components/ui/Card";
 import SuccessMessage from "@/components/ui/SuccessMessage";
+import LinkButton from "@/components/ui/LinkButton";
 
 export default function SignupPage() {
 
@@ -180,15 +181,15 @@ export default function SignupPage() {
   return (
     <main className="mx-auto w-full max-w-md px-4 py-8 sm:px-6 sm:py-10">
       <header>
-        <p className="text-sm font-medium text-gray-500">
+        <p className="text-sm font-medium text-muted">
           栄養診断
         </p>
 
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           新規登録
         </h1>
 
-        <p className="mt-2 text-sm leading-6 text-gray-600">
+        <p className="mt-2 text-sm leading-6 text-muted">
           アカウントを作成して、栄養診断を利用できます。
         </p>
       </header>
@@ -300,25 +301,28 @@ export default function SignupPage() {
       </Card>
 
       {/* ログインページ(/login)への遷移リンク */}
-      <p className="mt-6 text-center text-sm text-gray-600">
+      {/* 未登録の人がログイン画面から新規登録ページへ移動できるように */}
+      {/* 「新規登録はこちら」は文章の一部なので、通常の Link を使用する */}
+      <p className="mt-6 text-center text-sm text-muted">
         すでにアカウントをお持ちの方は{" "}
         <Link
           href="/login"
-          className="whitespace-nowrap font-medium text-foreground underline underline-offset-4"
+          className="whitespace-nowrap rounded-sm font-medium text-primary underline underline-offset-4 transition-colors hover:text-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
         >
           ログインはこちら
         </Link>
       </p>
 
       {/* トップページ(/)への遷移リンク */}
-      <p className="mt-3 text-center text-sm">
-        <Link
+      {/* 「トップページへ戻る」は単独で配置するページ移動のため、LinkButton を使用する */}
+      <div className="mt-3 text-center">
+        <LinkButton
           href="/"
-          className="text-gray-600 underline underline-offset-4 hover:text-gray-900"
+          variant="text"
         >
           トップページへ戻る
-        </Link>
-      </p>
+        </LinkButton>
+      </div>
     </main>
   );
 }

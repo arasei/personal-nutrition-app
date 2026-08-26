@@ -78,17 +78,17 @@ export default function Home() {
       <div className="mx-auto max-w-xl">
         {/* ページ見出し */}
         <header>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted">
             栄養診断
           </p>
 
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-4xl">
             毎日の生活習慣から
             <br className="hidden sm:block"/>
             栄養素の傾向を確認
           </h1>
 
-          <p className="mt-4 text-sm leading-6 text-gray-600 sm:text-base">
+          <p className="mt-4 text-sm leading-6 text-muted sm:text-base">
             生活習慣や体調についての質問に答えることで、
             栄養素の傾向やおすすめの食品・料理を確認できます。
           </p>
@@ -97,11 +97,11 @@ export default function Home() {
         {/* 診断開始 */}
         <section className="mt-8">
           <Card>
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-foreground">
               栄養診断を始める
             </h2>
 
-            <p className="mt-2 text-sm leading-6 text-gray-600">
+            <p className="mt-2 text-sm leading-6 text-muted">
               質問に答えて、現在の栄養素の傾向を確認してみましょう。
             </p>
 
@@ -123,11 +123,11 @@ export default function Home() {
         {/* アカウント */}
         <section className="mt-6">
           <Card>
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-foreground">
               アカウント
             </h2>
 
-            <p className="mt-2 text-sm leading-6 text-gray-600">
+            <p className="mt-2 text-sm leading-6 text-muted">
               診断結果や履歴を確認するには、ログインまたは新規登録をしてください。
             </p>
 
