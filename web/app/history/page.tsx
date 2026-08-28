@@ -1,6 +1,7 @@
 // web/app/history/page.tsx
 
 
+
 // 全体の概要
 // - 履歴APIからデータを取得して、不足傾向が高い上位3件の栄養素(lowNutrients)と日付をそれぞれの履歴カードとして画面に表示し、リンクから履歴詳細ページへ遷移できるページ
 // - ログイン中ユーザーの Supabase token を使って、履歴API(web/app/api/diagnosis/history/route.ts)を呼び、
@@ -298,6 +299,8 @@ import type {
 } from "@/types/diagnosisApi";
 import { PageLoading } from "@/components/ui/PageLoading";
 import ErrorMessage from "@/components/ui/ErrorMessage";
+import Card from "@/components/ui/Card";
+import LinkButton from "@/components/ui/LinkButton";
 
 
 // 履歴APIを呼び出すfetcher関数
@@ -420,43 +423,87 @@ export default function HistoryPage() {
 
 
 
+  // 履歴カードは「カード全体をクリックして詳細ページへ移動する」ため、単純に Link を Card へ置き換えることはしない
+
+  // 以下のように役割を分ける
+  // 外側の Link
+  // - ページ移動を担当
+  // 内側の Card
+  // - 共通の見た目を担当
+
+
+  // className="group block rounded-xl ..."
+  // group
+  // - 外側のリンクが hoverされたことを、内側の Cardへ伝える
+  // block
+  // - リンクをカード全体の大きさに広げる
+  // rounded-xl
+  // - フォーカスリングをカードと同じ角丸にする
+
+  // focus-visible:ring-primary/30
+  // - キーボードのTabキーで履歴カードを選択した時、エメラルド系のリングを表示する
+  // マウス操作だけでなく、キーボード操作でも現在位置がわかるようにするため
+
+  // group-hover:border-primary
+  // - 外側のリンクへマウスを乗せると、内側のCardの枠線をエメラルド色にする
+
+  // group-hover:shadow-md
+  // - クリック可能なカードであることがわかるように、hover時だけ影を少し強くする
+  // - 共通Card.tsx自体には、hoverを追加しない。
+  // 通常のカードまでクリック可能に見えてしまうのを防ぐため
+
+  // border-border
+  // - カード内の区切り線も共通の枠線色へ統一する
+
+  // min-w-0
+  // - スマートフォンで栄養素名が長い場合に、文字が適切に縮んだり折り返しできるようにする
+
+  // shrink-0
+  // - 点数や矢印が狭い画面でつぶれないようにする
+
+
+
+
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
       <header className="mb-8">
-        <p className="text-sm font-medium text-gray-500">
+        <p className="text-sm font-medium text-muted">
           診断履歴
         </p>
 
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           過去の診断結果
         </h1>
 
-        <p className="mt-2 text-sm leading-6 text-gray-600">
+        <p className="mt-2 text-sm leading-6 text-muted">
           これまでの診断結果と、不足傾向が高い栄養素を確認できます。
         </p>
       </header>
-      {/* マイページへ戻る導線(<Link>...</Link>)を置く */}
+      {/* マイページへ戻る導線(<LinkButton>...</LinkButton>)を置く */}
       {/*  
-        Link でページ遷移を可能にする
-        - あらかじめ行き先が決まっている通常ページ移動のため Link を使用する
+        LinkButton でページ遷移を可能にする
+        - あらかじめ行き先が決まっている通常ページ移動のため LinkButton を使用する
+
+        variant="text"
+        - 「マイページへ」がこの画面の主要操作ではなく、補助的なページ移動のため
       */}
       <nav aria-label="履歴一覧の移動" className="mb-6">
-        <Link href="/mypage" className="text-sm text-gray-600 underline">
+        <LinkButton href="/mypage" variant="text">
           ← マイページへ
-        </Link>
+        </LinkButton>
       </nav>
 
-      <h2 className="text-xl font-semibold text-gray-900">
+      <h2 className="text-xl font-semibold text-foreground">
         診断履歴
       </h2>
 
       {/* 履歴が0件の場合の表示 */}
       {(!histories || histories.length === 0) && (
-        <div className="mt-4 rounded-xl border border-gray-200 bg-white p-6 text-center">
-          <p className="text-sm text-gray-600">
+        <Card className="mt-4 text-center">
+          <p className="text-sm text-muted">
             まだ診断履歴がありません。
           </p>
-        </div>
+        </Card>
       )}
 
       {/* 履歴カード一覧を表示 */}
@@ -465,48 +512,50 @@ export default function HistoryPage() {
         {histories?.map((history) => (
           // 履歴一覧 → 詳細リンクに遷移
           <Link
-            href={`/history/${history.id}`}
             key={history.id}
-            className="block rounded-xl border border-gray-200 bg-white p-4 transition hover:border-gray-300 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2 sm:p-5"
+            href={`/history/${history.id}`}
+            className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            <div className="flex items-center justify-between gap-4">
-              {/* 日付表示 */}
-              {/* データとして送られてきた日付を日本環境に対応した表示にする */}
-              <p className="font-semibold text-gray-900">
-                {new Date(history.createdAt).toLocaleDateString("ja-JP")}
-              </p>
+            <Card className="transition group-hover:border-primary group-hover:shadow-md">
+              <div className="flex items-center justify-between gap-4">
+                {/* 日付表示 */}
+                {/* データとして送られてきた日付を日本環境に対応した表示にする */}
+                <p className="font-semibold text-foreground">
+                  {new Date(history.createdAt).toLocaleDateString("ja-JP")}
+                </p>
 
-              <span
-                className="text-sm text-gray-500"
-                aria-hidden="true"
-              >
-                →
-              </span>
-            </div>
+                <span
+                  className="shrink-0 text-sm text-primary"
+                  aria-hidden="true"
+                >
+                  →
+                </span>
+              </div>
 
-            <div className="mt-4 border-t border-gray-100 pt-4">
-              {/* 不足傾向が高い上位3件の栄養素の表示 */}
-              <h3 className="text-sm font-medium text-gray-600">
-                不足傾向が高い栄養素 上位3件
-              </h3>
+              <div className="mt-4 border-t border-border pt-4">
+                {/* 不足傾向が高い上位3件の栄養素の表示 */}
+                <h3 className="text-sm font-medium text-muted">
+                  不足傾向が高い栄養素 上位3件
+                </h3>
 
-              <ul className="mt-3 space-y-2">
-                {history.lowNutrients.map((nutrient) => (
-                  <li
-                    key={nutrient.nutrientId}
-                    className="flex items-center justify-between gap-4"
-                  >
-                    <span className="text-sm text-gray-900">
-                      {nutrient.nutrientName}
-                    </span>
+                <ul className="mt-3 space-y-2">
+                  {history.lowNutrients.map((nutrient) => (
+                    <li
+                      key={nutrient.nutrientId}
+                      className="flex items-center justify-between gap-4"
+                    >
+                      <span className="min-w-0 text-sm text-foreground">
+                        {nutrient.nutrientName}
+                      </span>
 
-                    <span className="shrink-0 text-sm font-semibold text-gray-900">
-                      {nutrient.score}点
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+                      <span className="shrink-0 text-sm font-semibold text-foreground">
+                        {nutrient.score}点
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Card>
           </Link>
         ))}
       </div>

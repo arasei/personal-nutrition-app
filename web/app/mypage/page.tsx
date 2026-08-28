@@ -60,6 +60,7 @@ import { useEffect, useState } from "react";
 import LinkButton from "@/components/ui/LinkButton";
 import { PageLoading } from "@/components/ui/PageLoading";
 import ErrorMessage from "@/components/ui/ErrorMessage";
+import Card from "@/components/ui/Card";
 
 export default function Mypage() {
   const router = useRouter();
@@ -122,55 +123,59 @@ export default function Mypage() {
   return (
     <main className="mx-auto w-full max-w-md px-4 py-8 sm:px-6 sm:py-10">
       <header>
-        <p className="text-sm font-medium text-gray-500">
+        <p className="text-sm font-medium text-muted">
           栄養診断
         </p>
 
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           マイページ
         </h1>
 
-        <p className="mt-2 text-sm leading-6 text-gray-600">
+        <p className="mt-2 text-sm leading-6 text-muted">
           栄養診断を始めたり、これまでの診断結果を確認できます。
         </p>
       </header>
 
-      {/* 診断カード */}
-      <section className="mt-8 rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
-        <h2 className="text-lg font-semibold text-gray-900">
-          栄養診断
-        </h2>
+      {/* 診断開始ページへ案内カード */}
+      <section className="mt-8">
+        <Card>
+          <h2 className="text-lg font-semibold text-foreground">
+            栄養診断
+          </h2>
 
-        <p className="mt-2 text-sm leading-6 text-gray-600">
-          現在の生活習慣から、栄養素の傾向を確認できます。
-        </p>
+          <p className="mt-2 text-sm leading-6 text-muted">
+            現在の生活習慣から、栄養素の傾向を確認できます。
+          </p>
 
-        {/* 診断開始ボタン */}
-        <div className="mt-5">
-          <StartButton />
-        </div>
+          {/* 診断開始ボタン */}
+          <div className="mt-5">
+            <StartButton />
+          </div>
+        </Card>
       </section>
 
-      {/* 履歴カード */}
-      <section className="mt-4 rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
-        <h2 className="text-lg font-semibold text-gray-900">
-          診断履歴
-        </h2>
+      {/* 履歴ページへ案内カード */}
+      <section className="mt-4">
+        <Card>
+          <h2 className="text-lg font-semibold text-foreground">
+            診断履歴
+          </h2>
 
-        <p className="mt-2 text-sm leading-6 text-gray-600">
-          過去の診断結果や、前回からの変化を確認できます。
-        </p>
+          <p className="mt-2 text-sm leading-6 text-muted">
+            過去の診断結果や、前回からの変化を確認できます。
+          </p>
 
-        {/* 履歴一覧ページ(`web/app/history/page.tsx`) へ 遷移するためのリンク<LinkButton>...</LinkButton> */}
-        <div className="mt-5">
-          <LinkButton
-            href="/history"
-            variant="secondary"
-            className="w-full"
-          >
-            履歴を見る
-          </LinkButton>
-        </div>
+          {/* 履歴一覧ページ(`web/app/history/page.tsx`) へ 遷移するためのリンク<LinkButton>...</LinkButton> */}
+          <div className="mt-5">
+            <LinkButton
+              href="/history"
+              variant="secondary"
+              className="w-full"
+            >
+              履歴を見る
+            </LinkButton>
+          </div>
+        </Card>
       </section>
     </main>
   );
