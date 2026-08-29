@@ -119,7 +119,6 @@
 
 "use client";
 
-import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
@@ -130,6 +129,8 @@ import type {
 } from "@/types/diagnosisApi";
 import { PageLoading } from "@/components/ui/PageLoading";
 import ErrorMessage from "@/components/ui/ErrorMessage";
+import Card from "@/components/ui/Card";
+import LinkButton from "@/components/ui/LinkButton";
 
 
 
@@ -256,7 +257,7 @@ export default function DiagnosisStepPage() {
   // isLoading
   // - 質問API取得中
   if (isSessionLoading || isLoading) {
-    return <PageLoading />;
+    return <PageLoading message="診断画面を読み込み中..." />;
   }
 
   // errorMessage がある or data がない or data.success がない or diagnosisId がないの状況の場合、
@@ -265,14 +266,18 @@ export default function DiagnosisStepPage() {
   // max-w-xl: 最大幅 を約576px に制限している
   if (errorMessage || !data || !data.success || !diagnosisId) {
     return (
-      <main className="mx-auto w-full max-w-xl space-y-4 px-4 py-8">
+      <main className="mx-auto w-full max-w-xl space-y-4 px-4 py-8 sm:px-6 sm:py-10">
         <ErrorMessage>
           {errorMessage || "質問を表示できませんでした"}
         </ErrorMessage>
 
-        <Link href="/mypage" className="text-sm underline">
-          マイページへ戻る
-        </Link>
+        {/* <nav>...</nav> で移動用リンクだとわかるようにする */}
+        {/* 単独の移動リンクのため、 LinkButton を使用 */}
+        <nav aria-label="診断エラー時の移動">
+          <LinkButton href="/mypage" variant="text">
+            マイページへ戻る
+          </LinkButton>
+        </nav>
       </main>
     );
   }
@@ -281,36 +286,53 @@ export default function DiagnosisStepPage() {
   // - DB側 の正しい順番で表示するため
   const stepNum = data.question.order;
 
+
+
   return (
-    <main className="mx-auto w-full max-w-xl px-4 py-8">
-      {/* ページタイトル */}
-      <h1 className="text-2xl font-bold">
-        診断 Step {stepNum}
-      </h1>
+    <main className="mx-auto w-full max-w-xl px-4 py-8 sm:px-6 sm:py-10">
+      <header>
+        <p className="text-sm font-medium text-muted">
+          栄養診断
+        </p>
 
-      {/* 現在の質問番号と全質問数 */}
-      <p className="mt-3 text-sm">
-        現在の質問番号: {stepNum}/{data.total}
-      </p>
+        {/* ページタイトル */}
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          あなたの生活習慣について
+        </h1>
 
-      {/* 質問文 */}
-      <p className="mt-2 text-lg font-medium">
-        質問: {data.question.questionText}
-      </p>
+        {/* 現在の質問番号と全質問数 */}
+        <p className="mt-2 text-sm font-medium text-primary">
+          質問 {stepNum} / {data.total}
+        </p>
+      </header>
 
-      {/* 回答保存の為のフォーム追加 */}
-      {/* 回答保存は AnswerForm.tsx 側で行う */}
+      <section
+        className="mt-8"
+        aria-labelledby="question-heading"
+      >
+        <Card>
+          {/* 質問文 */}
+          <h2
+            id="question-heading"
+            className="text-lg font-semibold leading-7 text-foreground"
+          >
+            {data.question.questionText}
+          </h2>
+          {/* 回答保存の為のフォーム追加 */}
+          {/* 回答保存は AnswerForm.tsx 側で行う */}
 
-      {/* diagnosisId= どの診断に保存するか */}
-      {/* questionId= どの質問への回答か */}
-      {/* order= 何問目か */}
-      {/* isLast= 最後の質問かどうか */}
-      <AnswerForm
-        diagnosisId={diagnosisId} 
-        questionId={data.question.id} 
-        order={stepNum} 
-        isLast={data.isLast ?? false} 
-      />
+          {/* diagnosisId= どの診断に保存するか */}
+          {/* questionId= どの質問への回答か */}
+          {/* order= 何問目か */}
+          {/* isLast= 最後の質問かどうか */}
+          <AnswerForm
+            diagnosisId={diagnosisId}
+            questionId={data.question.id}
+            order={stepNum}
+            isLast={data.isLast ?? false}
+          />
+        </Card>
+      </section>
     </main>
   );
 }
