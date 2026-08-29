@@ -15,7 +15,7 @@ import type { HTMLAttributes, PropsWithChildren } from "react";
 // ↓
 // variant="error"
 // ↓
-// 薄い赤背景・赤い枠線
+// 赤い文字・薄い赤背景・赤い枠線
 // ↓
 // role="alert"
 
@@ -69,8 +69,8 @@ type StatusMessageProps = StatusMessageBaseProps & {
 
 // 表示内容によって切り替える色を定義
 const variantClassName = {
-  error: "border-error/30 bg-error/10",
-  success: "border-success/30 bg-success/10",
+  error: "border-error/30 bg-error/10 text-error",
+  success: "border-success/30 bg-success/10 text-foreground",
 };
 
 // role={variantRole[variant]}
@@ -115,7 +115,7 @@ export default function StatusMessage({
     <div
       {...props}
       role={variantRole[variant]}
-      className={`rounded-lg border px-3 py-2 text-sm font-medium leading-6 text-foreground ${variantClassName[variant]} ${className}`}
+      className={`rounded-lg border px-3 py-2 text-sm font-medium leading-6 ${variantClassName[variant]} ${className}`}
     >
       {children}
     </div>

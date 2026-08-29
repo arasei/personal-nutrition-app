@@ -20,7 +20,7 @@
 //   ↓ variant="error"を自動指定
 // StatusMessage
 //   ↓
-// 赤系の背景・枠線
+// 赤系の文字・背景・枠線
 //   ↓
 // role="alert"
 
