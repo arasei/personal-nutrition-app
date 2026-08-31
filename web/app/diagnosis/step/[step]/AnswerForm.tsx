@@ -3,7 +3,7 @@
 
 // 全体の概要
 // - ユーザーが選択した回答を 回答保存API(/api/diagnosis/answers)に送信し、
-// APIから返ってきた nextHref に画面遷移するフォームコンポーネント
+// APIから返ってきた nextHref(次の質問ページ) に画面遷移するフォームコンポーネント
 
 
 // 役割
@@ -138,6 +138,8 @@ import { useState } from "react";
 // フォームの値、エラー、送信中状態をまとめて管理するため
 import { useForm } from "react-hook-form";
 import Button from "@/components/ui/Button";
+import ErrorMessage from "@/components/ui/ErrorMessage";
+import { Label } from "@/components/ui/Label";
 
 // AnswerForm が親コンポーネントから受け取る値(props)の型を定義
 // - diagnosisId: どの診断に回答を保存するかを示すID
@@ -169,6 +171,8 @@ const answerOptions = [
   { value: 2, label: "2：どちらとも言えない" },
   { value: 3, label: "3：当てはまる" },
 ] as const;
+
+const ANSWER_REQUIRED_MESSAGE = "回答は必須です";
 
 
 // props を AnswerFormProps の型で必要な値を受け取る
@@ -217,7 +221,7 @@ export default function AnswerForm({
         typeof answerValue !== "number" ||
         !answerOptions.some((option) => option.value === answerValue)
       ) {
-        setErrorMessage("回答を選択してください");
+        setErrorMessage(ANSWER_REQUIRED_MESSAGE);
         return;
       }
 
@@ -300,38 +304,85 @@ export default function AnswerForm({
     <form
       onSubmit={handleSubmit(onSubmit)}
       noValidate
-      className="mt-4 max-w-md space-y-3"
+      className="mt-5 space-y-4"
     >
-      <select
-        id="answer"
-        defaultValue=""
-        aria-invalid={Boolean(errors.answer)}
-        aria-describedby={errors.answer ? "answer-error" : undefined}
-        className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-gray-900"
-        // select の値を answer という名前の入力欄で react-hook-form に管理させる
-        // - 送信時に values.answer として受け取る
-        // - {...register("answer", {...})} : register から返ってきた select 用の設定を、select にまとめて渡している
-        {...register("answer", {
-          // register(react-hook-form)側の required 使う
-          required: "回答を選択してください",
-          setValueAs:(value) => {
-            return value === "" ? undefined : Number(value);
-          },
-          validate: (value) => {
-            return answerOptions.some((option) => option.value === value) ? true : "回答を選択してください";
-          },
-        })}
-      >
-        <option value="" disabled>
-          回答を選択してください
-        </option>
+      {/*
+        Label と select を関連付け
+        - htmlFor と id を 同じ値にすることで、「回答」という名前と選択欄を関連付ける
+      */}
+      <div>
+        <Label htmlFor="answer">
+          回答
+        </Label>
 
-        {answerOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
+        <select
+          id="answer"
+          defaultValue=""
+          aria-invalid={Boolean(errors.answer)}
+          aria-describedby={errors.answer ? "answer-error" : undefined}
+          className={`
+            min-h-10
+            w-full
+            rounded-md
+            border border-border
+            bg-surface
+            px-3 py-2
+            text-sm text-foreground
+            transition-colors
+            focus-visible:border-primary
+            focus-visible:outline-none
+            focus-visible:ring-2
+            focus-visible:ring-primary/20
+            focus-visible:ring-offset-1
+            aria-invalid:border-error
+          `}
+          // select の値を answer という名前の入力欄で react-hook-form に管理させる
+          // - 送信時に values.answer として受け取る
+          // - {...register("answer", {...})} : register から返ってきた select 用の設定を、select にまとめて渡している
+          {...register("answer", {
+            // register(react-hook-form)側の required 使う
+            // - 何も選択されていない場合に「回答は必須です」を表示する
+            required: ANSWER_REQUIRED_MESSAGE,
+            // 未選択の空文字を undefined へ変換し、選択された値は数値へ変換する。
+            setValueAs: (value) => {
+              return value === "" ? undefined : Number(value);
+            },
+            // 選択された値が、正しい選択肢に含まれているか確認する
+            validate: (value) => {
+              return answerOptions.some((option) => option.value === value) ? true : ANSWER_REQUIRED_MESSAGE;
+            },
+          })}
+        >
+          {/*
+            初期状態の操作案内
+            - 回答選択欄の初期表示
+          */}
+          <option value="" disabled>
+            回答を選択してください
           </option>
-        ))}
-      </select>
+
+          {answerOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        {/* 回答が選択されていない場合のエラー表示 */}
+        {/*
+          id="answer-error"
+          - 入力欄の aria-describedby="answer-error" とメッセージを関連付けるため必要
+          - 入力エラーがどの選択肢に対するものか伝えられるようにするため
+        */}
+        {errors.answer?.message && (
+          <ErrorMessage
+            id="answer-error"
+            className="mt-2"
+          >
+            {errors.answer.message}
+          </ErrorMessage>
+        )}
+      </div>
 
       {/*
         - disabled={isSubmitting || isSessionLoading}
@@ -348,16 +399,12 @@ export default function AnswerForm({
         {isSessionLoading ? "ログイン確認中..." : isSubmitting ? "保存中..." : isLast ? "結果を見る" : "次へ"}
       </Button>
 
-      {errors.answer?.message && (
-        <p id="answer-error" className="text-sm text-red-600">
-          {errors.answer.message}
-        </p>
-      )}
 
+      {/* API通信 や 回答保存処理 で発生したエラー表示 */}
       {errorMessage && (
-        <p className="text-sm text-red-600">
+        <ErrorMessage>
           {errorMessage}
-        </p>
+        </ErrorMessage>
       )}
     </form>
   );

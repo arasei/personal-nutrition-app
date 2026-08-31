@@ -99,30 +99,75 @@ export default function Button({
   className = "",
   ...props
 }: ButtonProps) {
-  // disabled:cursor-not-allowed
-  // - ボタンが押せない時、カーソルを「押せない」形に変えている
 
-  // disabled:opacity-50
-  // - 送信中・ログイン確認中・回答送信中 などで、ボタンを少し薄く表示している
+// baseClassName(ボタンの基本の見た目を定義)
 
-  // text-sm
-  // - Button と LinkButton の文字サイズを明示的に揃える
+
+  // inline-flex
+  // - ボタン内の文字を整列しやすくする
+
+  // min-h-10
+  // - ボタンの最低限の高さを揃える
+
+  // items-center / justify-center
+  // - 文字を縦横中央へ配置
+
+  // rounded-md
+  // - 控えめな角丸
+
+  // px-4 / py-2
+  // ボタン内側の余白
+
+  // text-sm / font-semibold
+  // - Button と LinkButton の文字サイズを小さすぎず、少し強調された文字にする
 
   // transition-colors
-  // - hover時の色変換を滑らかにする
+  // - ホバー時の色変更を滑らかにする
 
-  // focus-visible:...
-  // - キーボード操作時の現在位置
-  // - キーボードの Tab で移動した時に、「今どのボタンが選択されていkるか」を見えるように(周囲にリングが表示)する
+  // focus-visible:ring-primary/30
+  // - キーボード操作・選択状態時に薄いエメラルドのリングを表示
+
+  // disabled:opacity-50
+  // - 処理中(送信中・ログイン確認中・回答送信中 など)、押せないボタンを薄く表示
+
+  // disabled:cursor-not-allowed
+  // - ボタンが押せない時、カーソルを「押せない」形に変えている
 
   // focus-visible:ring-offset-2
   // - ボタン本体とフォーカスリングの間に少し隙間を作る。
   const baseClassName =
-    "inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+    "inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50";
+
+
+  // primary(主ボタン)
+
+  // bg-primary
+  // - 通常時、エメラルド背景
+
+  // text-white
+  // - 文字白色
+
+  // hover:bg-primary-hover
+  // - ホバー時(マウスを乗せると)、濃いエメラルド色
+
+  // disabled:hover:bg-primary
+  // - 操作できない時は、ホバー(マウスを乗せる)しても色を変えない。(通常時のエメラルド色のまま)
+
+
+  // secondary(副ボタン)
+
+  // bg-surface
+  // - 通常時、白背景
+
+  // border-primary / text-primary
+  // - 枠線 と 文字 の色 がエメラルド色
+
+  // hover:bg-primary-light
+  // - ホバー時、薄いエメラルド背景
 
   const variantClassName = {
-    primary: "bg-black text-white hover:bg-gray-800 disabled:hover:bg-black",
-    secondary: "border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 disabled:hover:bg-white",
+    primary: "bg-primary text-white hover:bg-primary-hover disabled:hover:bg-primary",
+    secondary: "border border-primary bg-surface text-primary hover:bg-primary-light disabled:hover:bg-surface",
   };
 
   return (

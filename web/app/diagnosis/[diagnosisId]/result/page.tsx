@@ -228,10 +228,16 @@ import type {
   ApiErrorResponse,
 } from "@/types/diagnosisApi";
 import { PageLoading } from "@/components/ui/PageLoading";
+import Card from "@/components/ui/Card";
+import ErrorMessage from "@/components/ui/ErrorMessage";
 
 
-// DiagnosisResultResponse には成功時のデータと失敗時のデータの両方が入る可能性がある
-// DiagnosisResultResponse の中から success: true の型(成功時のデータ)だけを取り出す
+// DiagnosisResultResponse
+// - APIから受け取るデータの型
+// - DiagnosisResultResponse には成功時のデータと失敗時のデータの両方が入る可能性がある
+
+// type DiagnosisResultSuccessResponse = ...
+// - DiagnosisResultResponse の中から success: true の型(成功時のデータ)だけを取り出す
 type DiagnosisResultSuccessResponse = Extract<
   DiagnosisResultResponse,
   { success: true }
@@ -254,7 +260,7 @@ export default function ResultPage() {
   // - SWR にも isLoading があるため、名前がぶつからないように useSupabaseSession の isLoading は isSessionLoading と名前を変える
   const { token, isLoading: isSessionLoading } = useSupabaseSession();
 
-  // SWR を使い API を呼びだす
+  // SWR を使い、渡されたURLを使って診断結果API を呼びだす
   // - この関数の中で SWR で指定したURL(url) を fetch(url)を行い、取得し、API を呼び出し、結果を処理する
   const fetcher = async (url: string): Promise<DiagnosisResultSuccessResponse> => {
     // token が無い場合、未ログイン扱い
@@ -281,10 +287,11 @@ export default function ResultPage() {
     // HTTP処理がエラーの場合の処理
     if (!response.ok) {
       const errorData = responseData as ApiErrorResponse;
+
       throw new Error(errorData.message ?? "結果取得に失敗しました");
     }
 
-    // API処理がエラーの場合の処理
+    // API処理がエラーの場合(success: false)の処理
     if (!responseData.success) {
       throw new Error(responseData.message ?? "結果取得に失敗しました");
     }
@@ -293,7 +300,7 @@ export default function ResultPage() {
     return responseData;
   };
 
-  // session の読み込みが終わっている・token がある・diagnosisId がある
+  // session の読み込みが終わっている(ログイン確認)・token がある・diagnosisId(診断ID) がある
   // この3つの条件が揃ったときだけAPIを呼び出す
   const shouldFetch = !isSessionLoading && !!token && !!diagnosisId;
 
@@ -310,7 +317,7 @@ export default function ResultPage() {
   );
 
 
-  // session 確認後、token が無ければログインページへ遷移する
+  // session 確認後、token が無ければ(未ログイン)ログインページへ遷移する
   // useEffect で、未ログイン時の場合のリダイレクト処理を行う
   useEffect(() => {
 
@@ -319,72 +326,136 @@ export default function ResultPage() {
     }
   }, [isSessionLoading, token, router]);
 
-  // 読み込み中の時の表示
+  // ログイン状態 または 診断結果 を読み込み中の時の表示
   if (isSessionLoading || isLoading) {
     return <PageLoading />;
   }
 
-  // diagnosisIdがない・エラー・データがない場合の表示
+  // URLからdiagnosisId(診断ID)を取得できない・エラー・データがない場合のエラー表示
+  // <nav>...</nav> を使い、マイページへのリンクを表示
+  // - この部分が「別のページへの移動するための領域」だと、ブラウザやスクリーンリーダーに伝えるため
   if (!diagnosisId) {
-    return <div>診断IDが見つかりません</div>;
+    return (
+      <main className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8 sm:px-6 sm:py-10">
+        <ErrorMessage>
+          診断IDが見つかりません
+        </ErrorMessage>
+
+        <nav aria-label="診断結果エラー時の移動">
+          <LinkButton href="/mypage" variant="text">
+            マイページへ戻る
+          </LinkButton>
+        </nav>
+      </main>
+    );
   }
 
-  // tokenがない場合はログインページへ移動する
+  // tokenがない場合(未ログイン)は、リダイレクトが完了するまでLoadingを表示する
   if (!token) {
-    return <div>ログインページへ移動中...</div>;
+    return <PageLoading />;
   }
 
-  // エラー時の表示
+  // API呼び出しエラー時の表示
   if (error) {
-    return <div>{error.message}</div>;
+    return (
+      <main className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8 sm:px-6 sm:py-10">
+        <ErrorMessage>
+          {error.message}
+        </ErrorMessage>
+
+        <nav aria-label="診断結果エラー時の移動">
+          <LinkButton href="/mypage" variant="text">
+            マイページへ戻る
+          </LinkButton>
+        </nav>
+      </main>
+    );
   }
 
-  // データがない場合の表示
+  // 診断結果のデータがない、取得できない場合のエラー表示
   if (!data) {
-    return <div>結果データがありません</div>;
+    return (
+      <main className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8 sm:px-6 sm:py-10">
+        <ErrorMessage>
+          診断結果を表示できませんでした
+        </ErrorMessage>
+
+        <nav aria-label="診断結果エラー時の移動">
+          <LinkButton href="/mypage" variant="text">
+            マイページへ戻る
+          </LinkButton>
+        </nav>
+      </main>
+    );
   }
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
+      {/* ページタイトル */}
       <header>
-        <p className="text-sm font-medium text-gray-500">
+        <p className="text-sm font-medium text-muted">
           栄養診断
         </p>
 
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
           診断結果
         </h1>
 
-        <p className="mt-2 text-sm leading-6 text-gray-600">
-          今回の回答をもとに、栄養素の傾向と生活習慣の見直し候補を確認できます。
+        <p className="mt-3 text-sm leading-6 text-muted sm:text-base">
+          現在の栄養素の傾向と、おすすめ食品・料理を確認できます。
         </p>
       </header>
 
-      <section className="mt-8 rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
-        <h2 className="text-xl font-semibold text-gray-900">
-          栄養素バランス
-        </h2>
+      {/* レーダーチャート表示 */}
+      {/*
+        section と Card は役割が違うため、section の内側へ Card を配置する
 
-        <p className="mt-1 text-sm text-gray-600">
-          各栄養素の今回スコアを確認できます。
-        </p>
-
-        {/* RadarChart.tsx 自体にはカードUIを持たせない */}
-        <div className="mt-4">
-          {/* API から受けとった ranking を SafeRadarChart へ渡し、レーダーチャートを描画する。 */}
-          <SafeRadarChart ranking={data.ranking} />
-        </div>
-      </section>
-
-      <section className="mt-8">
-        <div>
-          {/* 順位・栄養素名・今回の点数を表示 */}
-          <h2 className="text-xl font-semibold text-gray-900">
-            不足しやすい栄養素ランキング
+        section
+        - 内容の意味を表す
+        Card
+        - 見た目を表す
+      */}
+      <section
+        className="mt-8"
+        aria-labelledby="nutrition-balance-heading"
+      >
+        <Card>
+          <h2
+            id="nutrition-balance-heading"
+            className="text-xl font-bold text-foreground"
+          >
+            栄養素バランス
           </h2>
 
-          <p className="mt-1 text-sm leading-6 text-gray-600">
-            スコアが低い栄養素から順に確認できます。
+          <p className="mt-2 text-sm leading-6 text-muted">
+            各栄養素ごとの診断スコアを確認できます。
+          </p>
+
+          {/* RadarChart.tsx 自体にはカードUIを持たせない */}
+          <div className="mt-6">
+            {/* API から受けとった ranking を SafeRadarChart へ渡し、レーダーチャートを描画する。 */}
+            <SafeRadarChart ranking={data.ranking} />
+          </div>
+        </Card>
+      </section>
+
+      {/* 不足傾向ランキング表示 */}
+      {/* スコアが低い栄養素 = 不足傾向が高い栄養素  */}
+      <section
+        className="mt-8"
+        aria-labelledby="nutrient-ranking-heading"
+      >
+        <div>
+          {/* 順位・栄養素名・今回の点数を表示 */}
+          <h2
+            id="nutrient-ranking-heading"
+            className="text-xl font-bold text-foreground"
+          >
+            不足傾向の栄養素ランキング
+          </h2>
+
+          <p className="mt-2 text-sm leading-6 text-muted">
+            不足傾向が高い順に表示しています。現在のスコアと前回との差を比較して確認できます。
           </p>
         </div>
 
@@ -404,23 +475,23 @@ export default function ResultPage() {
           {data.diffRanking.map((item, index) => (
             <article
               key={item.nutrientId}
-              className="rounded-xl border border-gray-200 bg-white p-4"
+              className="rounded-xl border border-border bg-surface p-4 shadow-sm sm:p-6"
             >
 
               <div className="flex items-start justify-between gap-4">
 
                 <div>
-                  <p className="text-sm font-medium text-gray-500">
+                  <p className="text-sm font-semibold text-primary">
                     {/* index は 0から始まるので 「+ 1」をする */}
                     {index + 1}位
                   </p>
 
-                  <h3 className="mt-1 text-lg font-semibold text-gray-900">
+                  <h3 className="text-lg font-bold text-foreground">
                     {item.nutrient}
                   </h3>
                 </div>
 
-                <p className="text-lg font-semibold text-gray-900">
+                <p className="shrink-0 font-bold text-foreground">
                   {item.score}点
                 </p>
               </div>
@@ -437,7 +508,7 @@ export default function ResultPage() {
                 (0 変化なし)
                 (前回データなし)
               */}
-              <p className="mt-3 text-sm text-gray-600">
+              <p className="mt-2 text-sm text-muted">
                 前回との差：{item.diffLabel}
               </p>
             </article>
@@ -446,12 +517,18 @@ export default function ResultPage() {
       </section>
 
       {/* 不足傾向の栄養素に対応する食品・料理・行動提案 */}
-      <section className="mt-8">
-        <h2 className="text-xl font-semibold text-gray-900">
+      <section
+        className="mt-8"
+        aria-labelledby="recommendations-heading"
+      >
+        <h2
+          id="recommendations-heading"
+          className="text-xl font-bold text-foreground"
+        >
           食生活・生活習慣のヒント
         </h2>
 
-        <p className="mt-1 text-sm leading-6 text-gray-600">
+        <p className="mt-2 text-sm leading-6 text-muted">
           不足傾向の栄養素について、食品・料理・生活習慣の見直し候補を確認できます。
         </p>
 
@@ -473,13 +550,14 @@ export default function ResultPage() {
 
         */}
         {data.recommendations.length === 0 ? (
-          <p className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm leading-6 text-gray-700">
+          // 見直し候補がない場合
+          <p className="mt-4 rounded-xl border border-border bg-primary-light p-4 text-sm leading-6 text-secondary">
             現在、大きな見直し候補はありません。
             <br />
             今の生活習慣を維持しましょう。
           </p>
         ) : (
-
+          // 見直し候補がある場合
           // 提案対象となった栄養素を1件ずつ表示する
 
           // recommendation 1件に対しては、ResultRecommendation 型の以下の内容のデータが入る
@@ -499,7 +577,7 @@ export default function ResultPage() {
           // - 具体的な食品は ingredients・料理は recipes から表示する。
 
           <div className="mt-4 space-y-6">
-            {data.recommendations.map((recommendation) => {
+            {data.recommendations.map((recommendation) => (
 
               // <article>...</article>
               // - 提案カード本体
@@ -512,156 +590,152 @@ export default function ResultPage() {
               // 提案対象 の 栄養素は、"iron","protein","vitaminD" のように 一意なので key が適している。
               // - 提案1件に対して、key={item.id} を使用して、識別する。。
               // 提案レコードごとのDB上のID のため、一意なので key が適している。
-              return (
-                <article
-                  key={recommendation.nutrientId}
-                  className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6"
-                >
+              <article
+                key={recommendation.nutrientId}
+                className="rounded-xl border border-border bg-surface p-4 shadow-sm sm:p-6"
+              >
 
-                  <div className="flex items-center justify-between gap-4">
-                    {/* 提案対象の栄養素名と今回のスコアを表示 */}
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {recommendation.nutrient} 
-                    </h3>
+                <div className="flex items-center justify-between gap-4">
+                  {/* 提案対象の栄養素名と今回のスコアを表示 */}
+                  <h3 className="text-lg font-bold text-foreground">
+                    {recommendation.nutrient}
+                  </h3>
 
-                    <span className="shrink-0 text-sm font-medium text-gray-600">
-                      {recommendation.score}点
-                    </span>
+                  <span className="shrink-0 text-sm font-medium text-muted">
+                    {recommendation.score}点
+                  </span>
+                </div>
+
+                {/*
+                  文章による食品のヒント
+                  - 対象の栄養素に関する食品提案の文章を表示
+                */}
+                {/*
+                  "foodItems.length > 0 && (...)"
+                  - 食品提案(foodItems) が 1件以上存在する場合だけ、食品のヒント (見出し)を表示する。
+                  - 関連する食品提案(foodItems) がない場合は、見出しも一覧も表示しない。
+                  仮に、ある栄養素に ACTION しか登録されていない場合、
+                  「食品のヒント」という見出しだけ表示されることを防ぐため
+                */}
+                {recommendation.foodItems.length > 0 && (
+                  <div className="mt-5 border-t border-border pt-5">
+                    <h4 className="text-sm font-semibold text-foreground">
+                      食品のヒント
+                    </h4>
+
+                    <div className="mt-3 space-y-3">
+                      {recommendation.foodItems.map((item) => (
+                        <div key={item.id}>
+                          <p className="text-sm font-medium text-foreground">
+                            {item.title}
+                          </p>
+
+                          <p className="mt-1 text-sm leading-6 text-muted">
+                            {item.description}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
+                )}
 
-                  {/*
-                    文章による食品のヒント
-                    - 対象の栄養素に関する食品提案の文章を表示
-                  */}
-                  {/*
-                    "foodItems.length > 0 && (...)"
-                    - 食品提案(foodItems) が 1件以上存在する場合だけ、食品のヒント (見出し)を表示する。
-                    - 関連する食品提案(foodItems) がない場合は、見出しも一覧も表示しない。
-                    仮に、ある栄養素に ACTION しか登録されていない場合、
-                    「食品のヒント」という見出しだけ表示されることを防ぐため
-                    
-                  */}
-                  {recommendation.foodItems.length > 0 && (
-                    <div className="mt-5 border-t border-gray-100 pt-5">
-                      <h4 className="text-sm font-semibold text-gray-900">
-                        食品のヒント
-                      </h4>
 
-                      <div className="mt-3 space-y-3">
-                        {recommendation.foodItems.map((item) => (
-                          <div key={item.id}>
-                            <p className="text-sm font-medium text-gray-900">
-                              {item.title}
-                            </p>
+                {/*
+                  具体的なおすすめ食品の提案
+                  - 対象の栄養素に関する具体的な食品の提案を表示
+                */}
+                {/*
+                  recommendation.ingredients.length > 0
+                  - 具体的な食品(ingredients)が1件以上ある場合だけ、見出しと一覧を表示する
+                  - 関連する具体的な食品(ingredients)がない場合は、見出しも一覧も表示しない。
+                  仮に、ある栄養素に ACTION しか登録されていない場合、
+                  「おすすめ食品」という見出しだけ表示されることを防ぐため
+                */}
+                {recommendation.ingredients.length > 0 && (
+                  <div className="mt-5 border-t border-border pt-5">
+                    <h4 className="text-sm font-semibold text-foreground">
+                      おすすめ食品
+                    </h4>
 
-                            <p className="mt-1 text-sm leading-6 text-gray-600">
-                              {item.description}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
+                    <ul className="mt-3 flex flex-wrap gap-2">
+                      {recommendation.ingredients.map((ingredient) => (
+                        <li
+                          key={ingredient.id}
+                          className="rounded-full bg-primary-light px-3 py-1 text-sm font-medium text-secondary"
+                        >
+                          {ingredient.name}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+
+
+                {/*
+                  具体的なおすすめ料理の提案
+                  - 対象の栄養素に関する具体的な料理の提案を表示
+                */}
+                {/*
+                  recommendation.recipes.length > 0
+                  - おすすめ料理(recipes)が1件以上ある場合だけ、見出しと一覧を表示する。
+                  - 関連するおすすめ料理(recipes)がない場合は、見出しも一覧も表示しない。
+                  仮に、ある栄養素に ACTION しか登録されていない場合、
+                  「おすすめ料理」という見出しだけ表示されることを防ぐため
+                */}
+                {recommendation.recipes.length > 0 && (
+                  <div className="mt-5 border-t border-border pt-5">
+                    <h4 className="text-sm font-semibold text-foreground">
+                      おすすめ料理
+                    </h4>
+
+                    <ul className="mt-3 space-y-2">
+                      {recommendation.recipes.map((recipe) => (
+                        <li
+                          key={recipe.id}
+                          className="text-sm leading-6 text-foreground"
+                        >
+                          ・{recipe.name}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+
+                {/*
+                  文章による生活習慣のヒント
+                  - 対象の栄養素に関する行動提案の文章を表示
+                */}
+                {/*
+                  "actionItems.length > 0 && (...)"
+                  - 行動提案の文章(actionItems) が1件以上存在する場合だけ、見出しと生活習慣のヒントを表示する
+                  - 関連する行動提案の文章(actionItems) がない場合は、見出しも一覧も表示しない。
+                  仮に、ある栄養素に FOOD しか登録されていない場合、
+                  「生活習慣のヒント」という見出しだけ表示されることを防ぐため。
+                */}
+                {recommendation.actionItems.length > 0 && (
+                  <div className="mt-5 border-t border-border pt-5">
+                    <h4 className="text-sm font-semibold text-foreground">
+                      生活習慣のヒント
+                    </h4>
+
+                    <div className="mt-3 space-y-3">
+                      {recommendation.actionItems.map((item) => (
+                        <div key={item.id}>
+                          <p className="text-sm font-medium text-foreground">
+                            {item.title}
+                          </p>
+                          <p className="mt-1 text-sm leading-6 text-muted">
+                            {item.description}
+                          </p>
+                        </div>
+                      ))}
                     </div>
-                  )}
-
-
-                  {/*
-                    具体的なおすすめ食品の提案
-                    - 対象の栄養素に関する具体的な食品の提案を表示
-                  */}
-                  {/*
-                    recommendation.ingredients.length > 0
-                    - 具体的な食品(ingredients)が1件以上ある場合だけ、見出しと一覧を表示する
-                    - 関連する具体的な食品(ingredients)がない場合は、見出しも一覧も表示しない。
-                    仮に、ある栄養素に ACTION しか登録されていない場合、
-                    「おすすめ食品」という見出しだけ表示されることを防ぐため
-                  */}
-                  {recommendation.ingredients.length > 0 && (
-                    <div className="mt-5 border-t border-gray-100 pt-5">
-                      <h4 className="text-sm font-semibold text-gray-900">
-                        おすすめ食品
-                      </h4>
-
-                      <ul className="mt-3 flex flex-wrap gap-2">
-                        {recommendation.ingredients.map((ingredient) => (
-                          <li
-                            key={ingredient.id}
-                            className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700"
-                          >
-                            {ingredient.name}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-
-
-                  {/*
-                    具体的なおすすめ料理の提案
-                    - 対象の栄養素に関する具体的な料理の提案を表示
-                  */}
-                  {/*
-                    recommendation.recipes.length > 0
-                    - おすすめ料理(recipes)が1件以上ある場合だけ、見出しと一覧を表示する。
-                    - 関連するおすすめ料理(recipes)がない場合は、見出しも一覧も表示しない。
-                    仮に、ある栄養素に ACTION しか登録されていない場合、
-                    「おすすめ料理」という見出しだけ表示されることを防ぐため
-                  */}
-                  {recommendation.recipes.length > 0 && (
-                    <div className="mt-5 border-t border-gray-100 pt-5">
-                      <h4 className="text-sm font-semibold text-gray-900">
-                        おすすめ料理
-                      </h4>
-
-                      <ul className="mt-3 space-y-2">
-                        {recommendation.recipes.map((recipe) => (
-                          <li
-                            key={recipe.id}
-                            className="text-sm leading-6 text-gray-700"
-                          
-                          >
-                            ・{recipe.name}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-
-                  {/*
-                    文章による生活習慣のヒント
-                    - 対象の栄養素に関する行動提案の文章を表示
-                  */}
-                  {/*
-                    "actionItems.length > 0 && (...)"
-                    - 行動提案の文章(actionItems) が1件以上存在する場合だけ、見出しと生活習慣のヒントを表示する
-                    - 関連する行動提案の文章(actionItems) がない場合は、見出しも一覧も表示しない。
-                    仮に、ある栄養素に FOOD しか登録されていない場合、
-                    「生活習慣のヒント」という見出しだけ表示されることを防ぐため。
-                  */}
-                  {recommendation.actionItems.length > 0 && (
-                    <div className="mt-5 border-t border-gray-100 pt-5">
-                      <h4 className="text-sm font-semibold text-gray-900">
-                        生活習慣のヒント
-                      </h4>
-
-                      <div className="mt-3 space-y-3">
-                        {recommendation.actionItems.map((item) => (
-                          <div key={item.id}>
-                            <p className="text-sm font-medium text-gray-900">
-                              {item.title}
-                            </p>
-                            <p className="mt-1 text-sm leading-6 text-gray-600">
-                              {item.description}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </article>
-              );
-            })}
+                  </div>
+                )}
+              </article>
+            ))}
           </div>
         )}
       </section>
@@ -671,7 +745,7 @@ export default function ResultPage() {
         flex-col
         - 縦方向に配置すると指定
         - スマホでの表示する際に適用
-        sm:flex-rou
+        sm:flex-row
         - sm 以上の画面幅では横方向に配置に切り替えると指定
         - PC などの広い画面で表示する際に適用
        */}
@@ -686,11 +760,11 @@ export default function ResultPage() {
         {/*
           - 今回の履歴詳細を見る
           → primary
-          → 黒背景・白文字
+          → エメラルド背景・白文字
 
           - マイページへ
           → secondary
-          → 白背景・枠線
+          → 白背景・エメラルド枠線・エメラルド文字
         */}
         {/* 履歴詳細ページへ の <LinkButton></LinkButton> を用意し、今回の診断ID(diagnosisId) を元に`web/app/history/[diagnosisId]/page.tsx` へ遷移可能にする */}
         {/* primary: 主ボタン */}

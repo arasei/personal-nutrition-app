@@ -32,6 +32,20 @@
 
 
 
+// ログインする
+// - Button
+// - 認証処理を実行
+
+// 新規登録はこちら
+// - Link
+// - 補助的な画面移動
+
+// トップページへ戻る
+// - Link
+// - 補助的な画面移動
+
+
+
 // useState
 // - 入力値や表示状態をJavaScript側で持つためのもの
 // - email に メールアドレスを保存・password にパスワードを保存して、入力するたびにstateを更新
@@ -131,6 +145,8 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import Button from "@/components/ui/Button";
 import ErrorMessage from "@/components/ui/ErrorMessage";
+import Card from "@/components/ui/Card";
+import LinkButton from "@/components/ui/LinkButton";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -194,15 +210,15 @@ export default function LoginPage() {
   return (
     <main className="mx-auto w-full max-w-md px-4 py-8 sm:px-6 sm:py-10">
       <header>
-        <p className="text-sm font-medium text-gray-500">
+        <p className="text-sm font-medium text-muted">
           栄養診断
         </p>
 
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           ログイン
         </h1>
 
-        <p>
+        <p className="mt-2 text-sm leading-6 text-muted">
           アカウントにログインして、栄養診断を利用できます。
         </p>
       </header>
@@ -213,93 +229,107 @@ export default function LoginPage() {
         メールアドレス・パスワード
         - ログインボタンを押した時にフォームの内容を送信し、ログイン処理を動かす
       */}
-      <form
-        onSubmit={handleLogin}
-        className="mt-8 space-y-5 rounded-xl border border-gray-200 bg-white p-4 sm:p-6"
-      >
-        <div className="space-y-2">
-          <Label htmlFor="email">
-            メールアドレス
-          </Label>
-
-          {/* 入力必須項目 */}
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            placeholder="example@example.com"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="password">
-            パスワード
-          </Label>
-
-          {/* 入力必須項目 */}
-          {/*
-            autoComplete
-            - signup
-            → new-password
-            → 新しく作るパスワード
-
-            - login
-            → current-password
-            → 既に登録済みのパスワード
-          */}
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            placeholder="パスワードを入力"
-          />
-        </div>
-
-        {/*
-          エラー表示
-          - error を受け取った場合だけ {errorMessage} を表示
-        */}
-        {errorMessage && (
-          <ErrorMessage>
-            {errorMessage}
-          </ErrorMessage>
-        )}
-
-        {/* ログインボタン */}
-        {/* 
-          disabled={isLoading}
-          - isLoadingがtrueの時disabledを有効にする(二重送信防止)
-          type="submit"
-          - フォーム送信  
-        */}
-        <Button
-          type="submit"
-          disabled={isLoading}
-          className="w-full"
+      <Card className="mt-8">
+        <form
+          onSubmit={handleLogin}
+          className="space-y-5"
         >
-          {isLoading ? "ログイン中..." : "ログインする"}
-        </Button>
-      </form>
+          <div className="space-y-2">
+            <Label htmlFor="email">
+              メールアドレス
+            </Label>
+
+            {/* 入力必須項目 */}
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              placeholder="example@example.com"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">
+              パスワード
+            </Label>
+
+            {/* 入力必須項目 */}
+            {/*
+              autoComplete
+              - signup
+              → new-password
+              → 新しく作るパスワード
+
+              - login
+              → current-password
+              → 既に登録済みのパスワード
+            */}
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              placeholder="パスワードを入力"
+            />
+          </div>
+
+          {/*
+            エラー表示
+            - error を受け取った場合だけ {errorMessage} を表示
+          */}
+          {errorMessage && (
+            <ErrorMessage>
+              {errorMessage}
+            </ErrorMessage>
+          )}
+
+          {/* ログインボタン */}
+          {/*
+            disabled={isLoading}
+            - isLoadingがtrueの時disabledを有効にする(二重送信防止)
+            type="submit"
+            - フォーム送信
+          */}
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full"
+          >
+            {isLoading ? "ログイン中..." : "ログインする"}
+          </Button>
+        </form>
+      </Card>
 
       {/* 新規登録ページ(/signup)への遷移リンク */}
       {/* 未登録の人がログイン画面から新規登録ページへ移動できるように */}
-      <p className="mt-6 text-center text-sm text-gray-600">
+      {/* 「新規登録はこちら」は文章の一部なので、通常の Link を使用する */}
+      <p className="mt-6 text-center text-sm text-muted">
         アカウントをお持ちでない方は{" "}
         <Link
           href="/signup"
-          className="font-medium text-gray-900 underline underline-offset-4"
+          className="whitespace-nowrap rounded-sm font-medium text-primary underline underline-offset-4 transition-colors hover:text-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
         >
           新規登録はこちら
         </Link>
       </p>
+
+      {/* トップページ(/)への遷移リンク */}
+      {/* 「トップページへ戻る」は単独で配置するページ移動のため、LinkButton を使用する */}
+      <div className="mt-3 text-center">
+        <LinkButton
+          href="/"
+          variant="text"
+        >
+          トップページへ戻る
+        </LinkButton>
+      </div>
     </main>
   );
 }

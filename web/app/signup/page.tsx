@@ -33,6 +33,20 @@
 
 
 
+// 新規登録する
+// - Button
+// - 認証処理を実行
+
+// ログインはこちら
+// - Link
+// - 補助的な画面移動
+
+// トップページへ戻る
+// - Link
+// - 補助的な画面移動
+
+
+
 
 
 // 新規登録の流れ
@@ -82,7 +96,7 @@
 // ↓
 // 送信された本人確認メールにて認証を行う
 // ↓
-// ユーザーが「ログインページへ移動する」を押す
+// ユーザーが「ログインページはこちら」を押す
 // ↓
 // /login に移動
 // ↓
@@ -102,6 +116,9 @@ import { Label } from "@/components/ui/Label";
 import Button from "@/components/ui/Button";
 import Link from "next/link";
 import ErrorMessage from "@/components/ui/ErrorMessage";
+import Card from "@/components/ui/Card";
+import SuccessMessage from "@/components/ui/SuccessMessage";
+import LinkButton from "@/components/ui/LinkButton";
 
 export default function SignupPage() {
 
@@ -164,15 +181,15 @@ export default function SignupPage() {
   return (
     <main className="mx-auto w-full max-w-md px-4 py-8 sm:px-6 sm:py-10">
       <header>
-        <p className="text-sm font-medium text-gray-500">
+        <p className="text-sm font-medium text-muted">
           栄養診断
         </p>
 
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           新規登録
         </h1>
 
-        <p className="mt-2 text-sm leading-6 text-gray-600">
+        <p className="mt-2 text-sm leading-6 text-muted">
           アカウントを作成して、栄養診断を利用できます。
         </p>
       </header>
@@ -191,102 +208,121 @@ export default function SignupPage() {
       ↓
       メールアドレス入力欄にカーソルが入る
        */}
-      <form
-        onSubmit={handleSignup}
-        className="mt-8 space-y-5 rounded-xl border border-gray-200 bg-white p-4 sm:p-6"
-      >
-        <div className="space-y-2">
-          <Label htmlFor="email">
-            メールアドレス
-          </Label>
-
-          {/* 入力必須項目 */}
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-            placeholder="example@example.com"
-          />
-        </div>
-
-
-        {/*
-        autoComplete : 
-        signup
-        → new-password
-        → 新しく作るパスワード
-
-        login
-        → current-password
-        → 既に登録済みのパスワード
-        */}
-        <div className="space-y-2">
-          <Label htmlFor="password">
-            パスワード
-          </Label>
-
-          {/* 入力必須項目 */}
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            autoComplete="new-password"
-            placeholder="6文字以上で入力"
-          />
-        </div>
-
-        {/*
-          エラー表示
-          - error を受け取った場合だけ {errorMessage} を表示
-        */}
-        {errorMessage && (
-          <ErrorMessage>
-            {errorMessage}
-          </ErrorMessage>
-        )}
-
-        {/* 成功表示 */}
-        {/*
-          role="status"
-          - 処理結果のお知らせ
-        */}
-        {successMessage && (
-          <p
-            role="status"
-            className="rounded-lg bg-green-50 px-3 py-2 text-sm leading-6 text-green-700"
-          >
-            {successMessage}
-          </p>
-        )}
-
-        {/* 新規登録ボタン */}
-        <Button
-          type="submit"
-          disabled={isLoading}
-          className="w-full"
+      <Card className="mt-8">
+        <form
+          onSubmit={handleSignup}
+          className="space-y-5"
         >
-          {isLoading ? "登録中..." : "新規登録する"}
-        </Button>
-      </form>
+          <div className="space-y-2">
+            <Label htmlFor="email">
+              メールアドレス
+            </Label>
+
+            {/* 入力必須項目 */}
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              placeholder="example@example.com"
+            />
+          </div>
+
+
+          {/*
+          autoComplete="..."
+
+          signup
+          → new-password
+          → 新しく作るパスワード
+
+          login
+          → current-password
+          → 既に登録済みのパスワード
+          */}
+          <div className="space-y-2">
+            <Label htmlFor="password">
+              パスワード
+            </Label>
+
+            {/* 入力必須項目 */}
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              autoComplete="new-password"
+              placeholder="6文字以上で入力"
+            />
+          </div>
+
+          {/*
+            エラー表示
+            - error を受け取った場合だけ {errorMessage} を表示
+          */}
+          {errorMessage && (
+            <ErrorMessage>
+              {errorMessage}
+            </ErrorMessage>
+          )}
+
+          {/* 成功表示 */}
+          {/*
+            successMessage が空 の場合
+            - 何も表示しない
+
+            successMessageが存在 する場合
+            - successMessageを表示
+            - StatusMessageのsuccess形式を使用
+            - role="status" を付ける
+
+          */}
+          {successMessage && (
+            <SuccessMessage>
+              {successMessage}
+            </SuccessMessage>
+          )}
+
+          {/* 新規登録ボタン */}
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full"
+          >
+            {isLoading ? "登録中..." : "新規登録する"}
+          </Button>
+        </form>
+      </Card>
 
       {/* ログインページ(/login)への遷移リンク */}
-      <p className="mt-6 text-center text-sm text-gray-600">
+      {/* 未登録の人がログイン画面から新規登録ページへ移動できるように */}
+      {/* 「新規登録はこちら」は文章の一部なので、通常の Link を使用する */}
+      <p className="mt-6 text-center text-sm text-muted">
         すでにアカウントをお持ちの方は{" "}
         <Link
           href="/login"
-          className="font-medium text-gray-900 underline underline-offset-4"
+          className="whitespace-nowrap rounded-sm font-medium text-primary underline underline-offset-4 transition-colors hover:text-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
         >
           ログインはこちら
         </Link>
       </p>
+
+      {/* トップページ(/)への遷移リンク */}
+      {/* 「トップページへ戻る」は単独で配置するページ移動のため、LinkButton を使用する */}
+      <div className="mt-3 text-center">
+        <LinkButton
+          href="/"
+          variant="text"
+        >
+          トップページへ戻る
+        </LinkButton>
+      </div>
     </main>
   );
 }

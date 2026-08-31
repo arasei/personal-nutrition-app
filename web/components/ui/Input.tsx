@@ -93,17 +93,6 @@ type InputProps = ComponentPropsWithoutRef<"input">;
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   // props と ref を受け取る
 
-  // className = "",
-  // - 共通UI をまとめている。
-  // - className を
-  // フロント側で書いていた場合、書いた内容を使用する
-  // フロント側で書いていない場合、空文字とする
-
-  // ...props
-  // - <input/> に渡す機能・属性(type、value、onChange、required など) をまとめている。
-  // - 呼び出し側(フロント側の<input/>) で 書いた <input/> に渡す機能・属性(type、value、onChange、required など) を
-  // `...props` として `web/components/ui/Input.tsx` で まとめて受け取り、<input>内で使用する
-
   // ref
   // - 実際のinput要素 をまとめている
   // - forwardRef`web/components/ui/Input.tsx` で共通化した <input> の機能・属性 を フロントで使い回すために `forwardRef` を使用する。
@@ -116,12 +105,57 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
   // ref を通じて、その input を直接操作できる
 
 
+  // ...props
+  // - <input/> に渡す機能・属性(type、value、onChange、required など) をまとめている。
+  // - 呼び出し側(フロント側の<input/>) で 書いた <input/> に渡す機能・属性(type、value、onChange、required など) を
+  // `...props` として `web/components/ui/Input.tsx` で まとめて受け取り、<input>内で使用する
+
+
+  // className = "",
+  // - 共通UI をまとめている。
+  // - className を
+  // フロント側で書いていた場合、書いた内容を使用する
+  // フロント側で書いていない場合、空文字とする
+
+  // border-border
+  // - 通常の薄いグレーの枠線
+
+  // focus-visible:border-primary ・ focus-visible:ring-primary/20
+  // - 現在入力中状態の欄をエメラルドのボーダーと枠線で表示
+
+  // placeholder:text-muted
+  // - input内の placeholder に表示する入力例は本文より薄く表示する
+
+  // aria-invalid:border-error
+  // - aria-invalid={true}が渡された入力欄を赤い枠線でエラー表示する
+
+
   ({ className = "", ...props }, ref) => {
     return (
       <input
         ref={ref}
         {...props}
-        className={`min-h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 transition-colors placeholder:text-gray-400 focus-visible:border-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 ${className}`}
+        className={`
+          min-h-10
+          w-full
+          rounded-md
+          border border-border
+          bg-surface
+          px-3 py-2
+          text-sm text-foreground
+          transition-colors
+          placeholder:text-muted
+          focus-visible:border-primary
+          focus-visible:outline-none
+          focus-visible:ring-2
+          focus-visible:ring-primary/20
+          focus-visible:ring-offset-1
+          disabled:cursor-not-allowed
+          disabled:bg-background
+          disabled:text-muted
+          aria-invalid:border-error
+          ${className}
+        `}
       />
     );
   }
