@@ -50,16 +50,22 @@ const RadarChart = dynamic(() => import("./RadarChart"), {
 // - result/page.tsx から渡される data.ranking と型を揃える必要がある。
 type Props = {
   ranking: ResultRankingItem[];
+  compact?: boolean;
 };
 
 
 // SafeRadarChartがrankingをpropsとして受け取る。
 // propsに型をつけるため
 // ResultRankingItem[] はResultRankingItem(ランキング1件分のデータが複数入っている) の配列
-export default function SafeRadarChart({ ranking }: Props) {
+export default function SafeRadarChart({ ranking, compact = false, }: Props) {
 
-  //最後にRadarChartにrankingを渡して表示しています
+  //最後にRadarChartに ranking と compact を渡して表示しています
   // SafeRadarChartは中継役だから
-  // RadarChart側もrankingを受け取れる形になっている必要がある
-  return <RadarChart ranking={ranking} />;
+  // RadarChart側もranking と compact を受け取れる形になっている必要がある
+  return (
+    <RadarChart
+      ranking={ranking}
+      compact={compact}
+    />
+  );
 }

@@ -103,8 +103,19 @@ ChartJS.register(
 
 // rankingを受け取るためのPropsの型を定義
 // - web/components/RadarChart.tsx 専用の型
+// - チャートのデータの型を ranking と compact を可能にしている
+// 実際の診断結果画面では ranking を使用、トップページでは compact を使用する
+
+// ranking:
+// - チャートの通常データ
+// compact:
+// - チャートを縮小表示したデータ
+// ?
+// - 指定しなくてもよいプロパティ
+
 type Props = {
   ranking: ResultRankingItem[];
+  compact?: boolean;
 };
 
 // global.css のカラートークンと同じ色を使用する
@@ -132,6 +143,7 @@ function formatPointLabel(label: string): string | string[] {
 }
 
 // チャートの表示ルールを定義
+// - 通常表示 と サンプル表示(compact) 可能にする
 
 // responsive: 画面幅に合わせて、チャートの大きさを自動調節する
 // - スマホ → 画面幅に収まる
@@ -150,65 +162,90 @@ function formatPointLabel(label: string): string | string[] {
 // - ticks.stepSize: 20 → 目盛りの間隔を20点ごとに作る
 // - ticks.display: 目盛りの数字を非表示にする
 
-const options: ChartOptions<"radar"> = {
-  responsive: true,
-  maintainAspectRatio: true,
-  aspectRatio: 1,
-  // レーダーチャートの端と栄養素名の間に余白を作る
-  layout: {
-    padding: 12,
-  },
+function createOptions(compact: boolean): ChartOptions<"radar"> {
+  return {
+    responsive: true,
+    maintainAspectRatio: true,
+    aspectRatio: 1,
+    // レーダーチャートの端と栄養素名の間に余白を作る
 
-  scales: {
-    r: {
-      min: 0,
-      max: 100,
+    // 縮小表示(compact を指定されている場合)
+    // - 余白を4
+    // 通常表示(それ以外の場合)
+    // - 余白を12
+    layout: {
+      padding: compact ? 4 : 12,
+    },
 
-      ticks: {
-        // 目盛り線を20点間隔で作る
-        stepSize: 20,
+    scales: {
+      r: {
+        min: 0,
+        max: 100,
 
-        // 320pxで中央の数字が重ならないように目盛りの数字だけ隠す
-        display: false,
-      },
+        ticks: {
+          // 目盛り線を20点間隔で作る
+          stepSize: 20,
 
-      // 五角形・八角形などの外周線
-      grid: {
-        color: RADAR_CHART_COLORS.border,
-      },
+          // 320pxで中央の数字が重ならないように目盛りの数字だけ隠す
+          display: false,
+        },
 
-      // 中心から各栄養素へ伸びる線
-      angleLines: {
-        color: RADAR_CHART_COLORS.border,
-      },
+        // 五角形・八角形などの外周線
+        grid: {
+          color: RADAR_CHART_COLORS.border,
+        },
 
-      // チャート周囲の栄養素名
-      pointLabels: {
-        display: true,
-        callback: formatPointLabel,
-        color: RADAR_CHART_COLORS.muted,
-        padding: 6,
-        font: {
-          size: 11,
-          weight: 500,
-          lineHeight: 1.2,
+        // 中心から各栄養素へ伸びる線
+        angleLines: {
+          color: RADAR_CHART_COLORS.border,
+        },
+
+        // チャート周囲の栄養素名
+
+        // display: !compact,
+        // - 縮小表示(compact を指定)では、チャート周囲の栄養素名を非表示にする
+        // それ以外は表示する
+        pointLabels: {
+          display: !compact,
+          callback: formatPointLabel,
+          color: RADAR_CHART_COLORS.muted,
+          padding: 6,
+          font: {
+            size: 11,
+            weight: 500,
+            lineHeight: 1.2,
+          },
         },
       },
     },
-  },
 
-  // pluginsのlegendで、1種類だけの凡例を非表示にしてチャートの表示領域を広げる
-  plugins: {
-    legend: {
-      // 現在はデータ系列が1種類だけなので非表示にする
-      display: false,
+    // pluginsのlegendで、1種類だけの凡例を非表示にしてチャートの表示領域を広げる
+    plugins: {
+      legend: {
+        // 現在はデータ系列が1種類だけなので非表示にする
+        display: false,
+      },
+
+      // enabled: !compact
+      // - トップページの縮小表示(compact を指定)ではマウスを乗せた時の数値表示を無効にする
+      // サンプル表示するため
+      tooltip: {
+        enabled: !compact,
+      },
     },
-  },
-};
+  };
+}
 
 
-// 受け取ったデータ(ranking)をchart.js形式に変換(数値データ→グラフ)
-export default function RadarChart({ ranking }: Props) {
+// 受け取ったデータ(ranking と compact)をchart.js形式に変換(数値データ→グラフ)
+export default function RadarChart({ ranking, compact = false, }: Props) {
+
+  // トップページにサンプル表示の場合
+  // - compact が指定されて渡された状態
+  const options = createOptions(compact);
+
+  // 通常表示の場合
+  // - ranking のみ渡された状態
   const data = {
     labels: ranking.map((item) => item.nutrient),
     datasets: [
@@ -239,16 +276,27 @@ export default function RadarChart({ ranking }: Props) {
   };
 
   // グラフに変換したモノ(const data ={...})をRadarコンポーネントに渡す。
-  // - div の className で チャートを置く箱の幅と位置 を指定 
-  // w-full: 親要素の幅いっぱいまで使う(画面幅に合わせて小さく・大きくなる)
-  // max-w-xl: 最大幅を制限する
+  // - div の className で チャートを置く箱の幅と位置 を指定
+
+
+  // w-full
+  // - 親要素の幅いっぱいまで使う(画面幅に合わせて小さく・大きくなる)
+
+  // max-w-xl (通常表示の場合)
+  // - 最大幅を制限する
   // - PC幅が広い時でも、チャートの大きさは 最大 576px 程度までとし、それ以上大きくならない
-  // mx-auto: チャートを中央寄せにする
+
+  // max-w-[13rem] (compact(縮小表示) の場合)
+  // - 最大幅を13rem(おおよそ 208px) に指定する
+  // - w-full があるため、320pxでは親要素に合わせてさらに小さくなる
+
+  // mx-auto
+  // - チャートを中央寄せにする
 
   // Radar
   // - Radar が data(栄養素名とスコアのデータ) とoptions(チャートの表示ルール) を受け取ってグラフを描画する
   return (
-    <div className="mx-auto w-full max-w-xl">
+    <div className={`mx-auto w-full ${compact ? "max-w-[13rem]" : "max-w-xl"}`}>
       <Radar data={data} options={options} />
     </div>
   );
