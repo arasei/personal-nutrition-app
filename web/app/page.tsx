@@ -214,13 +214,13 @@ export default function Home() {
                   />
                 </LinkButton>
 
-                {/* ログインページへの遷移ボタン */}
+                {/* 新規登録ページへの遷移ボタン */}
                 <LinkButton
-                  href="/login"
+                  href="/signup"
                   variant="secondary"
                   className="w-full sm:w-auto"
                 >
-                  ログインして続ける
+                  新規登録して続ける
                 </LinkButton>
               </div>
             </div>
