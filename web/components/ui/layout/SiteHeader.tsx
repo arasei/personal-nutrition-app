@@ -1,7 +1,8 @@
 // web/components/ui/layout/SiteHeader.tsx
 
 // 全体の概要
-// - ページ上部に表示する共通ヘッダー
+// - ページ上部に表示する共通ヘッダーコンポーネント
+// - variant の値によって、トップページ・ログインページ・新規登録ページ・会員ページ・診断ページに適したヘッダー表示へ切り替える共通コンポーネント
 
 // 役割
 // - ロゴ
@@ -12,9 +13,34 @@
 
 
 // ポイント
+// - SiteHeader は 一つの共通ヘッダーの中に複数の表示パターンを持つ状態
+// 渡される variant によって表示を変える
 // - PC では現在のヘッダーを表示する
 // - モバイルでは ログイン と ハンバーガーメニュー を表示する
 // - ハンバーガーメニューから 診断開始、使い方、新規登録へ移動できる
+
+
+
+// このファイル内の流れ
+// SiteHeader
+//    │
+//    ├─ public
+//    │    └─ 診断を始める・使い方・ログインリンク・新規登録リンク
+//    │
+//    ├─ login
+//    │    └─ 新規登録への案内
+//    │
+//    ├─ signup
+//    │    └─ ログインへの案内
+//    │
+//    ├─ member
+//    │    └─ 診断・履歴・マイページ
+//    │
+//    └─ diagnosis
+//         └─ 診断へ集中するためロゴ中心
+
+
+
 
 
 "use client";
@@ -30,6 +56,25 @@ import Link from "next/link";
 // - メニューを閉じるアイコン
 import { Leaf, Menu, X } from "lucide-react";
 import LinkButton from "@/components/ui/LinkButton";
+
+
+// ページごとにヘッダーの表示パターンを変えるための使用可能な variant の型を定義
+// - public
+// トップページ 専用のヘッダー
+// - login
+// ログインページ 専用のヘッダー
+// - signup
+// 新規登録ページ 専用のヘッダー
+// - member
+// マイページ診断履歴ページ 専用のヘッダー
+// - diagnosis
+// 診断質問ページ・診断結果ページ 専用のヘッダー
+export type SiteHeaderVariant = | "public" | "login"| "signup" | "member"| "diagnosis";
+
+// SiteHeader が受け取る props の型を定義
+type SiteHeaderProps = {
+  variant?: SiteHeaderVariant;
+};
 
 
 
@@ -76,7 +121,19 @@ const mobileMenuLinkClassName = [
 
 
 
-export default function SiteHeader() {
+export default function SiteHeader({
+  // variant が渡されなかった場合は public を使用すると指定している
+  variant = "public",
+}: SiteHeaderProps) {
+
+
+  // 渡された variant に応じて、ヘッダーの表示パターンを切り替えるための変数を定義
+  // - diagnosis は特別なリンクを表示しない設計なので現在は専用の判定変数 は作成していない
+  const isPublicHeader = variant === "public";
+  const isLoginHeader = variant === "login";
+  const isSignupHeader = variant === "signup";
+  const isMemberHeader = variant === "member";
+  const hasMobileMenu = isPublicHeader || isMemberHeader;
 
   // モバイルメニューが開いているかを管理
   // - 最初は閉じている(false)
@@ -97,31 +154,35 @@ export default function SiteHeader() {
   // - メニューが開いている場合、Escキーで閉じることを可能にするため
   useEffect(() => {
 
-    // メニューが閉じている場合、Esc処理を行わない
-    if (!isMenuOpen) {
+    // メニューが閉じている場合・ハンバーガーメニューを使用しないvariantの場合、Esc処理を行わない
+    // - ハンバーガーメニューを使用しない ログインページ や 新規登録ページ では、Escキー処理が動くのを防ぐため
+    if (!hasMobileMenu || !isMenuOpen) {
       return;
     }
 
+    // Escキー以外は何もしない
     // Escキーを押した場合以下の処理を行う
     // - メニューを閉じる
     // - ハンバーガーボタンへフォーカスを戻す
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsMenuOpen(false);
-        menuButtonRef.current?.focus();
+      if (event.key !== "Escape") {
+        return;
       }
+
+      setIsMenuOpen(false);
+      menuButtonRef.current?.focus();
     };
 
     // ブラウザ上でEscキーが押されたことを監視
-    window.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
 
     // メニューを閉じた後、クリーンアップを行う
     // - Escキーでメニューを閉じる処理を完了後、Escキー監視を削除
     // - 削除しないと、メニューを開くたびに監視処理が重複する可能性があるため
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isMenuOpen]);
+  }, [hasMobileMenu, isMenuOpen]);
 
 
 
@@ -162,47 +223,138 @@ export default function SiteHeader() {
           </span>
         </Link>
 
+
+
+
+
+
         {/* PC用の 中央ナビゲーション表示 */}
         {/*
           md未満 → hidden(非表示)
           md以上 → flex(表示)
-        */}
-        <nav
-          aria-label="メインナビゲーション"
-          className="hidden items-center gap-2 md:flex"
-        >
-          <Link
-            href="/diagnosis/start"
-            className={`rounded-md px-3 py-2 text-sm font-semibold text-muted transition-colors hover:bg-primary-light hover:text-primary-hover ${headerFocusClassName}`}
-          >
-            診断を始める
-          </Link>
 
-          <Link
-            href="/#what-you-can-do"
-            className={`rounded-md bg-primary-light px-3 py-2 text-sm font-semibold text-primary-hover ${headerFocusClassName}`}
+          variant に応じて、表示するリンクを切り替える
+          isPublicHeader → トップページのヘッダー
+          variant が public の場合
+          - 診断を始める
+          - 使い方
+
+          isMemberHeader → 会員ページのヘッダー
+          variant が member の場合
+          - 診断を始める
+          - 診断履歴
+
+          variant が login・signup・diagnosis の場合は、中央ナビゲーションを表示しない
+        */}
+        {(isPublicHeader || isMemberHeader) && (
+          <nav
+            aria-label={isPublicHeader ? "トップページ内ナビゲーション" : "会員ページナビゲーション"}
+            className="hidden items-center gap-2 md:flex"
           >
-            使い方
-          </Link>
-        </nav>
+            <Link
+              href="/diagnosis/start"
+              className={`rounded-lg px-4 py-2 text-sm font-semibold text-muted transition hover:bg-primary-light hover:text-primary-hover ${headerFocusClassName}`}
+            >
+              診断を始める
+            </Link>
+
+            {isPublicHeader ? (
+              <Link
+                href="/#what-you-can-do"
+                className={`rounded-lg bg-primary-light px-4 py-2 text-sm font-semibold text-primary-hover transition hover:bg-emerald-100 ${headerFocusClassName}`}
+              >
+                使い方
+              </Link>
+            ) : (
+              <Link
+                href="/history"
+                className={`rounded-lg px-4 py-2 text-sm font-semibold text-muted transition hover:bg-primary-light hover:text-primary-hover ${headerFocusClassName}`}
+              >
+                診断履歴
+              </Link>
+            )}
+          </nav>
+        )}
+
+
+
+
 
         {/* PC用の ログイン・新規登録 表示 */}
         {/*
           md未満 → hidden(非表示)
           md以上 → flex(表示)
         */}
-        <div className="hidden flex items-center gap-2 md:flex">
-          <Link
-            href="/login"
-            className={`rounded-md inline-flex min-h-10 items-center px-2 text-sm font-semibold text-muted transition-colors hover:text-primary-hover ${headerFocusClassName}`}
-          >
-            ログイン
-          </Link>
+        <div className="hidden items-center gap-2 md:flex">
+          {/*
+            isPublicHeader → トップページのヘッダー
+            variant が public の場合、以下を表示
+            - ログイン
+            - 新規登録
+          */}
+          {isPublicHeader && (
+            <>
+              <Link
+                href="/login"
+                className={`rounded-lg px-4 py-2 text-sm font-semibold text-muted transition hover:bg-primary-light hover:text-primary-hover ${headerFocusClassName}`}
+              >
+                ログイン
+              </Link>
 
-          <LinkButton href="/signup">
-            新規登録
-          </LinkButton>
+              <LinkButton
+                href="/signup"
+                className="w-auto px-5"
+              >
+                新規登録
+              </LinkButton>
+            </>
+          )}
+
+          {/*
+            isLoginHeader → ログインページのヘッダー
+            variant が login の場合、以下を表示
+            - 新規登録
+          */}
+          {isLoginHeader && (
+            <LinkButton
+              href="/signup"
+              className="w-auto px-5"
+            >
+              新規登録
+            </LinkButton>
+          )}
+
+          {/*
+            isSignupHeader → 新規登録ページのヘッダー
+            variant が signup の場合、以下を表示
+            - ログイン
+          */}
+          {isSignupHeader && (
+            <Link
+              href="/login"
+              className={`rounded-lg px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary-light ${headerFocusClassName}`}
+            >
+              ログイン
+            </Link>
+          )}
+
+          {/*
+            isMemberHeader → 会員ページのヘッダー
+            variant が member の場合、以下を表示
+            - マイページ
+          */}
+          {isMemberHeader && (
+            <Link
+              href="/mypage"
+              className={`rounded-lg bg-primary-light px-4 py-2 text-sm font-semibold text-primary-hover transition hover:bg-emerald-100 ${headerFocusClassName}`}
+            >
+              マイページ
+            </Link>
+          )}
         </div>
+
+
+
 
 
 
@@ -214,13 +366,64 @@ export default function SiteHeader() {
           md以上 → hidden(非表示)
         */}
         <div className="flex items-center gap-1 md:hidden">
-          <Link
-            href="/login"
-            onClick={closeMenu}
-            className={`inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold text-foreground transition-colors hover:bg-primary-light hover:text-primary-hover ${headerFocusClassName}`}
-          >
-            ログイン
-          </Link>
+          {/*
+            isPublicHeader → トップページのヘッダー
+            variant が public の場合、以下を表示
+            - ログイン
+          */}
+          {isPublicHeader && (
+            <Link
+              href="/login"
+              onClick={closeMenu}
+              className={`inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary-light hover:text-primary-hover ${headerFocusClassName}`}
+            >
+              ログイン
+            </Link>
+          )}
+
+          {/*
+            isLoginHeader → ログインページのヘッダー
+            variant が login の場合、以下を表示
+            - 新規登録
+          */}
+          {isLoginHeader && (
+            <Link
+              href="/signup"
+              className={`inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary-light hover:text-primary-hover ${headerFocusClassName}`}
+            >
+              新規登録
+            </Link>
+          )}
+
+          {/*
+            isSignupHeader → 新規登録ページのヘッダー
+            variant が signup の場合、以下を表示
+            - ログイン
+          */}
+          {isSignupHeader && (
+            <Link
+              href="/login"
+              className={`inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary-light hover:text-primary-hover ${headerFocusClassName}`}
+            >
+              ログイン
+            </Link>
+          )}
+
+          {/*
+            isMemberHeader → 会員ページのヘッダー
+            variant が member の場合、以下を表示
+            - マイページ
+          */}
+          {isMemberHeader && (
+            <Link
+              href="/mypage"
+              onClick={closeMenu}
+              className={`inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary-light hover:text-primary-hover ${headerFocusClassName}`}
+            >
+              マイページ
+            </Link>
+          )}
+
 
           {/* ハンバーガーメニューボタン */}
           {/*
@@ -243,28 +446,33 @@ export default function SiteHeader() {
             - !current は現在の状態(開閉状態)を反対にする
             - 同じボタンで メニューボタンを 開く・閉じるの両方の処理を行うことができる。
           */}
-          <button
-            ref={menuButtonRef}
-            type="button"
-            aria-label={isMenuOpen ? "メニューを閉じる" : "メニューを開く"}
-            aria-expanded={isMenuOpen}
-            aria-controls="mobile-navigation"
-            onClick={() => {
-              setIsMenuOpen((current) => !current);
-            }}
-            className={`inline-flex size-10 items-center justify-center rounded-md text-foreground transition-colors hover:bg-primary-light hover:text-primary-hover md:hidden ${headerFocusClassName}`}
-          >
-            {/*
-              aria-label={...} で指定した isMenuOpen の状態によってアイコンを切り替える
-              - メニュー開いている状態 → "X"
-              - メニュー閉じている状態 → "☰"
-            */}
-            {isMenuOpen ? (
-              <X aria-hidden="true" className="size-5" />
-            ) : (
-              <Menu aria-hidden="true" className="size-5" />
-            )}
-          </button>
+
+          {/*
+            hasMobileMenu → 会員ページ・トップページ の共通ヘッダー
+            `const hasMobileMenu = isPublicHeader || isMemberHeader;` の条件を適応する
+          */}
+          {hasMobileMenu && (
+            <button
+              ref={menuButtonRef}
+              type="button"
+              aria-label={isMenuOpen ? "ナビゲーションメニューを閉じる" : "ナビゲーションメニューを開く"}
+              aria-expanded={isMenuOpen}
+              aria-controls="mobile-navigation"
+              onClick={() => setIsMenuOpen((current) => !current)}
+              className={`inline-flex size-11 items-center justify-center rounded-lg text-primary transition hover:bg-primary-light ${headerFocusClassName}`}
+            >
+              {/*
+                aria-label={...} で指定した isMenuOpen の状態によってアイコンを切り替える
+                - ナビゲーションメニュー開いている状態 → "X"
+                - ナビゲーションメニュー閉じている状態 → "☰"
+              */}
+              {isMenuOpen ? (
+                <X aria-hidden="true" className="size-5" strokeWidth={2} />
+              ) : (
+                <Menu aria-hidden="true" className="size-5" strokeWidth={2} />
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -279,51 +487,87 @@ export default function SiteHeader() {
 
 
         hidden={!isMenuOpen}
-        - isMenuOpen が存在しない場合(PCの表示の場合)、メニューを表示しない
+        - isMenuOpen が false の場合(メニューが閉じている)、メニューを表示しない
 
         md:hidden
-        - PCではメニューを非表示、モバイル(320px)のみメニュー表示
+        - md以上の画面幅では、開閉状態に関わらずメニューを非表示にする
+        モバイル(320px)の場合、メニュー表示
         - isMenuOpen が true のままの状態でも、PC画面で重ねて表示しない。
       */}
-      <nav
-        id="mobile-navigation"
-        aria-label="モバイルナビゲーション"
-        hidden={!isMenuOpen}
-        className="border-t border-border bg-surface px-4 py-4 md:hidden"
-      >
-        <div className="mx-auto flex max-w-6xl flex-col gap-2">
-          {/* 診断開始ページへの遷移リンク */}
-          <Link
-            href="/diagnosis/start"
-            onClick={closeMenu}
-            className={mobileMenuLinkClassName}
-          >
-            診断を始める
-          </Link>
 
-          {/* 使い方ページへの遷移リンク */}
-          <Link
-            href="/#what-you-can-do"
-            onClick={closeMenu}
-            className={mobileMenuLinkClassName}
-          >
-            使い方
-          </Link>
-
-          {/* 新規登録ページへの遷移ボタン */}
-          {/*
-            共通のLinkButtonのPrimaryスタイル を使用し、モバイルメニュー内でも新規登録ボタンを目立たせる
-            高さを min-h-11 にすることで、メニュー内のリンクとボタンの高さを揃える
+      {/*
+        hasMobileMenu → 会員ページ・トップページ の共通ヘッダー
+        `const hasMobileMenu = isPublicHeader || isMemberHeader;` の条件を適応する
+      */}
+      {hasMobileMenu && (
+        <nav
+          id="mobile-navigation"
+          aria-label={isPublicHeader ? "モバイルナビゲーション" : "会員向けモバイルナビゲーション"}
+          hidden={!isMenuOpen}
+          className="border-t border-border bg-surface px-4 py-4 md:hidden"
+        >
+          <div className="mx-auto flex max-w-6xl flex-col gap-2">
+            {/* 診断開始ページへの遷移リンク */}
+            {/*
+            isPublicHeader → トップページのヘッダー
+            variant が public の場合、以下を表示
+            - 診断を始める
+            - 使い方
+            - 新規登録
           */}
-          <LinkButton
-            href="/signup"
-            onClick={closeMenu}
-            className="mt-1 min-h-11 w-full"
-          >
-            新規登録
-          </LinkButton>
-        </div>
-      </nav>
+            {isPublicHeader ? (
+              <>
+                <Link
+                  href="/diagnosis/start"
+                  onClick={closeMenu}
+                  className={mobileMenuLinkClassName}
+                >
+                  診断を始める
+                </Link>
+
+                {/* 使い方ページへの遷移リンク */}
+                <Link
+                  href="/#what-you-can-do"
+                  onClick={closeMenu}
+                  className={mobileMenuLinkClassName}
+                >
+                  使い方
+                </Link>
+                {/* 新規登録ページへの遷移ボタン */}
+                {/*
+                  共通のLinkButtonのPrimaryスタイル を使用し、モバイルメニュー内でも新規登録ボタンを目立たせる
+                  高さを min-h-11 にすることで、メニュー内のリンクとボタンの高さを揃える
+                */}
+                <LinkButton
+                  href="/signup"
+                  onClick={closeMenu}
+                  className="mt-1 min-h-11 w-full"
+                >
+                  新規登録
+                </LinkButton>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/diagnosis/start"
+                  onClick={closeMenu}
+                  className={mobileMenuLinkClassName}
+                >
+                  診断を始める
+                </Link>
+
+                <Link
+                  href="/history"
+                  onClick={closeMenu}
+                  className={mobileMenuLinkClassName}
+                >
+                  診断履歴
+                </Link>
+              </>
+            )}
+          </div>
+        </nav>
+      )}
     </header>
   );
 }
