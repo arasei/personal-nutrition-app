@@ -119,6 +119,7 @@ import ErrorMessage from "@/components/ui/ErrorMessage";
 import Card from "@/components/ui/Card";
 import SuccessMessage from "@/components/ui/SuccessMessage";
 import LinkButton from "@/components/ui/LinkButton";
+import SiteHeader from "@/components/ui/layout/SiteHeader";
 
 export default function SignupPage() {
 
@@ -179,150 +180,155 @@ export default function SignupPage() {
   };
 
   return (
-    <main className="mx-auto w-full max-w-md px-4 py-8 sm:px-6 sm:py-10">
-      <header>
-        <p className="text-sm font-medium text-muted">
-          栄養診断
-        </p>
+    <div className="flex min-h-screen flex-col">
+      {/* 新規登録ページ専用のヘッダー */}
+      <SiteHeader variant="signup" />
 
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          新規登録
-        </h1>
+      <main className="mx-auto w-full max-w-md flex-1 px-4 py-8 sm:px-6 sm:py-10">
+        <header>
+          <p className="text-sm font-medium text-muted">
+            栄養診断
+          </p>
 
-        <p className="mt-2 text-sm leading-6 text-muted">
-          アカウントを作成して、栄養診断を利用できます。
-        </p>
-      </header>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            新規登録
+          </h1>
 
-      {/*
-        入力フォーム
-        - ひとまとまりの入力エリア
-        メールアドレス・パスワード
-        - 新規登録ボタンを押した時にフォームの内容を送信し、新規登録処理を動かす
-      */}
-      {/* 
-      htmlFor と id を メールアドレスに追加することで
-      label と input を "email" という名前で紐づけることができる
+          <p className="mt-2 text-sm leading-6 text-muted">
+            アカウントを作成して、栄養診断を利用できます。
+          </p>
+        </header>
 
-      「メールアドレス」という文字をクリック
-      ↓
-      メールアドレス入力欄にカーソルが入る
-       */}
-      <Card className="mt-8">
-        <form
-          onSubmit={handleSignup}
-          className="space-y-5"
-        >
-          <div className="space-y-2">
-            <Label htmlFor="email">
-              メールアドレス
-            </Label>
+        {/*
+          入力フォーム
+          - ひとまとまりの入力エリア
+          メールアドレス・パスワード
+          - 新規登録ボタンを押した時にフォームの内容を送信し、新規登録処理を動かす
+        */}
+        {/*
+        htmlFor と id を メールアドレスに追加することで
+        label と input を "email" という名前で紐づけることができる
 
-            {/* 入力必須項目 */}
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              placeholder="example@example.com"
-            />
-          </div>
-
-
-          {/*
-          autoComplete="..."
-
-          signup
-          → new-password
-          → 新しく作るパスワード
-
-          login
-          → current-password
-          → 既に登録済みのパスワード
-          */}
-          <div className="space-y-2">
-            <Label htmlFor="password">
-              パスワード
-            </Label>
-
-            {/* 入力必須項目 */}
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              autoComplete="new-password"
-              placeholder="6文字以上で入力"
-            />
-          </div>
-
-          {/*
-            エラー表示
-            - error を受け取った場合だけ {errorMessage} を表示
-          */}
-          {errorMessage && (
-            <ErrorMessage>
-              {errorMessage}
-            </ErrorMessage>
-          )}
-
-          {/* 成功表示 */}
-          {/*
-            successMessage が空 の場合
-            - 何も表示しない
-
-            successMessageが存在 する場合
-            - successMessageを表示
-            - StatusMessageのsuccess形式を使用
-            - role="status" を付ける
-
-          */}
-          {successMessage && (
-            <SuccessMessage>
-              {successMessage}
-            </SuccessMessage>
-          )}
-
-          {/* 新規登録ボタン */}
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="w-full"
+        「メールアドレス」という文字をクリック
+        ↓
+        メールアドレス入力欄にカーソルが入る
+        */}
+        <Card className="mt-8">
+          <form
+            onSubmit={handleSignup}
+            className="space-y-5"
           >
-            {isLoading ? "登録中..." : "新規登録する"}
-          </Button>
-        </form>
-      </Card>
+            <div className="space-y-2">
+              <Label htmlFor="email">
+                メールアドレス
+              </Label>
 
-      {/* ログインページ(/login)への遷移リンク */}
-      {/* 未登録の人がログイン画面から新規登録ページへ移動できるように */}
-      {/* 「新規登録はこちら」は文章の一部なので、通常の Link を使用する */}
-      <p className="mt-6 text-center text-sm text-muted">
-        すでにアカウントをお持ちの方は{" "}
-        <Link
-          href="/login"
-          className="whitespace-nowrap rounded-sm font-medium text-primary underline underline-offset-4 transition-colors hover:text-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-        >
-          ログインはこちら
-        </Link>
-      </p>
+              {/* 入力必須項目 */}
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                placeholder="example@example.com"
+              />
+            </div>
 
-      {/* トップページ(/)への遷移リンク */}
-      {/* 「トップページへ戻る」は単独で配置するページ移動のため、LinkButton を使用する */}
-      <div className="mt-3 text-center">
-        <LinkButton
-          href="/"
-          variant="text"
-        >
-          トップページへ戻る
-        </LinkButton>
-      </div>
-    </main>
+
+            {/*
+            autoComplete="..."
+
+            signup
+            → new-password
+            → 新しく作るパスワード
+
+            login
+            → current-password
+            → 既に登録済みのパスワード
+            */}
+            <div className="space-y-2">
+              <Label htmlFor="password">
+                パスワード
+              </Label>
+
+              {/* 入力必須項目 */}
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                autoComplete="new-password"
+                placeholder="6文字以上で入力"
+              />
+            </div>
+
+            {/*
+              エラー表示
+              - error を受け取った場合だけ {errorMessage} を表示
+            */}
+            {errorMessage && (
+              <ErrorMessage>
+                {errorMessage}
+              </ErrorMessage>
+            )}
+
+            {/* 成功表示 */}
+            {/*
+              successMessage が空 の場合
+              - 何も表示しない
+
+              successMessageが存在 する場合
+              - successMessageを表示
+              - StatusMessageのsuccess形式を使用
+              - role="status" を付ける
+
+            */}
+            {successMessage && (
+              <SuccessMessage>
+                {successMessage}
+              </SuccessMessage>
+            )}
+
+            {/* 新規登録ボタン */}
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="w-full"
+            >
+              {isLoading ? "登録中..." : "新規登録する"}
+            </Button>
+          </form>
+        </Card>
+
+        {/* ログインページ(/login)への遷移リンク */}
+        {/* 未登録の人がログイン画面から新規登録ページへ移動できるように */}
+        {/* 「新規登録はこちら」は文章の一部なので、通常の Link を使用する */}
+        <p className="mt-6 text-center text-sm text-muted">
+          すでにアカウントをお持ちの方は{" "}
+          <Link
+            href="/login"
+            className="whitespace-nowrap rounded-sm font-medium text-primary underline underline-offset-4 transition-colors hover:text-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          >
+            ログインはこちら
+          </Link>
+        </p>
+
+        {/* トップページ(/)への遷移リンク */}
+        {/* 「トップページへ戻る」は単独で配置するページ移動のため、LinkButton を使用する */}
+        <div className="mt-3 text-center">
+          <LinkButton
+            href="/"
+            variant="text"
+          >
+            トップページへ戻る
+          </LinkButton>
+        </div>
+      </main>
+    </div>
   );
 }
