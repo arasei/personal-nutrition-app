@@ -115,7 +115,7 @@ import type {
 // <LinkProps & AnchorHTMLAttributes<HTMLAnchorElement>
 // - 通常の <Link> に書ける機能・属性(type・disabled・className など) を、
 // `web/components/ui/LinkButton.tsx` でも使えるようにするための型を定義
-type LinkButtonProps = PropsWithChildren<LinkProps & AnchorHTMLAttributes<HTMLAnchorElement> & { variant?: "primary" | "secondary"; }>;
+type LinkButtonProps = PropsWithChildren<LinkProps & AnchorHTMLAttributes<HTMLAnchorElement> & { variant?: "primary" | "secondary" | "text"; }>;
 
 export default function LinkButton({
   children,
@@ -136,11 +136,12 @@ export default function LinkButton({
   // focus-visible:ring-offset-2
   // - ボタン本体とフォーカスリングの間に少し隙間を作る。
   const baseClassName =
-    "inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2";
+    "inline-flex items-center justify-center text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
   const variantClassName = {
-    primary: "bg-black text-white hover:bg-gray-800",
-    secondary: "border border-gray-300 bg-white text-gray-900 hover:bg-gray-50",
+    primary: "min-h-10 rounded-md bg-primary px-4 py-2 text-white hover:bg-primary-hover",
+    secondary: "min-h-10 rounded-md border border-primary bg-surface px-4 py-2 text-primary hover:bg-primary-light",
+    text: "min-h-10 px-1 text-primary underline-offset-4 hover:text-primary-hover hover:underline",
   };
 
   return (

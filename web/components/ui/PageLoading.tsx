@@ -59,19 +59,25 @@ export function PageLoading({
     // aria-busy="true"
     // - 「この領域は現在処理中です。」と定義
 
-
     // <div className="flex flex-col items-center gap-3">...</div>
     // - この div は 「spinner ＋ message」 を1セットとして管理するための箱
 
-    // <div
-    //   className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-gray-900"
-    //   aria-hidden="true"
-    // />
-    // - spinner
+    // spinner
     // - 回転する見た目のローディング表示
 
     // aria-hidden="true"
     // - spinnerは、見た目だけであり、支援技術には読み込ませない と定義
+
+    // border-border
+    // - 回転する円の薄い部分
+    // - カードや入力欄と同じ共通の枠線色を使用する
+
+    // border-t-primary
+    // - 円の上側だけエメラルド色にする
+    // animate-spin で回転すると、エメラルド部分が回っているように見える
+
+    // text-muted
+    // - 「読み込み中...」を補助説明用の文字色にする
     <main
       className="flex min-h-64 items-center justify-center px-4 py-8"
       aria-busy="true"
@@ -80,11 +86,11 @@ export function PageLoading({
       <div className="flex flex-col items-center gap-3">
         {/* spinner・ローディング表示 */}
         <div
-          className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-gray-900"
+          className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary"
           aria-hidden="true"
         />
         {/* 読み込み状態を伝えるための表示message */}
-        <p role="status" className="text-sm text-gray-600">
+        <p role="status" className="text-sm text-muted">
           {message}
         </p>
       </div>

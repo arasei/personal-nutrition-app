@@ -150,6 +150,7 @@ import type {
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Button from "@/components/ui/Button";
+import ErrorMessage from "@/components/ui/ErrorMessage";
 
 
 export default function StartButton() {
@@ -247,9 +248,9 @@ export default function StartButton() {
 
       {/* errorMessage があるときだけ表示する */}
       {errorMessage && (
-        <p className="text-sm text-red-600">
+        <ErrorMessage>
           {errorMessage}
-        </p>
+        </ErrorMessage>
       )}
     </div>
   );
