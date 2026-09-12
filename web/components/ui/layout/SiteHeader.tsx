@@ -68,7 +68,7 @@ import LinkButton from "@/components/ui/LinkButton";
 // - member
 // マイページ・履歴一覧・履歴詳細・診断結果ページ 専用のヘッダー
 // - diagnosis
-// 診断質問ページ など回答に集中する画面 専用のヘッダー
+// 診断開始ページ・診断質問ページ など回答に集中する画面 専用のヘッダー
 export type SiteHeaderVariant = | "public" | "login"| "signup" | "member"| "diagnosis";
 
 // SiteHeader が受け取る props の型を定義
