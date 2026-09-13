@@ -19,6 +19,7 @@
 import type { ReactNode } from "react";
 // 共通ヘッダーを読み込む
 import SiteHeader from "@/components/ui/layout/SiteHeader";
+import SiteFooter from "@/components/ui/layout/SiteFooter";
 
 
 // 受け取る children(既存ページ内容) の型を定義
@@ -38,6 +39,8 @@ export default function DiagnosisResultLayout({
       <div className="flex-1">
         {children}
       </div>
+
+      <SiteFooter />
     </div>
   );
 }

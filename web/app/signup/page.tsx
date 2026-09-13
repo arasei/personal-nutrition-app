@@ -120,6 +120,7 @@ import Card from "@/components/ui/Card";
 import SuccessMessage from "@/components/ui/SuccessMessage";
 import LinkButton from "@/components/ui/LinkButton";
 import SiteHeader from "@/components/ui/layout/SiteHeader";
+import SiteFooter from "@/components/ui/layout/SiteFooter";
 
 export default function SignupPage() {
 
@@ -187,7 +188,7 @@ export default function SignupPage() {
       <main className="mx-auto w-full max-w-md flex-1 px-4 py-8 sm:px-6 sm:py-10">
         <header>
           <p className="text-sm font-medium text-muted">
-            栄養診断
+            Nutriflecta
           </p>
 
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
@@ -329,6 +330,8 @@ export default function SignupPage() {
           </LinkButton>
         </div>
       </main>
+
+      <SiteFooter />
     </div>
   );
 }

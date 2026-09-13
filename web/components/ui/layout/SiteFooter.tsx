@@ -12,7 +12,7 @@ export default function SiteFooter() {
     <footer className="border-t border-border bg-surface">
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
         <p className="text-sm text-muted">
-          © {new Date().getFullYear()} 栄養診断アプリ
+          © {new Date().getFullYear()} Nutriflecta
         </p>
       </div>
     </footer>

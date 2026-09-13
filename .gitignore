@@ -1,20 +1,21 @@
-# Keep environment variables out of version control
-//ルート
+# ローカルに残したまま、Gitへの追加対象から外すファイルは以下。
+# ファイル自体は削除されません。
+# ルート
 
-//macOS
+# macOS
 .DS_Store
 
-//Env
+# Env
 .env
 .env.*
 web/.env
 web/.env.*
 
-//VSCode LocalHistory / backup
+# VSCode LocalHistory / backup
 .history/
 web/.history/
 
-//Node / Next.js
+# Node / Next.js
 node_modules/
 web/node_modules/
 .next/
@@ -22,7 +23,10 @@ web/.next/
 out/
 dist/
 
-//prisma generate(今回の構成だとgenerated/が生成物のため)
+# prisma generate(今回の構成だとgenerated/が生成物のため)
 generated/
 web/generated/
 
+
+# TypeScriptのビルド情報をGit管理対象外にする
+/web/tsconfig.tsbuildinfo
