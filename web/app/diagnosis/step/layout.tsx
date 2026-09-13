@@ -26,6 +26,7 @@ import { Suspense, type ReactNode } from "react";
 // 共通ヘッダーを読み込む
 import SiteHeader from "@/components/ui/layout/SiteHeader";
 import { PageLoading } from "@/components/ui/PageLoading";
+import SiteFooter from "@/components/ui/layout/SiteFooter";
 
 
 
@@ -69,6 +70,8 @@ export default function DiagnosisStepLayout({
           {children}
         </Suspense>
       </div>
+
+      <SiteFooter />
     </div>
   );
 }

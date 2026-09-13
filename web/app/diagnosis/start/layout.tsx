@@ -17,6 +17,7 @@
 import type { ReactNode } from "react";
 // 共通ヘッダーを読み込む
 import SiteHeader from "@/components/ui/layout/SiteHeader";
+import SiteFooter from "@/components/ui/layout/SiteFooter";
 
 
 
@@ -38,6 +39,8 @@ export default function DiagnosisStartLayout({
       <div className="flex-1">
         {children}
       </div>
+
+      <SiteFooter />
     </div>
   );
 }

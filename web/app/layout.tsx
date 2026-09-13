@@ -29,10 +29,15 @@ const geistMono = Geist_Mono({
 // metadata
 // - このwebアプリは何なのかを設定
 // title
-// - ブラウザタブでの表示名
+// - ブラウザタブなどに表示するページのタイトル
+// applicationName
+// - HTMLのメタ情報としてアプリ名を伝える。画面のヘッダー文字を変更する設定ではない。
+// description
+// - ページの内容を説明するメタ情報です。現在は、現時点でできる内容を説明している。
 export const metadata: Metadata = {
-  title: "栄養素診断アプリ",
-  description: "生活習慣や体調に関する質問から栄養素の不足傾向を確認し、食品や料理の提案を確認できるWebアプリです。",
+  title: "Nutriflecta",
+  applicationName: "Nutriflecta",
+  description: "Nutriflectaは、生活習慣や体調に関する質問から栄養素の不足傾向を確認し、食品や料理の提案を通して自分の食生活を振り返るWebアプリです。",
 };
 
 

@@ -48,13 +48,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-// Leaf
-// - 葉アイコン
 // Menu
 // - 3本線のハンバーガーアイコン
 // X
 // - メニューを閉じるアイコン
-import { Leaf, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
+import AppLogo from "@/components/ui/AppLogo";
 import LinkButton from "@/components/ui/LinkButton";
 
 
@@ -204,22 +203,22 @@ export default function SiteHeader({
     // aria-label
     // - スクリーンリーダーへリンクの目的を伝える
     // aria-hidden="true"
-    // - 葉アイコンの横にアプリ名があるため、アイコンだけを二重に読み上げないようにする
+    // - ロゴの横にアプリ名があるため、ロゴだけを二重に読み上げないようにする
 
     <header className="sticky top-0 z-30 border-b border-border bg-surface/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
         <Link
           href="/"
-          aria-label="栄養診断アプリのトップページへ"
+          aria-label="Nutriflecta のトップページへ"
           onClick={closeMenu}
           className={`rounded-md flex items-center gap-2 text-foreground transition-opacity hover:opacity-75 ${headerFocusClassName}`}
         >
-          <span className="grid size-7 place-items-center rounded-md bg-primary text-white shadow-sm">
-            <Leaf aria-hidden="true" className="size-4" />
+          <span className="grid size-7 shrink-0 place-items-center rounded-md bg-primary text-white shadow-sm">
+            <AppLogo className="size-4" />
           </span>
 
           <span className="text-sm font-bold tracking-wide">
-            栄養診断アプリ
+            Nutriflecta
           </span>
         </Link>
 

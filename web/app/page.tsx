@@ -2,7 +2,7 @@
 
 
 // 全体の概要
-// - 栄養診断アプリが何をするサービスなのかを説明し、診断・ログイン・新規登録へ案内するページ
+// - Nutriflectaアプリが何をするサービスなのかを説明し、診断・ログイン・新規登録へ案内するページ
 
 // 役割
 // - 診断紹介
@@ -85,8 +85,6 @@
 //           /signup
 
 
-// トップページで使用するアイコンを import する
-// - Leaf
 // ヒーロー上部のラベル
 // - ArrowRight
 // 診断開始ボタン
@@ -104,10 +102,13 @@ import {
   ArrowRight,
   BarChart3,
   BookOpen,
-  Leaf,
   Sparkles,
   Utensils,
 } from "lucide-react";
+
+// トップページで使用するアイコンを import する
+// - AppLogo
+import AppLogo from "@/components/ui/AppLogo";
 
 
 import LinkButton from "@/components/ui/LinkButton";
@@ -179,10 +180,7 @@ export default function Home() {
             {/* 左側:アプリの説明文 と 遷移ボタン(診断開始ページ・ログインページ) */}
             <div className="max-w-xl">
               <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary-light px-4 py-2 text-xs font-semibold tracking-widest text-primary-hover">
-                <Leaf
-                  aria-hidden="true"
-                  className="size-4"
-                />
+                <AppLogo className="size-4" />
                 PERSONAL NUTRITION CHECK
               </div>
 

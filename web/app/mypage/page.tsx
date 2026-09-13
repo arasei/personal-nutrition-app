@@ -124,7 +124,7 @@ export default function Mypage() {
     <main className="mx-auto w-full max-w-md px-4 py-8 sm:px-6 sm:py-10">
       <header>
         <p className="text-sm font-medium text-muted">
-          栄養診断
+          Nutriflecta
         </p>
 
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
