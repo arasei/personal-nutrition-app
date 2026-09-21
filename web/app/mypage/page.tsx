@@ -54,68 +54,43 @@
 "use client";
 
 import StartButton from "@/app/diagnosis/start/StartButton";
-import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import LinkButton from "@/components/ui/LinkButton";
 import { PageLoading } from "@/components/ui/PageLoading";
-import ErrorMessage from "@/components/ui/ErrorMessage";
 import Card from "@/components/ui/Card";
+import { useSupabaseSession } from "../_hooks/useSupabaseSession";
+import { useEffect } from "react";
 
 export default function Mypage() {
   const router = useRouter();
 
-  // ログイン状態を確認中かどうかを管理
-  // - 最初はまだ確認前なので true とする
-  const [isCheckingLogin, setIsCheckingLogin] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
+  // ログイン状態をuseSupabaseSession から取得
+  const {
+    token,
+    isLoading: isSessionLoading,
+  } = useSupabaseSession();
 
+
+  // 認証確認が終わり、利用できるトークンがない場合は、ログインページ(/login)へ遷移する
   useEffect(() => {
-    // ログイン確認処理をを行う関数
-    const checkLogin = async () => {
-      try {
-        // supabase から 現在のログイン session を取得
-        const result = await supabase.auth.getSession();
-        // 取得結果から現在のログイン session を取得
-        const session = result.data.session;
-        // session の中から access_token を取り出す
-        // - 「?.」があるので、session token が無い場合でもエラーにならない
-        const token = session?.access_token;
+    if (isSessionLoading) {
+      return;
+    }
 
-        // token が無い場合、未ログインと判断し、ログインページへ遷移する
-        if (!token) {
-          setErrorMessage("ログインが必要です");
-          router.replace("/login");
-          return;
-        }
-      // ログイン確認中に予期しないエラーが起きた場合の処理
-      } catch (error) {
-        console.error("ログイン状態の確認に失敗しました:", error);
-        setErrorMessage("ログイン状態の確認に失敗しました。時間をおいて再度お試しください。");
-      // 成功しても失敗しても、確認処理が終わったら読み込み中を解除する
-      } finally {
-        setIsCheckingLogin(false);
-      }
-    };
+    if (!token) {
+      router.replace("/login");
+    }
+  }, [isSessionLoading, token, router]);
 
-    checkLogin();
-  }, [router]);
-
-  // ログイン確認中のローディング表示
-  // - ログイン確認中はマイページ本体を表示しない
-  if (isCheckingLogin) {
+  // 初回のログイン確認中のローディング表示
+  // - session 確認中はマイページ本体を表示しない
+  if (isSessionLoading) {
     return <PageLoading />;
   }
 
-  // ログイン確認失敗の場合のエラーメッセージ表示
-  if (errorMessage) {
-    return (
-      <main className="mx-auto w-full max-w-md px-4 py-8 sm:px-6 sm:py-10">
-        <ErrorMessage>
-          {errorMessage}
-        </ErrorMessage>
-      </main>
-    );
+  // ページ遷移が完了するまでの間も、本文を表示しない
+  if (!token) {
+    return <PageLoading />;
   }
 
   // マイページ の 内容を表示する箱の幅 を ログイン・新規登録画面と同じ幅に制限する
