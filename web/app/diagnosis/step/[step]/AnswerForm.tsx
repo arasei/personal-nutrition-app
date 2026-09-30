@@ -3,7 +3,7 @@
 
 // 全体の概要
 // - ユーザーが選択した回答を 回答保存API(/api/diagnosis/answers)に送信し、
-// APIから返ってきた nextHref(次の質問ページ) に画面遷移するフォームコンポーネント
+// APIから返ってきた nextHref(次の質問ページ or 結果ページ) へ画面遷移するフォームコンポーネント
 
 
 // 役割
@@ -134,7 +134,7 @@ import type {
   ApiErrorResponse,
 } from "@/types/diagnosisApi";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 // フォームの値、エラー、送信中状態をまとめて管理するため
 import { useForm } from "react-hook-form";
 import Button from "@/components/ui/Button";
@@ -175,20 +175,75 @@ const answerOptions = [
 const ANSWER_REQUIRED_MESSAGE = "回答は必須です";
 
 
-// props を AnswerFormProps の型で必要な値を受け取る
-export default function AnswerForm({
+type AnswerFormContentProps = AnswerFormProps & {
+  token: string | null;
+  isSessionLoading: boolean;
+};
+
+
+// 認証状態 と 回答対象を受け取る外側のコンポーネント
+export default function AnswerForm(props: AnswerFormProps) {
+
+  // token: API へ送る access_token
+  // isLoading: isSessionLoading: Supabase で 認証状態を確認中かどうか
+  const {token, isLoading: isSessionLoading,} = useSupabaseSession();
+
+  // 認証状態・回答対象が変わったら、フォームを作り直す。
+  // - token を含むため、画面やログには出力しない
+  const formKey = JSON.stringify([
+    isSessionLoading,
+    token,
+    props.diagnosisId,
+    props.questionId,
+    props.order,
+  ]);
+
+  return (
+    <AnswerFormContent
+      key={formKey}
+      {...props}
+      token={token}
+      isSessionLoading={isSessionLoading}
+    />
+  );
+}
+
+
+
+// 入力・送信・エラー表示を管理する内側のコンポーネント
+// - props を AnswerFormContentProps の型で必要な値を受け取る
+function AnswerFormContent({
   diagnosisId,
   questionId,
   order,
   isLast,
-}: AnswerFormProps) {
+  token,
+  isSessionLoading,
+}: AnswerFormContentProps) {
   const router = useRouter();
 
-// token: API へ送る access_token
-// isSessionLoading: Supabase での ログイン状態
-  const { token, isLoading: isSessionLoading } = useSupabaseSession();
-
   const [errorMessage, setErrorMessage] = useState("");
+
+  // API通信開始から遷移までの間、再送信を防ぐための状態管理
+  // - API通信 と 通信成功後の遷移完了するまで操作を無効にするため
+  const [isSaving, setIsSaving] = useState(false);
+
+  const isMountedRef = useRef(false);
+  // 現在の通信を管理する AbortController を保持する
+  // - 値の変更による再描画は不要なので、useRef を使う
+  const activeControllerRef = useRef<AbortController | null>(null);
+
+  useLayoutEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+
+      const controller = activeControllerRef.current;
+      activeControllerRef.current = null;
+      controller?.abort();
+    };
+  }, []);
 
 
 
@@ -196,7 +251,7 @@ export default function AnswerForm({
   // - register: select と react-hook-form を繋ぐ
   // - handleSubmit: フォーム送信時の処理を安全に実行するため
   // - errors: 入力エラーを表示するために使う
-  // - isSubmitting: 送信中かどうかを判断する
+  // - isSubmitting: 入力検証・送信処理 を含む フォーム側の状態を判断するため
   const {
     register, 
     handleSubmit, 
@@ -209,46 +264,62 @@ export default function AnswerForm({
 
   // フォーム送信時に実行する処理
   const onSubmit = async (values: AnswerFormValues) => {
+
+
+
+    // 画面離脱後・既に通信中なら送信しない。
+    if (!isMountedRef.current || activeControllerRef.current !== null) {
+      return;
+    }
+
+    // 送信開始前に前回エラーメッセージを消す
+    setErrorMessage("");
+
+    // 入力値を react-hook-form の setValueAs で数値(number) に変換した入力値を取り出す
+    // - API側では value を数値として扱っているため answerValue も number型 で扱う
+    const answerValue = values.answer;
+
+    if (
+      typeof answerValue !== "number" || !answerOptions.some((option) => option.value === answerValue)
+    ) {
+      setErrorMessage(ANSWER_REQUIRED_MESSAGE);
+      return;
+    }
+
+    // Supabase がログイン状態を確認中なら、回答を送らない
+    if (isSessionLoading) {
+      setErrorMessage("読み込み中です。少し待ってから再度お試しください",);
+      return;
+    }
+
+    // ログイン確認後も、token が無い場合、未ログイン扱い
+    // - 未ログインのままAPIへ送らない
+    if (!token) {
+      setErrorMessage("ログインが必要です");
+      router.push("/login");
+      return;
+    }
+
+    // API に送るデータ
+    const requestBody: SaveDiagnosisAnswersRequest = {
+      diagnosisId,
+      questionId,
+      value: answerValue,
+      order,
+    };
+
+    const controller = new AbortController();
+    activeControllerRef.current = controller;
+
+    const isCurrentRequest = () => isMountedRef.current && activeControllerRef.current === controller && !controller.signal.aborted;
+
+    setIsSaving(true);
+
+    let navigationStarted = false;
+
+
+
     try {
-      // 送信開始時に前回エラーを消す
-      setErrorMessage("");
-
-      // 入力値を react-hook-form の setValueAs で数値(number) に変換した入力値を取り出す
-      // - API側では value を数値として扱っているため answerValue も number型 で扱う
-      const answerValue = values.answer;
-
-      if (
-        typeof answerValue !== "number" ||
-        !answerOptions.some((option) => option.value === answerValue)
-      ) {
-        setErrorMessage(ANSWER_REQUIRED_MESSAGE);
-        return;
-      }
-
-      // Supabase がログイン状態を確認中なら、回答を送らない
-      if (isSessionLoading) {
-        setErrorMessage(
-          "読み込み中です。少し待ってから再度お試しください"
-        );
-        return;
-      }
-
-      // ログイン確認後も、token が無い場合、未ログイン扱い
-      // - 未ログインのままAPIへ送らない
-      if (!token) {
-        setErrorMessage("ログインが必要です");
-        router.push("/login");
-        return;
-      }
-
-      // APIに送るデータ
-      const requestBody: SaveDiagnosisAnswersRequest = {
-        diagnosisId,
-        questionId,
-        value: answerValue,
-        order,
-      };
-
       // 回答保存APIを呼び出し、リクエストを送る
       const res = await fetch("/api/diagnosis/answers", {
         // 回答を保存するメソッド
@@ -261,24 +332,31 @@ export default function AnswerForm({
         },
         // APIへ送るデータをJSON形式にする
         body: JSON.stringify(requestBody),
+        signal: controller.signal,
       });
 
-      // APIから返ってきたデータを成功時の型(SaveDiagnosisResponse)と失敗時の型(ApiErrorResponse)に分けて受け取る
+      // APIから返ってきたデータを成功・失敗のレスポンス を共通の型で扱う
+      // - 成功時の型(SaveDiagnosisAnswersResponse) と 失敗時の型(ApiErrorResponse) に分けて受け取る
       const data: SaveDiagnosisAnswersResponse | ApiErrorResponse = await res.json();
 
-      // HTTP処理がエラーの場合の処理
-      if (!res.ok) {
-        const message = "message" in data && data.message ? data.message : "回答保存に失敗しました";
 
-        setErrorMessage(message);
+      // 認証・回答対象の変更や画面離脱後の結果は採用しない
+      if (!isCurrentRequest()) {
         return;
       }
 
       // API処理がエラーの場合の処理
       if (!data.success) {
-        const message = "message" in data && data.message ? data.message : "回答保存に失敗しました";
+        const errorData:ApiErrorResponse = data;
+        setErrorMessage(
+          errorData.message ?? "回答保存に失敗しました",
+        );
+        return;
+      }
 
-        setErrorMessage(message);
+      // HTTP処理がエラーの場合の処理
+      if (!res.ok) {
+        setErrorMessage("回答保存に失敗しました");
         return;
       }
 
@@ -290,17 +368,29 @@ export default function AnswerForm({
 
       // APIから返ってきたURL(nextHref)に画面遷移する
       router.push(data.nextHref);
-    } catch (error) {
-      console.error("failed to save answer:", error);
+      navigationStarted = true;
+    } catch {
+      // 古い通信の失敗や、意図した通信中止は表示しない
+      if (!isCurrentRequest()) {
+        return;
+      }
+
+      console.error("回答保存の通信処理に失敗しました");
       setErrorMessage("回答保存に失敗しました");
+    } finally {
+      // 有効な処理で、まだ遷移を開始していない場合だけ解除する
+      if (isCurrentRequest() && !navigationStarted) {
+        activeControllerRef.current = null;
+        setIsSaving(false);
+      }
     }
   };
 
+  // ボタンの無効化する条件
+  const isBusy = isSessionLoading || isSubmitting || isSaving;
+
   return (
     // react-hook-form のhandleSubmit を通して、 onSubmit を実行する
-
-    // 入力欄(<form>...</form>) の 表示する幅 を 制限する
-    // - max-w-md: 最大幅 を 約448px に制限する
     <form
       onSubmit={handleSubmit(onSubmit)}
       noValidate
@@ -317,6 +407,7 @@ export default function AnswerForm({
 
         <select
           id="answer"
+          disabled={isBusy}
           defaultValue=""
           aria-invalid={Boolean(errors.answer)}
           aria-describedby={errors.answer ? "answer-error" : undefined}
@@ -385,18 +476,18 @@ export default function AnswerForm({
       </div>
 
       {/*
-        - disabled={isSubmitting || isSessionLoading}
-        → ボタンは、ログイン確認中・回答を保存中 は押せないようにしている。二重送信を防げる
-        - 送信ボタン(<Button>...</Button>) を 新規登録・ログイン と 同じ幅 に制限する
+        disabled={isBusy}
+        - ボタンは、ログイン(認証状態)確認中・入力検証・送信処理中・保存成功後の画面切り替え待ち は押せないようにしている。二重送信を防げるため
+        - 送信ボタン(<Button>...</Button>) を 親要素いっぱいの幅 に制限する
         - w-full: 親の箱(このページでは<form>...</form>) 内で 横幅100% に設定する
         - フォーム送信ボタン なので type="submit" としている
       */}
       <Button
         type="submit"
-        disabled={isSubmitting || isSessionLoading}
+        disabled={isBusy}
         className="w-full"
       >
-        {isSessionLoading ? "ログイン確認中..." : isSubmitting ? "保存中..." : isLast ? "結果を見る" : "次へ"}
+        {isSessionLoading ? "ログイン確認中..." : isSubmitting || isSaving ? "保存中..." : isLast ? "結果を見る" : "次へ"}
       </Button>
 
 
