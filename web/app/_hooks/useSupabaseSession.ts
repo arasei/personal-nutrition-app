@@ -14,6 +14,11 @@
 // - このフック自体はDBには触らない
 // - ログイン中か確認し、ログイン中なら session を保存
 // - 確認中かどうかの状態を isLoading で返す
+// - 初回session取得より先に、認証イベントの監視を開始する
+// - 認証イベントを受信したら、通知されたsessionを反映する
+// - 初回取得より先に認証イベントを受信していた場合は、
+// - 遅れて返ってきた初回取得結果では上書きしない
+// - useEffect終了時に監視を解除する
 
 
 
@@ -41,12 +46,10 @@
 
 
 
-// - `useSupabaseSession.ts` での token 保存方法は以下のように行なっている
-// setToken(session?.access_token ?? null);
+// tokenは独立したstateに保存せず、sessionから取り出して返す
+// token: session?.access_token ?? null
+// - sessionがない場合はnullを返す
 
-// つまり、token の中身は、Bearer xxx.yyy.zzz では無い
-// 例.
-// xxx.yyy.zzz
 
 
 
@@ -83,7 +86,7 @@
 //   ↓
 // session を保存
 //   ↓
-// session.access_token を token に保存
+// session.access_token を session から取り出し、token として返す
 //   ↓
 // isLoading が false になる
 //   ↓
@@ -107,7 +110,7 @@
 //   ↓
 // Supabase から `session` を取得
 //   ↓
-// `session.access_token` を `token` として保存する
+// `session.access_token` を session から取り出す
 //   ↓
 // フロント側に ログイン情報・状態(`session`) と ログイン証明書(`token`) を返す
 //   ↓
@@ -150,76 +153,124 @@
 
 
 
+"use client";
+
 
 // Supabase をブラウザ側で使うための設定ファイルを読み込む
 import { supabase } from "@/lib/supabase/client";
 // Supabase が用意している Session という型を読み込む
 // Session は、ログイン中ユーザーの情報をまとめた型
 import type { Session } from "@supabase/supabase-js";
-// 現在のURLパスを取得するための Next.js のフック
-// - ページ移動した時にログイン状態を再確認するために必要
-import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export const useSupabaseSession = () => {
   // session に 3つの状態を持たせる
-  // - undefined: ログイン状態をSupabaseに確認中
-  // - null: 確認した結果、未ログイン
-  // - Session: 確認した結果、ログイン済み
+  // - undefined: ログイン状態をSupabaseに初回確認中
+  // - null: 確認した結果、未ログイン or 利用できる session がない or 初回確認に失敗
+  // - Session: 確認した結果、ログイン済み(session を 取得成功)
   const [session, setSession] = useState<Session | null | undefined>(undefined);
 
-  // token: API に送るためのログイン証明書のようなもの
-  // - ログイン中なら Supabase の access_token 文字列(string)
-  // - 未ログインなら null
-  const [token, setToken] = useState<string | null>(null);
-
-  // 現在のURLパスを取得
-  // - 例.
-  // /login ・ /mypage ・ /diagnosis/xxx/result など
-  const pathname = usePathname();
 
   // 画面表示後に実行する処理(ログイン状態を確認する処理)
   useEffect(() => {
-    const fetcher = async () => {
-      // Supabase に対して、「今ログイン中の session はありますか？」 と確認している
-      // - ログインしている場合 → session が返る
-      // - ログインしていない場合 → session は null になる
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
+    // この useEffect がまだ有効かどうかを管理する
+    // - useEffectの有効・無効 を表示
+    // - session の 有無やログイン状態を表す変数ではない
+    let isActive = true;
 
-      // Supabase側 で エラーの場合の処理(ログインしていない場合)
-      if (error) {
-        setSession(null);
-        setToken(null);
+    // 認証イベント(session 確認)をすでに行い受け取ったかどうかを管理
+    // - 通知を受信したかどうかを表示
+    // - ログアウト や nextSession が null になる通知 など を含む
+
+    // 例.
+    // 初回取得した session よりも 新規取得したsession がある場合の 新規session の状態管理
+    // - 新規session アリ = true
+    // - 新規session ナシ = false
+    let hasReceivedAuthEvent = false;
+
+    // 初回取得中の変更も受け取れるよう、先に監視を開始する
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      // このuseEffect がすでに終了している場合は、状態を更新しない
+
+      // 例.
+      // - 初回取得した session の状態で useEffect がすでに実行し、終了している場合、その 初回session を継続して使用するため
+      if (!isActive) {
         return;
       }
 
-      // session が存在し、取得できた場合 → session(ログイン情報) を state に保存
-      setSession(session);
-      // session があれば session の中から access_token(ログイン中ユーザーの証明) を取り出し state に保存
-      // access_token には Bearer が付いてないので、フロント側で fetch時に Bearer を付ける必要がある。
-      setToken(session?.access_token ?? null);
+      // 認証通知を受け取ったことを記録し、その session を反映する
+      // nextSession が null の場合、session がない状態へ更新する
+
+      // 例.
+      // 初回取得した session よりも 新規session を取得している場合、更新し、反映する
+      hasReceivedAuthEvent = true;
+      setSession(nextSession);
+    });
+
+
+    const fetchInitialSession = async () => {
+      try {
+        // Supabase に対して、「今ログイン中の session はありますか？」 と確認している
+        // - ログインしている場合 → session が返る
+        // - ログインしていない場合 → session は null になる
+        const { data, error } = await supabase.auth.getSession();
+
+        // 古くなったsession で上書きしない
+        // - 画面を離れた場合や、認証通知(新規session)をすでに受け取った場合は、初回取得session で現在の状態を上書きしない
+        if (!isActive || hasReceivedAuthEvent) {
+          return;
+        }
+
+        // Supabase側 で session 取得に失敗の場合の処理
+        // - 画面側では、利用できる session がない状態として扱う
+        // - session 取得失敗エラーは、必ず未ログインという意味ではない
+        if (error) {
+          setSession(null);
+          return;
+        }
+
+        // session が存在し、取得できた場合 → session(ログイン情報) を state に保存
+        setSession(data.session);
+      } catch {
+        if (!isActive || hasReceivedAuthEvent) {
+          return;
+        }
+
+        // 取得に失敗した場合 or 未ログイン も、確認中のままにしない
+        setSession(null);
+      }
     };
 
-    fetcher();
-  // pathname が変わる度にログイン状態を確認する処理を実行する
-  }, [pathname]);
+    void fetchInitialSession();
+
+    // 認証の監視を解除する
+    return () => {
+      // 遅れて返ってきた初回取得結果を反映しない
+      isActive = false;
+      // このフックが登録した認証の監視を解除する
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // このカスタムフックを使う側に以下を返す
 
-  // - session: ログイン状態
+  // session
+  // - ログイン状態
 
-  // - isLoading: 
-  // ログイン状態を確認中かどうか
+  // isLoading
+  // - ログイン状態を確認中かどうか
   // 最初は session が undefined なので、「isLoading: true」になる
   // Supabase から結果が返ってくると、session が null または Session になるので、「isLoading: false」になる
+
+  // token: session?.access_token ?? null,
+  // - session と token を別々のstateで管理しない
 
   // token: API に送るための token
   return {
     session,
     isLoading: session === undefined,
-    token,
+    token: session?.access_token ?? null,
   };
 };

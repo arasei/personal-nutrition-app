@@ -2,20 +2,19 @@
 
 
 // 全体の概要
-// - URL の diagnosisId と Supabase の token を使って、
-// 結果取得API(`web/app/api/diagnosis/[diagnosisId]/result/route.ts`) を呼び出し、
-// 診断結果を チャート と ランキング と 食品/行動提案 で表示するページ
-// - URLから diagnosisId を取得し、結果取得APIを呼んで、
-// 受け取った診断結果をチャートとランキング一覧で表示する
+// - URL の diagnosisId と ログイン中ユーザー の token を使って、
+// 診断結果取得API(`web/app/api/diagnosis/[diagnosisId]/result/route.ts`) を呼び出し、診断結果を取得する。
+// - 受け取った診断結果データ を チャート と ランキング と 食品/行動提案 で表示するページ
 
 
 
 
 // 認証・認可について
-// - Supabase session から access_token を取得し、
-// Authorization header に token を付けて結果取得APIを呼び出す。
+// - useSupabaseSession から isSessionLoading(認証状態) と token を取得し、
+// Authorization header に token を付けて Authorization: Bearer <token> として 診断結果取得API に渡し、診断結果取得API を呼び出す。
 // - API側では token から user.id を取得し、
 // diagnosisId がログイン中ユーザー本人の診断か確認する
+// - フロント側の取得条件チェックだけで、アクセスを許可するわけではない。
 
 
 
@@ -96,6 +95,28 @@
 
 
 
+// SWRのキーについて
+// - このページでは、URLだけでなく [URL, token] をキーにする。
+// - 同じURLでもtokenが異なる場合は、別のキーとして扱う。
+// - 認証確認中・tokenがない・diagnosisIdがない場合は、キーをnullにする。
+// - キーがnullの場合、新しい取得を開始しない。
+// - キーをnullにするだけでは、開始済みの通信を中止したことにはならない。
+
+
+// fetcherに渡る値について
+// - SWRはキーの配列 [URL, token] を、そのままfetcherへ渡す。
+// - fetcherでは [url, requestToken] として取り出す。
+// - urlをfetch先に使い、requestTokenをAuthorizationヘッダーへ設定する。
+// - キーに含まれるtokenと、APIへ送るtokenを一致させる。
+
+
+
+// キャッシュについて
+// - fetchのcache: "no-store"は、HTTPキャッシュを制御する。
+// - SWRのキャッシュは、SWRのキーと設定で別途管理する。
+// - keepPreviousData: falseで、変更前のキーのデータを引き継いで表示しない。
+// - AuthCacheSyncは、認証変更時に古いtokenの診断関連SWRデータを整理する。
+// - DBに保存された診断履歴は削除しない。
 
 
 
@@ -130,16 +151,18 @@
 // page.tsx が URL から diagnosisId を取得
 //   ↓
 // 認証
-// useSupabaseSession で token を取得し、ログイン確認
+// useSupabaseSession で token と isSessionLoading(認証確認中の状態) を取得し、ログイン確認
 //   ↓
-// token と diagnosisId が揃ったら SWR が動く
+// 指定した条件 (!isSessionLoading と token と diagnosisId) が揃った場合、[`/api/diagnosis/${diagnosisId}/result`, token] を元に 診断結果取得API を呼び出すための url を SWRキー(resultKey) として作成。
 //   ↓
-// useSWR(APIのURL,データ取得するための共通関数) として指定する。
-// 指定したデータの取得するための共通関数(fetcher) として作成。
+// useSWR(resultKey, fetcher) で データ取得
+// fetcher: 指定したデータの取得するための共通関数)
+// resultKey: 呼び出し条件を指定しているAPIのURL と token を組み合わせたSWRキー。
+// - 取得条件が揃わない場合は null
 //   ↓
-// const fetcher(共通関数) の中で、fetch(url) とすることで、
+// fetcher(共通関数) が [url, requestToken] を受け取り、 fetch(url) を実行し、
 // GET /api/diagnosis/[diagnosisId]/result を行う
-// API(`web/app/api/diagnosis/[diagnosisId]/result.route.ts`) を呼ぶ
+// API(`web/app/api/diagnosis/[diagnosisId]/result.route.ts`) を呼びだす。
 // API が毎回違うため、SWR を使用している
 //   ↓
 // `web/app/api/diagnosis/[diagnosisId]/result.route.ts`
@@ -260,25 +283,23 @@ export default function ResultPage() {
   // - SWR にも isLoading があるため、名前がぶつからないように useSupabaseSession の isLoading は isSessionLoading と名前を変える
   const { token, isLoading: isSessionLoading } = useSupabaseSession();
 
-  // SWR を使い、渡されたURLを使って診断結果API を呼びだす
+  // SWRのキー [URL, token] を受け取る 取得関数
+  // - SWRキーの token を requestToken として取り出し、その取得の認証に使用する。
   // - この関数の中で SWR で指定したURL(url) を fetch(url)を行い、取得し、API を呼び出し、結果を処理する
-  const fetcher = async (url: string): Promise<DiagnosisResultSuccessResponse> => {
-    // token が無い場合、未ログイン扱い
-    if (!token) {
-      throw new Error("ログインが必要です");
-    }
-
-    // 取得した token(access_token) に Bearer を付けて Authorization header に入れて API を呼び出す。
-    // - useSupabaseSession.ts が返している token は access_token だけなので、
+  const fetcher = async ([url, requestToken]: [string, string],): Promise<DiagnosisResultSuccessResponse> => {
+    // 取得した token(requestToken) に Bearer を付けて Authorization header に入れて API へ渡す。
+    // - useSupabaseSession.ts が返している token は access_token の文字列。
     // フロント側でAPIへ送る時は 「Bearer 」 を付ける必要がある
-    // - API側の getAuthenticatedUser.ts が期待している形は以下の状態のため
-    // Authorization: `Bearer ${token}`
+    // - fetcherでは、SWRキーから取り出した同じ値を requestToken として使用する。
+    // API側の getAuthenticatedUser.ts が期待している形は以下の状態のため
+    // Authorization: `Bearer ${requestToken}`
     const response = await fetch(url, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${requestToken}`,
       },
-      cache: "no-store", // 結果は毎回最新のものを見たいのでキャッシュしない
+      // HTTPキャッシュを使用しない。SWRのキャッシュは別途キーで使用し、管理している。
+      cache: "no-store",// 診断結果は毎回最新のものを表示する必要があるのでキャッシュしない
     });
 
     // API から返ってきたレスポンスをJSONとして取得
@@ -287,7 +308,6 @@ export default function ResultPage() {
     // HTTP処理がエラーの場合の処理
     if (!response.ok) {
       const errorData = responseData as ApiErrorResponse;
-
       throw new Error(errorData.message ?? "結果取得に失敗しました");
     }
 
@@ -300,21 +320,39 @@ export default function ResultPage() {
     return responseData;
   };
 
-  // session の読み込みが終わっている(ログイン確認)・token がある・diagnosisId(診断ID) がある
-  // この3つの条件が揃ったときだけAPIを呼び出す
-  const shouldFetch = !isSessionLoading && !!token && !!diagnosisId;
+  // SWR によって データ取得条件(session の読み込みが終わっている(ログイン確認)・token がある・diagnosisId(診断ID) がある かどうか) を管理する
+  // - 管理するために必要な SWRのキー(resultKey) を作成する際に token の存在確認 を行うことで データのキー と APIに送るtoken を一致させている
 
-  // token がまだ無い・diagnosisId がまだ無い・ログイン確認中 の時はAPIを呼び出さない
-  // - 条件が揃っているときだけAPI を呼び出す
-  // - SWR は 第1引数に null を渡すと API を呼び出さないので、shouldFetch が false のときは null を渡してAPI呼び出しを止める
+  // 指定したデータ取得条件が揃ったときだけ APIを呼び出すための SWRキー を作成し、API を呼び出す。
+
+  // この取得条件のチェックは、token の有効性を検証しているのではない。
+  // 期限切れ や 不正なtoken の判定 は API側で行う
+  // キー を null にしても、開始済みの通信を自動的い取り消したことにはならない
+  const resultKey: [string, string] | null = !isSessionLoading && token && diagnosisId ? [`/api/diagnosis/${diagnosisId}/result`, token] : null;
+
+
+  // 指定したデータ取得条件が false の場合、resultKey を null にして、APIを呼び出しを開始しない。
+  // - 指定した条件が揃っているときだけSWR の fetcher 実行することで resultKey を元に fetchし API を呼び出す
+  // - SWR は 第1引数に null を渡すと API を呼び出さないので、resultKey の条件 が false のときは resultKey が null となる。
+  // useSWR に null を を渡してデータ取得 と API呼び出し を 中止する。
   const {
     data,
     error,
     isLoading,
-  } = useSWR(
-    shouldFetch ? `/api/diagnosis/${diagnosisId}/result` : null,
-    fetcher
-  );
+  } = useSWR(resultKey, fetcher, {
+    // 認証や診断ID が変わった時、前のキーのデータを表示しない
+    // - キー変更後に、変更前のキーのデータを引き継いで表示しない
+    keepPreviousData: false,
+
+    // この画面では取得失敗時に自動でもう一度、今回の診断結果取得を行わない。
+    // - エラーを優先して表示するため
+    // - 通信を復旧した(診断結果ページを一度離れた後、もう一度診断結果ページにアクセスした)場合は、再読み込みで確認を行う。
+
+    // shouldRetryOnError: false
+    // - 取得エラー後の自動リトライ取得を無効にする。
+    // 今回の診断結果を表示しない状態にするために必要
+    shouldRetryOnError: false,
+  });
 
 
   // session 確認後、token が無ければ(未ログイン)ログインページへ遷移する
