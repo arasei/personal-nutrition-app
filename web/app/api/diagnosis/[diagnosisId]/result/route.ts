@@ -3,9 +3,10 @@
 
 
 // 全体の概要
-// - 画面に見せるための結果データを作るAPI
-// - ログイン中ユーザー本人の完了済み診断情報だけをDBから取得し、保存済みscores から栄養素ランキングと前回との差分を作ってJSONで返すAPI
-// - 「この診断IDの結果を見せて」と言われた時に、本当にその人の結果か確認して、本人のものなら集計して返す仕組み
+// - 診断結果画面に表示するための結果データを計算し作成した結果を返すAPI
+// - 認証済みユーザー本人の完了済み診断情報だけをDBから取得し、今回診断スコア を元に 各栄養素ランキング(ranking)を作成し、
+// 前回診断スコアが存在すれば取得し、今回と前回との差分を作ってJSONで呼び出し元に返すAPI
+// - 「この診断IDの結果を見る」とユーザーが選択した時に、本当にその人の結果か確認して、本人のものなら集計して返す仕組み
 
 
 
@@ -21,6 +22,11 @@
 
 
 // ポイント
+// - 今回の各栄養素ランキング・ヒントはゲストと通常ユーザーに提供する
+// - 前回診断の取得・差分作成は通常ユーザーの場合だけ行う
+// - ゲストには canCompare: false、diffRanking: null を返す
+// - ユーザー種別が確認できない場合は403を返す
+
 // - 保存済みの栄養素スコアを取得し、ランキングと前回との差分を作成する
 // - previousScoreMap は 前回診断のスコアを入れておく箱
 // - ranking は 今回診断の栄養素スコアランキング
@@ -108,6 +114,7 @@ import { prisma } from "@/lib/prisma";
 import type {
   DiagnosisResultResponse,
   ResultRecommendation,
+  ResultComparison,
 } from "@/types/diagnosisApi";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 // 差分計算用の共通関数
@@ -151,7 +158,32 @@ export async function GET(request: Request, { params }: Props) {
     // ここまで来た場合、ログイン中ユーザーであることが確定する
     // 以降、 user.id を使用可能
     const user = authResult.user;
-    // ----------------------------------------------------------------------------------------------
+
+
+    // ----------------------------------ユーザー種別を判定-------------------------------------------
+
+    // 検証済みユーザー情報から種別を判定する
+    const isMember = user.is_anonymous === false;
+    const isGuest = user.is_anonymous === true;
+
+    // ユーザー種別を確認できない場合は、結果を返さない
+    // - ユーザー種別が不明な状態を 通常ユーザー や ゲスト として扱わない
+
+    // - 認証できない：既存の 401。
+    // - 通常ユーザー：結果取得を続け、比較も許可。
+    // - ゲスト：結果取得を続けるが、比較は禁止。
+    // - 種別不明：403。
+    if (!isMember && !isGuest) {
+      const responseBody: DiagnosisResultResponse = {
+        success: false,
+        message: "ユーザー種別を確認できません。",
+      };
+
+      return NextResponse.json(responseBody, { status: 403 });
+    }
+
+
+    // ----------------------------------------URL の diagnosisId([diagnosisId]) を確認・取得 ------------------------------------------------------
 
     // URL の [diagnosisId] にある diagnosisId(診断ID) を取得・確認
     const { diagnosisId } = await params;
@@ -233,7 +265,7 @@ export async function GET(request: Request, { params }: Props) {
       return NextResponse.json(responseBody, { status: 404 });
     }
 
-    // 今回の診断の 栄養素scoreランキング を作成
+    // 今回診断の 各栄養素scoreランキング を作成
     // - 点数の低い順に不足順ランキングとして並べて表示する
     // - 「score が低い = 不足しやすい傾向が高い」と判断するため
     // scores はDB取得時にscore 昇順、同点の場合は nutrientId 昇順で並べかえて取得しているので .map で表示するだけ
@@ -244,75 +276,108 @@ export async function GET(request: Request, { params }: Props) {
         score: item.score,
       }));
 
-    // 今回の 診断scores より前の 診断scores を1件取得(今回の診断と同じユーザーID(currentDiagnosis.userId)を持つ診断に限定する)
-    // - 前回との差分を出すため
-    // - { lt: currentDiagnosis.createdAt,} で 今回の診断より前の日付を指定
-    // - orderBy: 今回より前の診断の中で1番新しい順で並べる(前回診断を1件だけ取るため)
-    // - { scores: true } で前回診断のスコアも取得
-    const previousDiagnosis = await prisma.diagnosis.findFirst({
-      where: {
-        userId: currentDiagnosis.userId,
-        status: "COMPLETED",
-        createdAt: {
-          lt: currentDiagnosis.createdAt,
+
+
+    // 初期状態では比較データを提供しない
+    // - ゲストの場合は、この状態のまま返す
+    let comparison: ResultComparison = {
+      canCompare: false,
+      diffRanking: null,
+    };
+
+    // 通常ユーザー(isMember)の場合だけ、前回診断の取得と差分作成を行う
+    // - ゲストでは比較データを返さないだけでなく、比較用の取得・計算自体を実行しない構造にする
+    if (isMember) {
+      // 前回診断の取得
+      // - 本人(同じuserId を持つ)の、今回より前回の作成日時の完了済み診断を1件取得する
+      // - 今回と前回との差分を計算するため
+      // - 今回の診断スコア(scores) より 前回の診断スコア(scores) を 1件取得
+      const previousDiagnosis = await prisma.diagnosis.findFirst({
+        where: {
+          // - 今回の診断と同じuserId を持つ診断に限定
+          userId: currentDiagnosis.userId,
+          status: "COMPLETED",
+          // 今回の診断作成日時より前回作成日時の診断に限定
+          createdAt: {
+            lt: currentDiagnosis.createdAt,
+          },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      include: { scores: true },
-    });
 
-    // 前回スコアマップ
-    // - 前回スコアを nutrientId ごとに取り出しやすくする
+        // - where内で取得条件を指定し、取得した診断を `orderBy:...` で作成日時の新しい順に並べる
+        orderBy: { createdAt: "desc" },
+        // 今回スコアと 前回スコア の差分計算に必要な 前回スコア(scores) のみを `include: ...` で限定して取得
+        include: {scores: true },
+      });
 
-    // 差分計算用の箱(前回の栄養素スコアを入れておくための箱)
-    // - key: nutrientId
-    // - value: 前回のscore
-    const previousScoreMap: Record<string, number> = {};
+      // 前回スコアマップ作成
+      // - 取得した前回スコア(scores)から 栄養素IDごとのscore ごとに入れておくための箱を用意
+      // - 差分計算するために必要
+      // - 各栄養素ID(nutrientId)をキーに前回の各栄養素スコアを保存する
+      // - key(string): nutrientId
+      // - value(number): 前回のscore
+      const previousScoreMap: Record<string, number> = {};
 
-    // 前回診断のスコア(scores)がある場合、previousScoreMapに前回のスコア(score)を入れる
-    // - 初回診断の場合、前回診断データが無いため、previousDiagnosisはnullの可能性がある
-    // - previousScoreMap[item.nutrientId] = item.score は 栄養素ID(nutrientId)をキーに前回スコアを保存するための箱
-    if (previousDiagnosis) {
-      for (const item of previousDiagnosis.scores) {
-        previousScoreMap[item.nutrientId] = item.score;
+      // - 前回診断のスコア(previousDiagnosis.scores) がある場合、
+      // 前回診断のスコア から 栄養素IDごとのスコア(score) を取り出し、
+      // 各栄養素ID ごとに対応した スコアマップ(previousScoreMap) を作成する
+
+      // - 初回診断の場合、前回診断データが無いため、previousDiagnosis は nullの可能性がある
+      if (previousDiagnosis) {
+        for (const item of previousDiagnosis.scores) {
+          previousScoreMap[item.nutrientId] = item.score;
+        }
       }
+
+      // 今回診断スコア と 前回診断スコア の差分付きランキング を作成
+      // - ユーザー種別が通常ユーザー(isMember)のみ表示する
+      // - 共通関数 buildScoreDifference を呼び出し、作成した
+
+      // - 診断結果ページで以下のように表示するために、diffRanking を作成。
+      //「+〇〇 改善」
+      //「-〇〇 低下」
+      //「0 変化なし」
+      //「前回データなし」
+
+      // ranking
+      // - 今回診断スコア の 各栄養素のスコアが低い順に並べ替え作成したランキング
+      const diffRanking = ranking.map((item) => {
+        // 同じ栄養素ID の前回スコアを取得
+        // - 今回診断のランキング(ranking) で扱う各栄養素 と 同じ栄養素ID を持つ前回診断スコア に対応する表 を作成
+        // - 栄養素ごとに、今回スコア(item.score) と 同じ栄養素ID(nutrientId)を持つ、
+        // 前回スコア(previous.score) を 栄養素IDをもとに前回診断から取得する
+        const previousScore = previousScoreMap[item.nutrientId];
+
+        // 今回スコア(item.score) と 前回スコア(previousScore) を `web/lib/diagnosis/buildScoreDifference.ts`(差分計算専用の共通関数) に渡し、
+        // 今回スコア - 前回スコア の差分計算を行った結果を受け取る
+        // - `web/lib/diagnosis/buildScoreDifference.ts`(差分計算の共通関数) に必要な値(diff,hasPrevious,diffLabel,)を渡し、計算し、
+        // 返ってきた差分情報をフロントに渡す
+        const {
+          diff,
+          hasPrevious,
+          diffLabel,
+        } = buildScoreDifference(item.score, previousScore)
+
+        // 今回診断の栄養素ごとのランキングデータ(前回診断スコアとの差分付き)として 呼び出し元(`web/app/diagnosis/[diagnosisId]/result/page.tsx`)に返す
+        return {
+          nutrientId: item.nutrientId,
+          nutrient: item.nutrient,
+          score: item.score,
+          diff,
+          hasPrevious,
+          diffLabel,
+        };
+      });
+
+      comparison = {
+        canCompare: true,
+        diffRanking,
+      };
     }
 
-    // 今回スコアと前回スコアの差分を作成
-    // - 今回診断のscores(各栄養素ごとのスコアランキング)に対して 前回診断のscores との差分を計算し追加
-    // - 診断結果ページで以下のように表示するために、diffRanking を作成。
-    //「+〇〇 改善」
-    //「-〇〇 低下」
-    //「0 変化なし」
-    //「前回データなし」
-    const diffRanking = ranking.map((item) => {
-      // 同じ栄養素ID の前回スコアを取得
-      // - 栄養素ごとに、今回スコア(item.score) と 同じ栄養素ID(nutrientId)を持つ、
-      // 前回スコア(previous.score) を 栄養素IDをもとに前回診断から取得する
-      const previousScore = previousScoreMap[item.nutrientId];
-
-      // 今回スコア(item.score) と 前回スコア(previousScore) を `web/lib/diagnosis/buildScoreDifference.ts`(差分計算専用の共通関数) に渡し、今回スコア - 前回スコア の差分計算を行った結果を受け取る
-      // - `web/lib/diagnosis/buildScoreDifference.ts`(差分計算の共通関数) に必要な値(diff,hasPrevious,diffLabel,)を渡し、計算し、
-      // 返ってきた差分情報をフロントに渡す
-      const {
-        diff,
-        hasPrevious,
-        diffLabel,
-      } = buildScoreDifference(item.score, previousScore);
 
 
-      // 今回診断の栄養素ごとのランキングデータ(前回診断スコアとの差分付き)として `web/app/diagnosis/[diagnosisId]/result/page.tsx` に返す
-      return {
-        nutrientId: item.nutrientId,
-        nutrient: item.nutrient,
-        score: item.score,
-        diff,
-        hasPrevious,
-        diffLabel,
-      };
-    });
 
-    // score が低い順(不足しやすい傾向が高い順)に並べ替え作成した ranking を元に提案対象を取り出す
+    // 各栄養素スコア(score) が低い順(不足しやすい傾向が高い順)に並べ替え作成した ranking を元に提案対象を取り出す
     // - 提案する対象を決める
     const recommendationTargets = ranking
       // 50点未満(49~0)
@@ -496,11 +561,12 @@ export async function GET(request: Request, { params }: Props) {
         };
       });
     }
+    // ...comparison によって、判定結果に応じた canCompare と diffRanking が入る。
     const responseBody: DiagnosisResultResponse = {
       success: true,
       ranking,
-      diffRanking,
       recommendations,
+      ...comparison,
     };
 
     return NextResponse.json(responseBody, { status: 200 });

@@ -492,8 +492,11 @@ export default function ResultPage() {
             不足傾向の栄養素ランキング
           </h2>
 
+          {/* ランキング本体：data.ranking から表示する。 */}
+          {/* 前回との差：比較権限(canCompare)がある場合だけ、data.diffRanking から表示する。 */}
           <p className="mt-2 text-sm leading-6 text-muted">
-            不足傾向が高い順に表示しています。現在のスコアと前回との差を比較して確認できます。
+            不足傾向が高い順に表示しています。
+            {data.canCompare ? "現在のスコアと前回との差を比較して確認できます。" : "前回との比較は通常アカウントで利用できます。"}
           </p>
         </div>
 
@@ -509,48 +512,57 @@ export default function ResultPage() {
         */}
         <div className="mt-4 space-y-3">
           {/* 前回との差分付きランキング */}
-          {/* diffRanking の配列を1件ずつ取り出して表示 */}
-          {data.diffRanking.map((item, index) => (
-            <article
-              key={item.nutrientId}
-              className="rounded-xl border border-border bg-surface p-4 shadow-sm sm:p-6"
-            >
+          {/* ユーザー種別が ゲスト・通常ユーザー共通で表示する */}
+          {/* ranking の配列を1件ずつ取り出して表示 */}
+          {data.ranking.map((item, index) => {
+            // 比較権限(canCompare)がある場合だけ、同じ栄養素の差分を取り出す
+            const difference = data.canCompare ? data.diffRanking.find((diffItem) => diffItem.nutrientId === item.nutrientId,) : undefined;
 
-              <div className="flex items-start justify-between gap-4">
+            return (
+              <article
+                key={item.nutrientId}
+                className="rounded-xl border border-border bg-surface p-4 shadow-sm sm:p-6"
+              >
 
-                <div>
-                  <p className="text-sm font-semibold text-primary">
-                    {/* index は 0から始まるので 「+ 1」をする */}
-                    {index + 1}位
+                <div className="flex items-start justify-between gap-4">
+
+                  <div>
+                    <p className="text-sm font-semibold text-primary">
+                      {/* index は 0から始まるので 「+ 1」をする */}
+                      {index + 1}位
+                    </p>
+
+                    <h3 className="text-lg font-bold text-foreground">
+                      {item.nutrient}
+                    </h3>
+                  </div>
+
+                  <p className="shrink-0 font-bold text-foreground">
+                    {item.score}点
                   </p>
-
-                  <h3 className="text-lg font-bold text-foreground">
-                    {item.nutrient}
-                  </h3>
                 </div>
 
-                <p className="shrink-0 font-bold text-foreground">
-                  {item.score}点
-                </p>
-              </div>
-
-              {/*
-                API側(web/app/api/diagnosis/[diagnosisId]/result/route.ts) で
-                計算した今回スコア と 前回スコアとの 差分(diff) に対応する差分表示文(diffLabel) を受け取り、
-                表示する。
-              */}
-              {/*
-                表示例.
-                (+50 改善)
-                (-50 低下)
-                (0 変化なし)
-                (前回データなし)
-              */}
-              <p className="mt-2 text-sm text-muted">
-                前回との差：{item.diffLabel}
-              </p>
-            </article>
-          ))}
+                {/*
+                  API側(web/app/api/diagnosis/[diagnosisId]/result/route.ts) で
+                  計算した今回スコア と 前回スコアとの 差分(diff) に対応する差分表示文(diffLabel) を受け取り、
+                  表示する。
+                */}
+                {/*
+                  表示例.
+                  (+50 改善)
+                  (-50 低下)
+                  (0 変化なし)
+                  (前回データなし)
+                */}
+                {/* 通常ユーザーの比較情報がある場合だけ表示する */}
+                {data.canCompare && difference && (
+                  <p className="mt-2 text-sm text-muted">
+                    前回との差：{difference.diffLabel}
+                  </p>
+                )}
+              </article>
+            );
+          })}
         </div>
       </section>
 
