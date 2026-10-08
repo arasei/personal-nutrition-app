@@ -9,6 +9,12 @@
 
 
 // ポイント
+
+// - 履歴機能は通常ユーザー限定。
+// - 認証後、通常ユーザーと確認できない場合は403を返す。
+// - ユーザー種別の判定は、DB検索より前に行う。
+// - 通常ユーザーでも、取得対象は本人の完了済み診断に限定する。
+
 // - lowNutrients = 不足傾向が高い順の上位3栄養素
 // - scores: 各診断の栄養素スコア
 // scores: {
@@ -177,10 +183,11 @@ export async function GET(request: Request) {
   try {
     // ----------------------------------認証チェック-----------------------------------------------
 
-    // 共通の認証処理を呼び出し、実行
+    // 共通の認証処理で、token を検証したユーザーを取得する
     const authResult = await getAuthenticatedUser(request);
 
     // ログインしていない・token が不正・token が期限切れ の場合の処理
+    // - 認証できない場合は、履歴を取得しない
     if (authResult.error) {
       const responseBody: GetDiagnosisHistoryResponse = {
         success: false,
@@ -190,10 +197,27 @@ export async function GET(request: Request) {
       return NextResponse.json(responseBody, { status: 401 });
     }
 
-    // ここまで来た場合、ログイン中ユーザーであることが確定する
-    // 以降、 user.id を使用可能
+    // 認証済みユーザー
+    // - ここまで来た場合、ログイン中ユーザーであることが確定する
+    // - 以降、 user.id を使用可能
+    // - この時点では、通常ユーザー or ゲスト の判定はしていない
     const user = authResult.user;
-    // -------------------------------------------------------------------------------------------
+
+
+    // ----------------------------------通常ユーザー or ゲスト・ユーザー種別不明 の判定-------------------------------------------
+
+    // 履歴一覧は、通常ユーザーと確認できた場合だけ許可する
+    // - ゲスト または ユーザー種別が不明な場合は、DB検索前に拒否する
+    // 本人の診断ID を指定していても、ゲストには履歴一覧データを返さない
+    if (user.is_anonymous !== false) {
+      const responseBody: GetDiagnosisHistoryResponse = {
+        success: false,
+        message: "診断履歴は通常アカウントでログインすると利用できます。",
+      };
+
+      return NextResponse.json(responseBody, { status:403 });
+    }
+    // ----------------------------------------------------------------------------------------------
 
 
 

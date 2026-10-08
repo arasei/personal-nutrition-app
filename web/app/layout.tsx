@@ -12,6 +12,7 @@ import type { Metadata } from "next";
 // Next.js のフォント機能を読み込む
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import AuthCacheSync from "@/components/auth/AuthCacheSync";
 
 // Geist というフォント
 const geistSans = Geist({
@@ -57,6 +58,8 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        {/* 認証変更時のキャッシュ整理 */}
+        <AuthCacheSync />
         {children}
       </body>
     </html>
