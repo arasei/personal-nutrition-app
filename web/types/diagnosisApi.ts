@@ -471,11 +471,31 @@ export type ResultRecommendation = {
 
 
 // =============================================================================
+// 診断結果APIから返ってくる 比較機能の利用可否 の型 を定義
+// =============================================================================
+// canCompare(比較権限) を
+// 通常ユーザー の場合、true とし 比較機能を使用可能にする
+// ゲスト の場合、false とし 比較機能を無効とする
+export type ResultComparison =
+  | {
+      canCompare: true;
+      diffRanking: ResultDiffRankingItem[];
+    }
+  | {
+      canCompare: false;
+      diffRanking: null;
+    };
+// =============================================================================
 // 診断結果APIから返ってくる全体のレスポンスの型を定義
 // =============================================================================
 
-// - 成功したら必ず success: true と ranking と diffRanking がある
-// - 失敗時は success: false と message が入る
+// - 成功時は success: true と ranking と recommendation と ResultComparison を返す
+// 通常ユーザー の場合、diffRanking に 配列 がある状態
+// ゲスト の場合、diffRanking に null がある状態
+// - 失敗時は success: false と message を返す
+
+// - ranking と recommendations は ゲスト・通常ユーザー共通
+// - 比較情報は ResultComparison で区別する
 
 
 // ranking: ResultRankingItem[];
@@ -500,12 +520,11 @@ export type ResultRecommendation = {
 
 
 export type DiagnosisResultResponse =
-  | {
+  | ({
       success: true;
       ranking: ResultRankingItem[];
-      diffRanking: ResultDiffRankingItem[];
       recommendations: ResultRecommendation[];
-    }
+    } & ResultComparison)
   | ApiErrorResponse;
 
 
