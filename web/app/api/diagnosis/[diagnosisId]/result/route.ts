@@ -203,9 +203,19 @@ export async function GET(request: Request, { params }: Props) {
     // - 「ログイン中ユーザー本人の完了済み診断」に限定してDBから取得
     // scores は DB取得時に score昇順、同点の場合はnutrientId昇順で並べかえて取得
     // - URL の diagnosisId が存在するが、でもログイン中ユーザー本人の診断ではないという場合、取得できない状態
+
+    // - 通常ユーザーの場合、以下の条件で診断結果を取得する
+    // 指定した診断ID・本人の診断・完了済み診断
+
+    // - ゲストの場合、以下の条件で診断結果を取得する
+    // 指定した診断ID・本人の診断・完了済み診断・Userに保存された今回の診断IDと一致
+    // - ゲストが古い診断IDを指定すると条件に一致せず、currentDiagnosis は取得できない
+
+
+
     // - where: {...}で今回の診断ID(diagnosisId)・ログイン中ユーザー本人の情報(user.id)・完了済み診断("COMPLETED")だけを指定
     // - select: {...}で結果画面に必要な項目だけ指定して取得
-    // - id: 今回の診断ID
+    // - id: 指定した今回の診断ID
     // - userId: ログイン中ユーザー情報(前回診断取得に使う)
     // - status: 完了済み診断だけ対象
     // - createdAt: 診断日時(前回診断を探す基準に使う)
@@ -215,6 +225,16 @@ export async function GET(request: Request, { params }: Props) {
         id: diagnosisId,
         userId: user.id,
         status: "COMPLETED",
+
+        // ゲストの場合だけ、今回の診断IDとの一致も要求する
+
+        // user: { is: ... }
+        // - 診断に関連するUserの条件 で絞り込むための指定
+        ...(isGuest ? {
+          user: {
+            is: { currentGuestDiagnosisId: diagnosisId },
+          },
+        } : {}),
       },
       select: {
         id: true,

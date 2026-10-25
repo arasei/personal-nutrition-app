@@ -86,6 +86,7 @@ enum CauseType {
 // =============================================================================
 
 // 役割
+// - ユーザー と 診断 を関連づける
 // - Supabase Authと紐づく「認証ユーザーの受け皿」(ログイン主体)
 
 // ポイント
@@ -94,16 +95,28 @@ enum CauseType {
 
 
 // id String @id
-// - ユーザーの主キー（Supabase Auth の user.id を使う想定）。
+// - ユーザーの主キー（Supabase Auth の user.id を使う想定）
+
 // diagnoses Diagnosis[]
-// - 1ユーザーが複数回診断できる関係（履歴の根拠）。
+// - 1ユーザーが複数回診断できる関係（履歴の根拠）
+
+// currentGuestDiagnosisId   String?
+// - ゲストが結果を閲覧できる、今回の診断ID
+// - 通常ユーザーの結果取得では使用しない
+
+// - 新しいゲストがまだ診断を始めていない: null
+// - ゲストの診断作成成功後: 作成された診断ID
+// - 既存の通常ユーザー: null のままで問題なし
+
 // User1人
 // - Diagnosis 複数
 
 
+
 model User {
-  id        String      @id
-  diagnoses Diagnosis[]
+  id                           String      @id
+  diagnoses                    Diagnosis[]
+  currentGuestDiagnosisId      String?
 }
 
 // =============================================================================
