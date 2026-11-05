@@ -2,6 +2,7 @@
 
 
 // 【全体の概要】
+// # 診断開始ページ
 // # 診断開始画面の案内と操作を、現在の認証状態に応じて切り替える。
 // # 未ログイン時はゲスト認証の入口を表示し、認証後は 既存のStartButton で診断を開始できるようにする
 
@@ -32,10 +33,18 @@
 // - getSession() の完了前にアンマウントされた場合、その後の匿名(ゲスト)認証開始へ進まない。
 // - 匿名(ゲスト)認証の完了後にアンマウント済みの場合、画面の状態を更新しない。
 // - 診断作成は、このファイルではなく `StartButton.tsx` が担当する
+// # GuestExitPanel は authStatus === "guest" の条件分岐の内側に置かない。
+// - サインアウト(ログアウト) すると、認証状態がゲストから未ログインへ変わる。
+// - 条件分岐の内側に置くと、終了処理の途中でコンポーネントが取り外され、成功後の画面遷移まで進めない可能性があるため
+// # 現在の構成では終了用コンポーネントを維持しながら、終了処理中の診断開始操作を隠す。
 
 
-
-// 【】
+// 【現在の構成】
+// DiagnosisStartActions
+// ├─ DiagnosisStartContent
+// │  └─ これまで作った認証状態別の表示
+// └─ GuestExitPanel
+//    └─ ゲスト終了の操作
 
 
 
@@ -49,10 +58,28 @@ import Button from "@/components/ui/Button";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import LinkButton from "@/components/ui/LinkButton";
 import StartButton from "./StartButton";
+import GuestExitPanel from "@/components/auth/GuestExitPanel";
+
+// # 認証状態を見て、表示する案内・ボタンを選ぶコンポーネント
+export default function DiagnosisStartActions() {
+
+  // # 診断開始画面にサインアウト(ログアウト)ボタン(GuestExitPanel.tsx)を組み込み、呼び出す
+  // - GuestExitPanel が onBusyChange(true) を呼ぶと、親の isExitingGuest が true になり、診断開始部分が取り外される。
+  // 終了パネル自体は残るため、サインアウトによって認証状態が変わっても、終了確認と画面遷移を続けられる。
+  const [isExitingGuest, setIsExitingGuest] = useState(false);
+
+  return (
+    <div className="space-y-6">
+      {!isExitingGuest && <DiagnosisStartContent />}
+
+      <GuestExitPanel onBusyChange={setIsExitingGuest} />
+    </div>
+  )
+}
 
 
 // 認証状態に応じて、診断開始画面の操作・表示案内 を切り替える(診断開始ボタン or ゲストで試すボタンを表示する)コンポーネント
-export default function DiagnosisStartActions() {
+function DiagnosisStartContent() {
   // 認証状態を取得
   const { authStatus, errorMessage } = useSupabaseSession();
 
@@ -71,7 +98,7 @@ export default function DiagnosisStartActions() {
   if (authStatus === "error") {
     return (
       <div className="space-y-3">
-        {/* 認証状態 の画面表示名 を ユーザー情報 とする */}
+        {/* 認証情報の取得エラー表示 */}
         <ErrorMessage>
           {errorMessage ?? "ユーザー情報の取得に失敗しました"}
         </ErrorMessage>
@@ -160,7 +187,7 @@ function GuestStartButton() {
     isMountedRef.current = true;
 
     return () => {
-      // # アンマウントされた場合、処理を止める
+      // # アンマウント後の処理(状態更新・匿名(ゲスト)認証の開始)が、この ref を確認して中止できるようにする。
       isMountedRef.current = false;
     };
   }, []);
@@ -228,7 +255,7 @@ function GuestStartButton() {
       // # 以下の条件を満たした場合、処理中止
       // - error : Supabase からエラーが返った
       // - !data.session?.access_token : session or token が無い
-      // - data.session.user.is_snonymous !== true : 匿名(ゲスト)ユーザーであることを確認できない
+      // - data.session.user.is_anonymous !== true : 匿名(ゲスト)ユーザーであることを確認できない
       if (error || !data.session?.access_token || data.session.user.is_anonymous !== true) {
         setErrorMessage(
           "ゲスト利用を開始できませんでした。時間をおいて再度お試しください。",
