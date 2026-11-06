@@ -19,6 +19,7 @@
 // - ログイン済みならマイページメニューを表示する
 // - 診断開始ボタンを表示する
 // - 履歴一覧へのリンクを表示する 
+// - ログアウト処理を実行し、成功後にトップページへ遷移する
 
 
 
@@ -54,68 +55,126 @@
 "use client";
 
 import StartButton from "@/app/diagnosis/start/StartButton";
-import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import LinkButton from "@/components/ui/LinkButton";
 import { PageLoading } from "@/components/ui/PageLoading";
-import ErrorMessage from "@/components/ui/ErrorMessage";
 import Card from "@/components/ui/Card";
+import { useSupabaseSession } from "../_hooks/useSupabaseSession";
+import { useEffect, useRef, useState } from "react";
+import Button from "@/components/ui/Button";
+import ErrorMessage from "@/components/ui/ErrorMessage";
+import { supabase } from "@/lib/supabase/client";
 
 export default function Mypage() {
   const router = useRouter();
 
-  // ログイン状態を確認中かどうかを管理
-  // - 最初はまだ確認前なので true とする
-  const [isCheckingLogin, setIsCheckingLogin] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
+  // ログイン状態をuseSupabaseSession から取得
+  const {
+    token,
+    isLoading: isSessionLoading,
+  } = useSupabaseSession();
+
+  // 画面を処理中表示に切り替えるためのstate
+  // - true の間は、マイページ内の本文・ボタンを無効ではなく ボタンを含む本文を処理中表示(PageLoading) を表示する
+  // - ログアウト処理開始後に新たに「診断を始める」「履歴を見る」を押すことも防ぐ。
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // ログアウト失敗時の表示
+  const [logoutError, setLogoutError] = useState("");
+
+  // 処理の連続実行 と リダイレクトの競合 を防ぐためのフラグ
+  // - すでに開始済みの通信を取り消す処理ではない。
+  const logoutInProgressRef = useRef(false);
+
+  // ページを離れた後に、状態更新や画面遷移 を防ぐためのフラグ
+  // - ログアウト通信中にユーザーが別ページへ移動した場合、遅れて完了した処理で再びトップへ移動させないようにする。
+  // - 画面側の後続処理を止める仕組み。すでに送信したログアウト自体をキャンセルするものではない。
+  const isMountedRef = useRef(false);
 
   useEffect(() => {
-    // ログイン確認処理をを行う関数
-    const checkLogin = async () => {
-      try {
-        // supabase から 現在のログイン session を取得
-        const result = await supabase.auth.getSession();
-        // 取得結果から現在のログイン session を取得
-        const session = result.data.session;
-        // session の中から access_token を取り出す
-        // - 「?.」があるので、session token が無い場合でもエラーにならない
-        const token = session?.access_token;
+    isMountedRef.current = true;
 
-        // token が無い場合、未ログインと判断し、ログインページへ遷移する
-        if (!token) {
-          setErrorMessage("ログインが必要です");
-          router.replace("/login");
-          return;
-        }
-      // ログイン確認中に予期しないエラーが起きた場合の処理
-      } catch (error) {
-        console.error("ログイン状態の確認に失敗しました:", error);
-        setErrorMessage("ログイン状態の確認に失敗しました。時間をおいて再度お試しください。");
-      // 成功しても失敗しても、確認処理が終わったら読み込み中を解除する
-      } finally {
-        setIsCheckingLogin(false);
-      }
+    return () => {
+      isMountedRef.current = false;
     };
+  }, []);
 
-    checkLogin();
-  }, [router]);
 
-  // ログイン確認中のローディング表示
-  // - ログイン確認中はマイページ本体を表示しない
-  if (isCheckingLogin) {
+  // 認証確認が終わり、利用できるトークンがない場合は、ログインページ(/login)へ遷移する
+  // - 通常の未ログイン時はログインページ(/login)へ遷移する
+  // - マイページ(/mypage)でログアウト処理中の場合は、通常　の未ログインリダイレクト処理を止める
+  // - ログアウト成功後のトップページ(/)への遷移は、handleLogout で行う
+  useEffect(() => {
+    if (isSessionLoading || isLoggingOut || logoutInProgressRef.current) {
+      return;
+    }
+
+    if (!token) {
+      router.replace("/login");
+    }
+  }, [isSessionLoading, isLoggingOut, token, router]);
+
+
+  const handleLogout = async () => {
+    // 連打や認証情報がない状態での実行を防ぐ
+    if (logoutInProgressRef.current || isSessionLoading || !token) {
+      return;
+    }
+
+    logoutInProgressRef.current = true;
+    setIsLoggingOut(true);
+    setLogoutError("");
+
+    try {
+      // 現在の session をログアウトする
+      // - アカウント や 診断データの削除は行わない。
+      const { error } = await supabase.auth.signOut({
+        scope: "local",
+      });
+
+      // ログアウト処理(signOut)失敗として Supabase から error が返された場合、例外として投げて catch で扱う
+      if (error) {
+        throw error;
+      }
+
+      // 通信中にページを離れていた場合は、遷移しない
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      // ログアウト処理(signOut)成功時は処理中状態を維持してトップページ(/)へ遷移する
+      // - ここで解除すると、/login への遷移と競合する可能性があるため
+      router.replace("/");
+    // ログアウト失敗時はトップページへ遷移せず、処理中状態を解除する
+    // - Supabaseから返された error と、例外として発生した失敗を catch で扱う。
+    // - ただし、その時点ですでに session がなくなっていれば、共通フックの状態に従って /login へ移動します。
+    } catch {
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      setLogoutError("ログアウトに失敗しました。時間をおいて再度お試しください。");
+
+      // 失敗時だけ解除し、session が残っていれば再試行できようにする
+      logoutInProgressRef.current = false;
+      setIsLoggingOut(false);
+    }
+  };
+
+  // 初回のログイン確認中のローディング表示
+  // - session 確認中はマイページ本体を表示しない
+  if (isSessionLoading) {
     return <PageLoading />;
   }
 
-  // ログイン確認失敗の場合のエラーメッセージ表示
-  if (errorMessage) {
-    return (
-      <main className="mx-auto w-full max-w-md px-4 py-8 sm:px-6 sm:py-10">
-        <ErrorMessage>
-          {errorMessage}
-        </ErrorMessage>
-      </main>
-    );
+  // ログアウト処理開始後は、token がなくなる前から本文を隠して追加操作(連打など)を防ぐ
+  if (isLoggingOut) {
+    return <PageLoading />;
+  }
+
+  // ページ遷移が完了するまでの間も、本文を表示しない
+  if (!token) {
+    return <PageLoading />;
   }
 
   // マイページ の 内容を表示する箱の幅 を ログイン・新規登録画面と同じ幅に制限する
@@ -177,6 +236,25 @@ export default function Mypage() {
           </div>
         </Card>
       </section>
+
+      {/* ログアウトボタン */}
+      <div className="mt-8 space-y-3 border-t border-border pt-6">
+        {logoutError && (
+          <ErrorMessage id="logout-error">
+            {logoutError}
+          </ErrorMessage>
+        )}
+
+        <Button
+          type="button"
+          variant="secondary"
+          className="w-full"
+          onClick={handleLogout}
+          aria-describedby={logoutError ? "logout-error" : undefined}
+        >
+          ログアウト
+        </Button>
+      </div>
     </main>
   );
 }

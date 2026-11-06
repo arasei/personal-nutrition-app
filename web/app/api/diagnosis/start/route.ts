@@ -152,7 +152,20 @@ export async function POST(request: NextRequest) {
     // ここまで来た場合、ログイン中ユーザーであることが確定する
     // 以降、 user.id を使用可能
     const user = authResult.user;
-    // -------------------------------------------------------------------------------------------------
+    // ------------------------------------------------ユーザー種別判定-------------------------------------------------
+    // 検証済みユーザー情報から種別を判定する
+    const isMember = user.is_anonymous === false;
+    const isGuest = user.is_anonymous === true;
+
+    // ユーザー種別が不明なまま診断を作成しない
+    if (!isMember && !isGuest) {
+      const responseBody: StartDiagnosisResponse = {
+        success: false,
+        message: "ユーザー種別を確認できません。",
+      };
+
+      return NextResponse.json(responseBody, { status: 403 });
+    }
 
     // DiagnosisテーブルにDiagnosisを1件作成
     // - Diagnosis 作成時にログイン中ユーザーへ紐付ける
@@ -162,26 +175,42 @@ export async function POST(request: NextRequest) {
     // `user: { connectOrCreate: {...} }`
     // - ユーザーとの紐付けを担当している
     // - Prisma の User テーブルに、Supabase Auth の user.id と同じ User が存在するようにする
-    // - すでに、User テーブルに今回と同じ user.id の User が存在すれば、接続し、その User を使用する
-    // - まだ、User テーブル に 今回の user.id の User が存在しない場合は、User を作成する
+    // すでに、User テーブルに今回と同じ user.id の User が存在すれば、接続し、その User を使用する
+    // まだ、User テーブル に 今回の user.id の User が存在しない場合は、User を作成する
     // - Supabase Auth にはユーザーがいても、Prisma 側の User テーブルに存在しない場合を防ぐため
-    const diagnosis = await prisma.diagnosis.create({
-      data: {
-        currentStep: 1,
-        status: "IN_PROGRESS",
-        startedAt: new Date(),
 
-        user: {
-          connectOrCreate: {
-            where: { id: user.id },
-            create: { id: user.id },
+
+    // 診断作成 と ゲストの今回の診断ID更新を $transaction で一緒に実行し、確定させる
+    const diagnosis = await prisma.$transaction(async (tx) => {
+      // 新しい診断を、認証済みユーザー本人に紐づけて作成
+      const createdDiagnosis = await tx.diagnosis.create({
+        data: {
+          currentStep: 1,
+          status: "IN_PROGRESS",
+          startedAt: new Date(),
+
+          user: {
+            connectOrCreate: {
+              where: { id: user.id },
+              create: { id: user.id },
+            },
           },
         },
-      },
-      select: {
-        id: true,
-      },
+        select: { id: true },
+      });
+
+      // ゲストの場合だけ、結果閲覧を許可する診断IDを切り替える
+      if (isGuest) {
+        await tx.user.update({
+          where: { id: user.id },
+          data: { currentGuestDiagnosisId: createdDiagnosis.id },
+          select: { id: true },
+        });
+      }
+
+      return createdDiagnosis;
     });
+
 
     // 成功レスポンス
     // - 作成した diagnosisId をStartDiagnosisResponseの共通の型でStartButton.tsxに返す

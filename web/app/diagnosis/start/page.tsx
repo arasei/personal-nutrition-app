@@ -9,6 +9,7 @@
 // 役割
 // - 診断開始ページを表示
 // - 「診断を始める」ボタンを表示する
+// - 「ゲストで試す」ボタンを表示する
 
 
 
@@ -31,7 +32,7 @@
 
 
 
-import StartButton from "./StartButton";
+import DiagnosisStartActions from "./DiagnosisStartActions";
 import Card from "@/components/ui/Card";
 import LinkButton from "@/components/ui/LinkButton";
 
@@ -63,12 +64,8 @@ export default function DiagnosisStartPage() {
               栄養診断を開始する
             </h2>
 
-            <p className="mt-2 text-sm leading-6 text-muted">
-              ボタンを押すと質問1へ進みます。
-            </p>
-
             <div className="mt-4">
-              <StartButton />
+              <DiagnosisStartActions />
             </div>
           </Card>
         </section>

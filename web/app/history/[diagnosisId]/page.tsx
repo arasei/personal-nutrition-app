@@ -2,9 +2,9 @@
 
 
 // 全体の概要
-// - 履歴詳細を表示するページ
-// - ログイン中ユーザーの token と URL の [diagnosisId] を使い、履歴詳細API を呼び出し、
-// ログイン中ユーザー本人の 診断日・チャート・全栄養スコア一覧・満たせている上位3栄養素・不足傾向の下位3栄養素・前回差分 を表示するページ
+// - ログイン中ユーザー本人の診断履歴詳細を表示するページ
+// - ログイン中ユーザーの token と URL の [diagnosisId] を使い、履歴詳細API を呼び出す。
+// - 診断日・チャート・全栄養スコア一覧・満たせている上位3栄養素・不足傾向の下位3栄養素・前回差分 を表示するページ
 
 
 
@@ -28,6 +28,24 @@
 // - 満たせている上位栄養素
 // - 不足傾向の栄養素
 // - 前回との差分
+
+
+// 注意点
+// - このページは SWR ではなく、useEffect と useState で 履歴詳細取得、表示 に 必要なデータを管理する
+// - requestKey は 表示対象が正しいかを確認するために必要であり、サーバー側で認証の代わりとして使用するものではない。
+// - token や requestKey を画面・ログ へ出力しない
+// - このページでは APi側の認証・所有者確認・DB処理 は変更しない。
+
+
+
+// 古くなった取得結果への対策
+// - 取得結果と、その取得条件を表すrequestKey を一緒に保存する
+// - 現在の requestKey と一致する データ・エラー だけを表示する。
+// - 依存値([diagnosisId・token・isSessionLoading・requestKey]) の変更(データ取得条件) や 画面離脱 が行われた場合、
+// 古い取得処理・通信を無効にする
+// - 未ログイン時は履歴詳細を表示せず、ログインページへ遷移する。
+
+
 
 
 
@@ -213,11 +231,20 @@ import ErrorMessage from "@/components/ui/ErrorMessage";
 import Card from "@/components/ui/Card";
 
 
-// APIから取得した履歴詳細データの型を定義(成功時だけ使用する型)
+// APIから取得する 履歴詳細データの型 を定義
+// - 成功時に取得し、使用するデータの型
 type HistoryDetailSuccessResponse = Extract<
   GetDiagnosisHistoryDetailResponse,
   { success: true }
 >;
+
+// 指定した条件に対応する取得結果だけを表示するための 型を定義
+// - API から取得した履歴詳細データ と 取得条件を表すキー の組み合わせ
+type HistoryDetailState = {
+  key: string;
+  data: HistoryDetailSuccessResponse | null;
+  errorMessage: string;
+};
 
 
 // 履歴詳細ページのコンポーネントを定義
@@ -234,100 +261,201 @@ export default function HistoryDetailPage() {
     isLoading: isSessionLoading,
   } = useSupabaseSession();
 
-  // APIから取得した履歴詳細データを保存するstate
-  // 最初はまだ取得していないので null
-  const [historyDetail, setHistoryDetail] = useState<HistoryDetailSuccessResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
 
+
+  // 履歴詳細データ の取得条件を定義
+  // - 同じ診断IDでも、token が変われば別の取得として扱う
+  // - token や 診断ID が変わった時点で、それ以前の結果は表示対象から外れる
+  // 成功データだけでなく以前のエラーメッセージも引き継がないし、表示対象から外れる
+  const requestKey = token && diagnosisId ? JSON.stringify([diagnosisId, token]) : null;
+
+  // APIから取得した 指定した表示条件にあてはまる履歴詳細データ を保存するstate
+  // - 最初はまだ取得していないので null
+  const [resultState,setResultState] = useState<HistoryDetailState | null>(null);
+
+  // 現在の取得条件(requestKey)と一致する結果だけ表示対象とする
+  // - 過去の条件で取得したデータ・エラーは使用しない
+
+  // resultState.key
+  // - 現在、保存されている取得結果に対して指定した取得条件 のキー
+  // - 現在の requestKey と一致する場合だけ取得した履歴詳細データを表示対象にする
+  const currentResult = requestKey && resultState?.key === requestKey ? resultState : null;
+
+  const historyDetail = currentResult?.data ?? null;
+
+  // URL の不正を優先し、次に現在の取得条件のエラー表示する
+  const errorMessage = !diagnosisId ? "診断IDがありません" : currentResult?.errorMessage ?? "";
+
+  // 読み込み中表示
+  // - 取得条件は揃っているが、現在の条件に対応する成功・失敗の結果がまだない場合の表示。
+  const isLoading = requestKey !== null && currentResult === null;
+
+
+
+
+
+  // 履歴詳細を表示する
+  // - diagnosisId・token・isSessionLoading・requestKey が変わった時、現在の条件で
+  // API取得を実行し、履歴詳細データを取得し、表示する
   useEffect(() => {
+     // 以下の場合、API を呼ばず処理中止。履歴詳細を表示しない。
+    // - Supabase がログイン状態を確認中(isSessionLoading)
+    // - token がないため未ログイン(!token)
+    // - 診断ID が存在しない、確認できない(!diagnosisId)
+    // - 指定した取得条件にあてはまらず、requestKey が作られていない(!requestKey)
+    if (isSessionLoading || !token || !diagnosisId || !requestKey) {
+      return;
+    }
+
+    // 不要な通信の中止を管理するオブジェクトを作る処理
+    const controller = new AbortController();
+
+    // この useEffect 内で開始した取得処理が、現在も有効かの状態 を管理する
+    // - 古い処理による state更新を止めるため
+    // - 最初は 有効状態(true)
+    let isActive = true;
+
     const fetchHistoryDetail = async () => {
-      // Supabase のログイン確認中は、まだAPIを呼ばない
-      if (isSessionLoading) {
-        return;
-      }
-
-      // token が無い場合、未ログイン扱い のエラー処理
-      if (!token) {
-        setErrorMessage("ログインが必要です");
-        setIsLoading(false);
-        router.replace("/login");
-        return;
-      }
-
-      // diagnosisId が無い場合のエラー処理
-      if (!diagnosisId) {
-        setErrorMessage("診断IDがありません");
-        setIsLoading(false);
-        return;
-      }
-
       try {
-        // 新しいIDで取得し直すときにもう一度読み込み中にする
-        setIsLoading(true);
-        // 前回のエラー表示を必ず消す
-        setErrorMessage("");
-        // 前回表示していた診断詳細を必ず消す
-        setHistoryDetail(null);
-
-        // token付きで履歴詳細APIを呼ぶ
+        // token付きで履歴詳細API(web/app/api/diagnosis/history/[diagnosisId]/route.ts)を呼ぶ
         // - フロント側(web/app/history/[diagnosisId]/page.tsx) が
         // GET /api/diagnosis/history/${diagnosisId} で Authorization ヘッダー に Bearer token 付きで、
         // API側(web/app/api/diagnosis/history/[diagnosisId]/route.ts) に送り、呼び出す。
         // - API側で Authorizationヘッダーからtokenを検証し取得した diagnosisId + userId で本人の診断だけ確認し、取得する為の構成
         // そして、フロントに 本人の履歴詳細データだけを返す
-        const response = await fetch(`/api/diagnosis/history/${diagnosisId}`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
+        const response = await fetch(`/api/diagnosis/history/${encodeURIComponent(diagnosisId)}`,
+          {
+            method: "GET",
+            headers: {Authorization: `Bearer ${token}`},
+            cache: "no-store",
+            // ブラウザ側で、このfetchに中止通知を受け取らせるための設定
+            // - API側の検索条件や認証条件ではない
+            // - 中止を指示する側(controller) と その通知を受け取る通信(fetch) を結びつける
+            signal: controller.signal,
           },
-          cache: "no-store",
-        });
+        );
 
         // APIから返ってきたJSONを読み取る
         const responseData: GetDiagnosisHistoryDetailResponse = await response.json();
 
-        // HTTP処理がエラーの場合
-        // - エラー時の data の形は { success: false, message: "エラーメッセージ" } なので、ApiErrorResponse 型として扱い、エラーmessage を表示する 
-        if (!response.ok) {
-          const errorData = responseData as ApiErrorResponse;
-          setErrorMessage(errorData.message ?? "履歴詳細の取得に失敗しました");
+        // 履歴詳細データ取得が不要の状態の場合(認証変更・診断ID変更・画面離脱)は、結果を採用しない。
+        // - 古い認証状態・診断・質問に対する結果は採用しない。
+        if (!isActive) {
           return;
         }
-        
 
         // API処理がエラーの場合の処理
+        // - success: false を確認すると、エラーレスポンス型に絞り込まれる。
+        // - JSON全体の形式を検証する仕組みではない。
+        // response.json() に型を付けるだけで、すべての項目が実行時に保証されるわけではない
+
         if (!responseData.success) {
-          setErrorMessage(responseData.message ?? "履歴詳細の取得に失敗しました");
+          const errorData: ApiErrorResponse = responseData;
+
+          throw new Error(
+            errorData.message ?? "履歴詳細の取得に失敗しました",
+          );
+        }
+
+        // HTTP処理がエラーの場合の処理
+        if (!response.ok) {
+          throw new Error("履歴詳細の取得に失敗しました")
+        }
+
+        // API処理(responseData.success) と HTTP処理 の成功を確認済みなので setResultState の data: には成功データ(responseData)だけ入る
+        // - 取得成功した 履歴詳細データ を 指定した取得条件(requestKey) と一緒に保存する
+        setResultState({
+          key: requestKey,
+          data: responseData,
+          errorMessage: "",
+        });
+      } catch (error) {
+        // 認証変更・診断ID変更・画面離脱 により 履歴詳細データ取得 が不要になった場合の、
+        // 古い処理のエラー や 通信中止についてのエラーは 画面に表示しない。
+        if (!isActive || controller.signal.aborted) {
           return;
         }
 
-        // responseData.success を確認しているので setHistoryDetail(responseData) には成功データだけ入る
-        setHistoryDetail(responseData);
-      } catch (error) {
-        console.error("履歴詳細取得中にエラーが発生しました:", error);
-        setErrorMessage(
-          "履歴詳細の取得中にエラーが発生しました。時間をおいて再度お試しください。",
-        );
-      } finally {
-        setIsLoading(false);
+        setResultState({
+          key: requestKey,
+          data: null,
+          errorMessage: error instanceof Error ? error.message : "履歴詳細の取得に失敗しました"
+        });
       }
     };
 
-    fetchHistoryDetail();
-  }, [diagnosisId, token, isSessionLoading, router]);
+    // 関数 fetchHistoryDetail() を実行
+    // - 実行した関数が返す値(Promise)をここでは使用しない
+    // - fetchHistoryDetail は async関数なので、呼び出すとPromise を返す
+    // - 取得結果は関数の戻り値から受け取らず、関数内の setResultState() で保存しています。
+    // そのため、呼び出し元では戻り値を使わない。
 
-  // ログイン状態確認中 or 履歴詳細取得中 の場合の表示
+    // void
+    // - void は式を評価し、その式全体の値を undefined にします。
+
+    // void は、以下の処理は行わない。
+    // - エラーを処理する。
+    // - 通信を中止する。
+    // - 処理が終わるまで待つ。
+    // - 非同期関数の実行を省略する。
+    void fetchHistoryDetail();
+
+
+    // 条件変更による再実行前 または 画面離脱時 に古い取得を無効にする
+    // - 以下の return () => {...} は、依存値の変更による再実行前、または画面離脱時に実行する
+    // - 診断結果詳細のデータ取得 の通信が不要になるため中止する
+    // 通信の成功・失敗だけを理由に実行する処理ではない
+    // - 依存値(データの 取得が完了 or 取得失敗 or 取得中にページ遷移 or 取得中にページを閉じた など)の変更による履歴詳細データ取得再実行前、アンマウント時に古いデータ取得・通信処理 無効処理
+    // - 古い処理による state 更新を防ぎ、通信中なら中止する
+    // - 通信の成功・失敗だけを理由に実行される処理ではない
+    return () => {
+
+      // 古い処理が、画面の state を更新しないようにする
+      isActive = false;
+
+      // まだ通信中なら不要になるため通信を中止する
+      // - 対応する fetch や レスポンス本文の読み取りを中止できる
+      // - signal を fetch へ渡さなければ、そのcontroller でこの fetch を中止できない
+      controller.abort();
+
+    };
+  }, [diagnosisId, token, isSessionLoading, requestKey]);
+
+
+  // 認証確認完了後、未ログインの場合の処理
+  // - 未ログインの場合の遷移は、履歴詳細データ取得とは分けて行う
+  useEffect(() => {
+    // 認証確認後、未ログインならログインページへ遷移する
+    if (!isSessionLoading && !token) {
+      router.replace("/login");
+    }
+  }, [isSessionLoading, token, router]);
+
+  // ログイン状態確認中 or 未ログイン or 履歴詳細取得中 の場合の表示
+
   // isSessionLoading
   // - Supabase認証確認中
-  // isLoading
-  // - 履歴詳細API取得中
-  if (isSessionLoading || isLoading) {
+  if (isSessionLoading) {
     return <PageLoading />;
   }
 
-  // API取得エラー の場合のエラーメッセージ表示
-  if (errorMessage) {
+  // !token
+  // - 未ログイン
+  // - ページ遷移完了するまでの間、履歴詳細を表示しない
+  if (!token) {
+    return (
+      <PageLoading message="ログインページへ移動しています..." />
+    );
+  }
+
+  // isLoading
+  // - 履歴詳細API取得中
+  if (isLoading) {
+    return <PageLoading />
+  }
+
+  // API取得エラー・診断ID不足・データなし の場合のエラーメッセージ表示
+  if (errorMessage || !historyDetail) {
     return (
       <main className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8 sm:px-6 sm:py-10">
         <header>
@@ -341,7 +469,7 @@ export default function HistoryDetailPage() {
         </header>
 
         <ErrorMessage>
-          {errorMessage}
+          {errorMessage || "履歴詳細が見つかりません。"}
         </ErrorMessage>
 
         {/* API 処理ではなく、行き先が固定された通常のページ移動のため、<LinkButton></LinkButton> で遷移する */}
@@ -354,33 +482,6 @@ export default function HistoryDetailPage() {
     );
   }
 
-  // API取得完了後、履歴詳細データが存在しない場合のエラーメッセージ表示
-  if (!historyDetail) {
-    return (
-      <main className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8 sm:px-6 sm:py-10">
-        <header>
-          <p className="text-sm font-medium text-muted">
-            診断履歴
-          </p>
-
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            履歴詳細
-          </h1>
-        </header>
-
-        <ErrorMessage>
-          履歴詳細が見つかりません。
-        </ErrorMessage>
-
-        {/* API 処理ではなく、行き先が固定された通常のページ移動のため、<LinkButton></LinkButton> で履歴一覧ページへ遷移する */}
-        <nav aria-label="履歴詳細エラー時の移動">
-          <LinkButton href="/history" variant="text">
-            履歴一覧へ戻る
-          </LinkButton>
-        </nav>
-      </main>
-    );
-  }
   
   // APIから来るデータ(nutrientScores)をチャート用のデータ形(ranking 形式)に変換
   // - nutrientId はそのまま SafeRadarChart に渡す。
@@ -426,7 +527,7 @@ export default function HistoryDetailPage() {
           診断日
         </p>
 
-        {/* API側から toISOString() で文字列で返ってくるので new Date(...) で日付表示に変換 */}
+        {/* API側から toISOString() で文字列で返ってくるので new Date(...) で日本語の日付表示に変換 */}
         {/*
           time を使う理由
           - 画面には日本語の日付を表示しつつ、HTML上では「これは日時を表している」と伝えられる。
